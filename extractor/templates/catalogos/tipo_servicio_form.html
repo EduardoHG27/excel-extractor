@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if tipo %}Editar{% else %}Nuevo{% endif %} Tipos de prueba</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>{% if tipo %}Editar Tipo de Servicio{% else %}Nuevo Tipo de Servicio{% endif %}</h1>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre del Servicio *</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" 
+                               value="{{ tipo.nombre|default:'' }}" 
+                               placeholder="Ej: Desarrollo Web, Consultoría, Soporte Técnico" 
+                               required>
+                        <div class="form-text">Ingrese el nombre completo del tipo de servicio</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nomenclatura" class="form-label">Nomenclatura *</label>
+                        <input type="text" class="form-control" id="nomenclatura" name="nomenclatura" 
+                               value="{{ tipo.nomenclatura|default:'' }}" 
+                               placeholder="Ej: DEV, QA, PROD, CONSULT"
+                               maxlength="10" style="text-transform: uppercase;" required>
+                        <div class="form-text">Máximo 10 caracteres. Se guardará en mayúsculas</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="activo" name="activo" 
+                               {% if tipo.activo or not tipo %}checked{% endif %}>
+                        <label class="form-check-label" for="activo">Activo</label>
+                        <div class="form-text">Los tipos de servicio inactivos no estarán disponibles para seleccionar</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                {% if tipo %}Actualizar{% else %}Crear{% endif %}
+                            </button>
+                            <a href="{% url 'tipo_servicio_list' %}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                        <div>
+                            <a href="{% url 'clientes_list' %}" class="btn btn-outline-info">Ver Clientes</a>
+                            <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">Volver al Inicio</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <h5>Instrucciones:</h5>
+            <ul>
+                <li>La <strong>nomenclatura</strong> debe ser única y se usará como identificador abreviado</li>
+                <li>El <strong>nombre</strong> debe ser descriptivo para identificar fácilmente el tipo de servicio</li>
+                <li>Marca como <strong>inactivo</strong> si no quieres que este tipo de servicio esté disponible para seleccionar</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Convertir a mayúsculas automáticamente
+        document.getElementById('nomenclatura').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>

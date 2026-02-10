@@ -1,0 +1,71 @@
+<!-- extractor/templates/extractor/upload.html -->
+{% extends 'extractor/base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📤 Cargar Archivo Excel</h1>
+    <p>Sube un archivo Excel para extraer automáticamente los datos</p>
+</div>
+
+<div class="upload-instructions">
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 15px;">📋 Instrucciones:</h3>
+        <ul style="margin-left: 20px;">
+            <li>El archivo debe estar en formato Excel (.xlsx, .xls)</li>
+            <li>Debe contener una hoja llamada "Solicitud de Pruebas V4"</li>
+            <li>Los datos se extraerán automáticamente según las reglas configuradas</li>
+        </ul>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" style="margin-top: 20px;">
+    {% csrf_token %}
+    
+        <div style="margin-bottom: 25px;">
+        <label for="tipo_servicio" style="display: block; margin-bottom: 10px; font-weight: bold; color: #2c3e50;">
+            Tipo de Servicio:
+        </label>
+        <select name="tipo_servicio" id="tipo_servicio" 
+                style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+            <option value="">Seleccionar tipo de servicio</option>
+            <option value="PRU">Pruebas</option>
+            <option value="EST">Estimación</option>
+            <option value="G&A">Gestión y administración</option>
+        </select>
+        <p style="margin-top: 5px; color: #7f8c8d; font-size: 0.9rem;">
+            PRU: Pruebas | EST: Estimación | G&A: Gestión y administración
+        </p>
+    </div>
+
+
+    <div style="margin-bottom: 25px;">
+        <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold; color: #2c3e50;">
+            Seleccionar archivo Excel:
+        </label>
+        <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" 
+               style="padding: 10px; border: 2px dashed #3498db; border-radius: 5px; width: 100%; cursor: pointer;">
+        <p style="margin-top: 5px; color: #7f8c8d; font-size: 0.9rem;">
+            Formatos aceptados: .xlsx, .xls
+        </p>
+    </div>
+    
+    <button type="submit" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
+        📤 Subir y Extraer Datos
+    </button>
+    
+    <div style="margin-top: 20px;">
+        <a href="{% url 'data_list' %}" class="btn btn-secondary">Ver datos extraídos</a>
+    </div>
+</form>
+
+{% if messages %}
+<div style="margin-top: 30px;">
+    {% for message in messages %}
+    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-top: 10px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

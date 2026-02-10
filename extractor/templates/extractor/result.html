@@ -1,0 +1,355 @@
+{% extends 'extractor/base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1>✅ Datos Extraídos Correctamente</h1>
+    <p>Los datos han sido guardados en la base de datos</p>
+</div>
+
+<div class="alert success" style="margin-bottom: 30px;">
+    <strong>¡Éxito!</strong> El archivo Excel ha sido procesado correctamente y los datos han sido guardados.
+</div>
+
+<!-- Sección de Ticket Generado -->
+<div style="background-color: #e8f5e8; padding: 25px; border-radius: 5px; margin-bottom: 30px; border: 2px solid #27ae60;">
+    <h2 style="color: #27ae60; margin-bottom: 20px; border-bottom: 2px solid #27ae60; padding-bottom: 10px;">
+        🎫 Ticket Generado
+    </h2>
+    
+    <div style="background-color: white; padding: 20px; border-radius: 5px; border: 1px solid #ddd;">
+        <!-- Código del Ticket - Destacado -->
+        <div style="text-align: center; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px;">
+            <h3 style="color: white; margin-bottom: 10px; font-size: 1.1rem;">CÓDIGO DEL TICKET</h3>
+            <div id="ticket-code" style="font-family: 'Courier New', monospace; font-size: 1.8rem; font-weight: bold; color: white; letter-spacing: 2px; padding: 15px; background-color: rgba(0,0,0,0.2); border-radius: 5px; margin: 10px 0;">
+                {{ ticket_code|default:"BID-PRU-F&REG-10-TEL-OTR-001" }}
+            </div>
+            <button onclick="copiarTicketCode()" style="background-color: white; color: #764ba2; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;">
+                📋 Copiar Código
+            </button>
+        </div>
+        
+        <!-- Información del Ticket -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div class="ticket-field">
+                <strong>Tipo de Servicio:</strong>
+                <span>{{ data.tipo_servicio|default:"No especificado" }}</span>
+            </div>
+            
+            <div class="ticket-field">
+                <strong>Cliente:</strong>
+                <span>{{ data.cliente|default:"No especificado" }}</span>
+            </div>
+            
+            <div class="ticket-field">
+                <strong>Proyecto:</strong>
+                <span>{{ data.proyecto|default:"No especificado" }}</span>
+            </div>
+            
+            <div class="ticket-field">
+                <strong>Fecha de Creación:</strong>
+                <span>{{ data.extracted_date|date:"d/m/Y H:i"|default:"No especificado" }}</span>
+            </div>
+            
+            <div class="ticket-field">
+                <strong>Solicitante:</strong>
+                <span>{{ data.responsable_solicitud|default:"No especificado" }}</span>
+            </div>
+            
+            <div class="ticket-field">
+                <strong>Líder del Proyecto:</strong>
+                <span>{{ data.lider_proyecto|default:"No especificado" }}</span>
+            </div>
+        </div>
+        
+        <!-- Desglose del Código del Ticket -->
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border-left: 4px solid #3498db;">
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">🔍 Desglose del Código del Ticket</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
+                <div style="text-align: center;">
+                    <div style="background-color: #e74c3c; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">BID</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Empresa</div>
+                </div>
+                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
+                <div style="text-align: center;">
+                    <div style="background-color: #3498db; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.1|default:"PRU" }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Tipo Servicio</div>
+                </div>
+                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
+                <div style="text-align: center;">
+                    <div style="background-color: #2ecc71; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.2|default:"F&REG" }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Área/Función</div>
+                </div>
+                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
+                <div style="text-align: center;">
+                    <div style="background-color: #f39c12; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.3|default:"10" }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Versión</div>
+                </div>
+                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
+                <div style="text-align: center;">
+                    <div style="background-color: #9b59b6; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.4|default:"TEL" }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Cliente</div>
+                </div>
+                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
+                <div style="text-align: center;">
+                    <div style="background-color: #1abc9c; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.5|default:"OTR" }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Tipo Aplicación</div>
+                </div>
+                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
+                <div style="text-align: center;">
+                    <div style="background-color: #34495e; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.6|default:"001" }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 3px;">Consecutivo</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información de Referencia -->
+        <div style="margin-top: 20px; padding: 15px; background-color: #fff8e1; border-radius: 5px; border: 1px dashed #ffb300;">
+            <h4 style="color: #f57c00; margin-bottom: 10px;">📝 Información de Referencia</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <strong>Código Completo:</strong>
+                    <div style="font-family: monospace; background-color: #fff; padding: 8px; border-radius: 3px; margin-top: 5px;">
+                        {{ ticket_code|default:"BID-PRU-F&REG-10-TEL-OTR-001" }}
+                    </div>
+                </div>
+                <div>
+                    <strong>Para uso interno:</strong>
+                    <div style="background-color: #fff; padding: 8px; border-radius: 3px; margin-top: 5px;">
+                        Proyecto: {{ data.proyecto|default:"N/A" }}<br>
+                        Fecha: {{ data.extracted_date|date:"Y-m-d"|default:"N/A" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Botones de Acción -->
+        <div style="margin-top: 25px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+            <button onclick="imprimirTicket()" class="btn" style="background-color: #3498db; color: white; padding: 10px 20px;">
+                🖨️ Imprimir Ticket
+            </button>
+            <button onclick="descargarPDF()" class="btn" style="background-color: #e74c3c; color: white; padding: 10px 20px;">
+                📄 Descargar PDF
+            </button>
+            <button onclick="enviarPorEmail()" class="btn" style="background-color: #2ecc71; color: white; padding: 10px 20px;">
+                📧 Enviar por Email
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Sección original de Datos Extraídos (mantenida) -->
+<div style="background-color: #f8f9fa; padding: 25px; border-radius: 5px; margin-bottom: 30px;">
+    <h2 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+        📋 Datos Extraídos Completos
+    </h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    <div class="data-field">
+            <strong>Cliente (ID: {{ data.cliente|default:"N/A" }}):</strong>
+            <p>
+                {% if objetos_encontrados.cliente_obj %}
+                    {{ objetos_encontrados.cliente_obj.nombre|default:"No especificado" }}
+                {% else %}
+                    ID {{ data.cliente|default:"N/A" }} no encontrado en catálogo
+                {% endif %}
+            </p>
+            {% if nomenclaturas.cliente_nomenclatura %}
+            <div style="margin-top: 8px; padding: 5px 10px; background-color: #e3f2fd; border-radius: 4px; border-left: 3px solid #2196f3; font-size: 0.9rem;">
+                <strong>Nomenclatura:</strong> 
+                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #1565c0;">
+                    {{ nomenclaturas.cliente_nomenclatura }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Proyecto con ID y Nomenclatura -->
+        <div class="data-field">
+            <strong>Proyecto (ID: {{ data.proyecto|default:"N/A" }}):</strong>
+            <p>
+                {% if objetos_encontrados.proyecto_obj %}
+                    {{ objetos_encontrados.proyecto_obj.nombre|default:"No especificado" }}
+                {% else %}
+                    ID {{ data.proyecto|default:"N/A" }} no encontrado en catálogo
+                {% endif %}
+            </p>
+            {% if nomenclaturas.proyecto_nomenclatura %}
+            <div style="margin-top: 8px; padding: 5px 10px; background-color: #e8f5e8; border-radius: 4px; border-left: 3px solid #4caf50; font-size: 0.9rem;">
+                <strong>Nomenclatura:</strong> 
+                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #2e7d32;">
+                    {{ nomenclaturas.proyecto_nomenclatura }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Tipo de Pruebas con ID y Nomenclatura -->
+        <div class="data-field">
+            <strong>Tipo de Pruebas (ID: {{ data.tipo_pruebas|default:"N/A" }}):</strong>
+            <p>
+                {% if objetos_encontrados.tipo_servicio_obj %}
+                    {{ objetos_encontrados.tipo_servicio_obj.nombre|default:"No especificado" }}
+                {% else %}
+                    ID {{ data.tipo_pruebas|default:"N/A" }} no encontrado en catálogo
+                {% endif %}
+            </p>
+            {% if nomenclaturas.tipo_pruebas_nomenclatura %}
+            <div style="margin-top: 8px; padding: 5px 10px; background-color: #fff3e0; border-radius: 4px; border-left: 3px solid #ff9800; font-size: 0.9rem;">
+                <strong>Nomenclatura:</strong> 
+                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #ef6c00;">
+                    {{ nomenclaturas.tipo_pruebas_nomenclatura }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="data-field">
+            <strong>Responsable de Solicitud:</strong>
+            <p>{{ data.responsable_solicitud|default:"No especificado" }}</p>
+        </div>
+        
+        <div class="data-field">
+            <strong>Líder del Proyecto:</strong>
+            <p>{{ data.lider_proyecto|default:"No especificado" }}</p>
+        </div>
+        
+        <!-- Tipo de Servicio (actualizado desde "Tipo de Aplicación") -->
+        <div class="data-field">
+            <strong>Tipo de Servicio:</strong>
+            <p>
+                {% if data.tipo_servicio %}
+                    {% if data.tipo_servicio == "PRU" %}
+                        Pruebas
+                    {% elif data.tipo_servicio == "EST" %}
+                        Estimación
+                    {% elif data.tipo_servicio == "G&A" %}
+                        Gestión y administración
+                    {% else %}
+                        {{ data.tipo_servicio|default:"No especificado" }}
+                    {% endif %}
+                {% else %}
+                    No especificado
+                {% endif %}
+            </p>
+            {% if data.tipo_servicio %}
+            <div style="margin-top: 8px; padding: 5px 10px; background-color: #f0f4ff; border-radius: 4px; border-left: 3px solid #4a6bff; font-size: 0.9rem;">
+                <strong>Nomenclatura:</strong> 
+                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #2d3a8c;">
+                    {{ data.tipo_servicio }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="data-field">
+            <strong>Número de Versión:</strong>
+            <p>{{ data.numero_version|default:"No especificado" }}</p>
+        </div>
+        
+        {% if data.funcionalidad_liberacion %}
+        <div class="data-field" style="grid-column: 1 / -1;">
+            <strong>Funcionalidad de la Liberación:</strong>
+            <div style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #3498db; margin-top: 5px;">
+                {{ data.funcionalidad_liberacion|linebreaks }}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if data.detalle_cambios %}
+        <div class="data-field" style="grid-column: 1 / -1;">
+            <strong>Detalle de los Cambios:</strong>
+            <div style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #2ecc71; margin-top: 5px;">
+                {{ data.detalle_cambios|linebreaks }}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if data.justificacion_cambio %}
+        <div class="data-field" style="grid-column: 1 / -1;">
+            <strong>Justificación del Cambio:</strong>
+            <div style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #e74c3c; margin-top: 5px;">
+                {{ data.justificacion_cambio|linebreaks }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div style="margin-top: 25px; color: #7f8c8d; font-size: 0.9rem;">
+        <p><strong>Fecha de extracción:</strong> {{ data.extracted_date|date:"d/m/Y H:i" }}</p>
+    </div>
+</div>
+
+<div style="margin-top: 30px; display: flex; gap: 15px; flex-wrap: wrap;">
+    <a href="{% url 'upload_excel' %}" class="btn">📤 Subir otro archivo</a>
+    <a href="{% url 'data_list' %}" class="btn btn-secondary">📋 Ver todos los datos</a>
+</div>
+
+<style>
+    .data-field, .ticket-field {
+        margin-bottom: 15px;
+    }
+    
+    .data-field strong, .ticket-field strong {
+        display: block;
+        color: #2c3e50;
+        margin-bottom: 5px;
+        font-size: 0.95rem;
+    }
+    
+    .data-field p {
+        background-color: white;
+        padding: 12px;
+        border-radius: 4px;
+        border: 1px solid #eee;
+        margin: 0;
+        min-height: 45px;
+    }
+    
+    .ticket-field span {
+        display: block;
+        background-color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        border: 1px solid #eee;
+        margin-top: 5px;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+</style>
+
+<script>
+    function copiarTicketCode() {
+        const ticketCode = document.getElementById('ticket-code').textContent.trim();
+        
+        navigator.clipboard.writeText(ticketCode)
+            .then(() => {
+                alert('Código del ticket copiado al portapapeles:\n' + ticketCode);
+            })
+            .catch(err => {
+                console.error('Error al copiar: ', err);
+                alert('Error al copiar el código del ticket');
+            });
+    }
+    
+    function imprimirTicket() {
+        // Aquí puedes implementar la lógica de impresión del ticket
+        alert('Función de impresión del ticket. Se imprimirá: ' + document.getElementById('ticket-code').textContent);
+    }
+    
+    function descargarPDF() {
+        alert('Función de descarga de PDF. Implementa la lógica necesaria aquí.');
+    }
+    
+    function enviarPorEmail() {
+        alert('Función de envío por email. Implementa la lógica necesaria aquí.');
+    }
+</script>
+{% endblock %}
+[file content end]
