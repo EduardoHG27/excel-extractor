@@ -1,3 +1,0 @@
-﻿[environments]
-  [environments.build]
-  PYTHON_VERSION = "3.11"
