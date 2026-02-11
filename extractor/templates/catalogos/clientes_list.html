@@ -12,7 +12,7 @@
             <h1>📋 Catálogo de Clientes</h1>
             <div>
                 <a href="{% url 'cliente_create' %}" class="btn btn-primary">➕ Nuevo Cliente</a>
-                <a href="{% url 'tipo_servicio_list' %}" class="btn btn-outline-info">Ver Tipos de Servicio</a>
+                <a href="{% url 'tipo_servicio_list' %}" class="btn btn-outline-info">Ver Tipos de Pruebas</a>
                 <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">Volver al Inicio</a>
             </div>
         </div>
@@ -31,11 +31,11 @@
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nomenclatura</th>
-                            <th>Nombre</th>
-                            <th>Estado</th>
-                            <th>Fecha Creación</th>
+                             <th class="sortable" data-sort="id">ID</th>
+                            <th class="sortable" data-sort="nomenclatura">Nomenclatura</th>
+                            <th class="sortable" data-sort="nombre">Nombre</th>
+                            <th class="sortable" data-sort="activo">Estado</th>
+                            <th class="sortable" data-sort="fecha_creacion">Fecha Creación</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -107,5 +107,6 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
 </body>
 </html>

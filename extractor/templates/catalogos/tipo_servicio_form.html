@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1>{% if tipo %}Editar Tipo de Servicio{% else %}Nuevo Tipo de Servicio{% endif %}</h1>
+        <h1>{% if tipo %}Editar Tipo de pruebas{% else %}Nuevo Tipo de pruebas{% endif %}</h1>
         
         {% if messages %}
             {% for message in messages %}
@@ -30,7 +30,7 @@
                                value="{{ tipo.nombre|default:'' }}" 
                                placeholder="Ej: Desarrollo Web, Consultoría, Soporte Técnico" 
                                required>
-                        <div class="form-text">Ingrese el nombre completo del tipo de servicio</div>
+                        <div class="form-text">Ingrese el nombre completo del Tipo de pruebas</div>
                     </div>
                     
                     <div class="mb-3">
@@ -69,8 +69,8 @@
             <h5>Instrucciones:</h5>
             <ul>
                 <li>La <strong>nomenclatura</strong> debe ser única y se usará como identificador abreviado</li>
-                <li>El <strong>nombre</strong> debe ser descriptivo para identificar fácilmente el tipo de servicio</li>
-                <li>Marca como <strong>inactivo</strong> si no quieres que este tipo de servicio esté disponible para seleccionar</li>
+                <li>El <strong>nombre</strong> debe ser descriptivo para identificar fácilmente el Tipo de pruebas</li>
+                <li>Marca como <strong>inactivo</strong> si no quieres que este Tipo de pruebas esté disponible para seleccionar</li>
             </ul>
         </div>
     </div>
