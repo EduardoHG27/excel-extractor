@@ -22,7 +22,6 @@ urlpatterns = [
     path('catalogos/tipo-servicio/editar/<int:id>/', views.tipo_servicio_edit, name='tipo_servicio_edit'),
     path('catalogos/tipo-servicio/eliminar/<int:id>/', views.tipo_servicio_delete, name='tipo_servicio_delete'),
 
-    path('tickets/', views.tickets_list, name='tickets_list'),
-    path('tickets/ver/<int:id>/', views.ticket_detail, name='ticket_detail'),
-    path('tickets/cambiar-estado/<int:id>/', views.ticket_cambiar_estado, name='ticket_cambiar_estado'),
+    path('catalogos/tickets/', views.ticket_list, name='ticket_list'),
+    path('catalogos/tickets/<int:id>/', views.ticket_detail, name='ticket_detail'),
 ]

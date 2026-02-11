@@ -1,12 +1,18 @@
 import os
+import traceback
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
+from django.db.models import Q, Count
 from django.contrib import messages
+from django.urls import reverse_lazy, reverse
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import ExcelData, Cliente ,TipoServicio, Proyecto, Ticket
-from django.http import JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.db import models
 import pandas as pd
+import json
 
 def extract_excel_data(file_path):
     """
@@ -262,8 +268,7 @@ def upload_excel(request):
                 extracted_data=extracted_data,
                 tipo_servicio_form=tipo_servicio_form,
                 nomenclaturas=nomenclaturas,
-                objetos_encontrados=objetos_encontrados
-                )
+                objetos_encontrados=objetos_encontrados)
 
             ticket_parts = generate_ticket_parts(ticket_code)
 
@@ -335,78 +340,6 @@ def upload_excel(request):
     return render(request, 'extractor/upload.html')
 
 
-# Añade esta función en views.py
-def tickets_list(request):
-    """Lista todos los tickets generados"""
-    tickets = Ticket.objects.all().order_by('-fecha_creacion')
-    
-    # Filtros opcionales
-    estado_filter = request.GET.get('estado', '')
-    if estado_filter:
-        tickets = tickets.filter(estado=estado_filter)
-    
-    fecha_desde = request.GET.get('fecha_desde', '')
-    fecha_hasta = request.GET.get('fecha_hasta', '')
-    
-    if fecha_desde:
-        tickets = tickets.filter(fecha_creacion__date__gte=fecha_desde)
-    if fecha_hasta:
-        tickets = tickets.filter(fecha_creacion__date__lte=fecha_hasta)
-    
-    return render(request, 'extractor/tickets_list.html', {
-        'tickets': tickets,
-        'estados': Ticket.ESTADOS_TICKET
-    })
-
-def ticket_cambiar_estado(request, id):
-    """Permite cambiar el estado de un ticket"""
-    ticket = get_object_or_404(Ticket, id=id)
-    
-    if request.method == 'POST':
-        nuevo_estado = request.POST.get('nuevo_estado')
-        
-        if nuevo_estado in [estado[0] for estado in Ticket.ESTADOS_TICKET]:
-            ticket.estado = nuevo_estado
-            ticket.save()
-            messages.success(request, f'Estado del ticket actualizado a: {ticket.get_estado_display()}')
-        else:
-            messages.error(request, 'Estado no válido')
-    
-    return redirect('ticket_detail', id=id)
-
-def ticket_detail(request, id):
-    """Muestra el detalle completo de un ticket específico"""
-    ticket = get_object_or_404(Ticket, id=id)
-    
-    # Obtener todas las partes del código del ticket
-    partes_ticket = ticket.get_detalle_partes()
-    
-    # Verificar si hay datos de Excel vinculados
-    datos_excel = None
-    if ticket.excel_data:
-        datos_excel = {
-            'cliente': ticket.excel_data.cliente,
-            'proyecto': ticket.excel_data.proyecto,
-            'tipo_pruebas': ticket.excel_data.tipo_pruebas,
-            'tipo_servicio': ticket.excel_data.tipo_servicio,
-            'responsable_solicitud': ticket.excel_data.responsable_solicitud,
-            'lider_proyecto': ticket.excel_data.lider_proyecto,
-            'tipo_aplicacion': ticket.excel_data.tipo_aplicacion,
-            'numero_version': ticket.excel_data.numero_version,
-            'funcionalidad_liberacion': ticket.excel_data.funcionalidad_liberacion,
-            'detalle_cambios': ticket.excel_data.detalle_cambios,
-            'justificacion_cambio': ticket.excel_data.justificacion_cambio,
-            'extracted_date': ticket.excel_data.extracted_date,
-        }
-    
-    context = {
-        'ticket': ticket,
-        'partes_ticket': partes_ticket,
-        'datos_excel': datos_excel,
-        'estados': Ticket.ESTADOS_TICKET,
-    }
-    
-    return render(request, 'extractor/ticket_detail.html', context)
 
 # Añade esta función para generar el código del ticket
 def generate_ticket_code(extracted_data, tipo_servicio):
@@ -430,9 +363,61 @@ def data_list(request):
     return render(request, 'extractor/list.html', {'data_list': data})
 
 def clientes_list(request):
-    """Lista todos los clientes"""
-    clientes = Cliente.objects.all().order_by('nombre')
-    return render(request, 'catalogos/clientes_list.html', {'clientes': clientes})
+    try:
+        clientes = Cliente.objects.all()
+        
+        # Debug: imprime los parámetros GET
+        print(f"GET parameters: {request.GET}")
+        
+        # Ordenamiento
+        orden = request.GET.get('orden', 'id')
+        print(f"Orden solicitado: {orden}")
+        
+        # Diccionario de ordenamiento permitido
+        orden_permitido = {
+            'id': 'id', 
+            '-id': '-id',
+            'nomenclatura': 'nomenclatura', 
+            '-nomenclatura': '-nomenclatura',
+            'nombre': 'nombre', 
+            '-nombre': '-nombre',
+            'activo': 'activo', 
+            '-activo': '-activo',
+            'fecha_creacion': 'fecha_creacion', 
+            '-fecha_creacion': '-fecha_creacion',
+        }
+        
+        orden_final = orden_permitido.get(orden, 'id')
+        print(f"Orden final: {orden_final}")
+        
+        clientes = clientes.order_by(orden_final)
+        print(f"Query SQL: {clientes.query}")
+        
+        # Anotar con conteo de proyectos
+        clientes = clientes.annotate(
+            total_proyectos=Count('proyectos')
+        )
+        
+        context = {
+            'clientes': clientes,
+        }
+        return render(request, 'catalogos/clientes_list.html', context)
+        
+    except Exception as e:
+        # Capturar el error completo
+        error_traceback = traceback.format_exc()
+        print(f"ERROR EN clientes_list: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        
+        # Devolver el error en la respuesta para verlo en el navegador
+        return HttpResponse(f"""
+            <h1>Error en clientes_list</h1>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <h2>Traceback:</h2>
+            <pre>{error_traceback}</pre>
+            <h2>GET parameters:</h2>
+            <pre>{dict(request.GET)}</pre>
+        """)
 
 def cliente_create(request):
     """Crear un nuevo cliente"""
@@ -471,12 +456,12 @@ def cliente_create(request):
 def get_next_consecutivo(tipo_servicio_code, tipo_pruebas_nom, tipo_pruebas_id, cliente_nom, proyecto_nom):
     """Obtiene el siguiente número consecutivo para tickets con los mismos datos"""
     try:
-        # Parámetros de búsqueda
+        # Parámetros de búsqueda - CORREGIDO
         filtro = {
             'empresa_code': "BID",
             'tipo_servicio_code': tipo_servicio_code,
-            'funcion_code': tipo_pruebas_nom,
-            'version_code': tipo_pruebas_id,
+            'funcion_code': tipo_pruebas_nom,  # ← Esto es la nomenclatura
+            'version_code': tipo_pruebas_id,    # ← Esto es el ID (valor numérico)
             'cliente_code': cliente_nom,
             'proyecto_code': proyecto_nom
         }
@@ -489,11 +474,9 @@ def get_next_consecutivo(tipo_servicio_code, tipo_pruebas_nom, tipo_pruebas_id, 
         print(f"📊 Tickets encontrados: {tickets_similares.count()}")
         
         if tickets_similares.exists():
-            # Mostrar todos los tickets encontrados
             for ticket in tickets_similares:
                 print(f"   - {ticket.codigo} (consecutivo: {ticket.consecutivo})")
             
-            # Obtener el MÁXIMO consecutivo entre todos los tickets similares
             max_consecutivo = tickets_similares.aggregate(models.Max('consecutivo'))['consecutivo__max']
             print(f"🎯 Máximo consecutivo encontrado: {max_consecutivo}")
             
@@ -505,6 +488,7 @@ def get_next_consecutivo(tipo_servicio_code, tipo_pruebas_nom, tipo_pruebas_id, 
             return 1
     except Exception as e:
         print(f"⚠️ Error al obtener consecutivo: {str(e)}")
+        traceback.print_exc()  # ← Añadir traceback completo
         return 1
 
 
@@ -573,9 +557,54 @@ def cliente_delete(request, id):
     return redirect('clientes_list')
 
 def tipos_servicio_list(request):
-    """Lista todos los tipos de servicio"""
-    tipos = TipoServicio.objects.all().order_by('nombre')
-    return render(request, 'catalogos/tipos_servicio_list.html', {'tipos': tipos})
+    try:
+        tipos = TipoServicio.objects.all()
+        
+        # Debug
+        print(f"GET parameters: {request.GET}")
+        
+        # Ordenamiento
+        orden = request.GET.get('orden', 'id')
+        print(f"Orden solicitado: {orden}")
+        
+        # Diccionario de ordenamiento permitido
+        orden_permitido = {
+            'id': 'id', 
+            '-id': '-id',
+            'nombre': 'nombre', 
+            '-nombre': '-nombre',
+            'nomenclatura': 'nomenclatura', 
+            '-nomenclatura': '-nomenclatura',
+            'activo': 'activo', 
+            '-activo': '-activo',
+            'fecha_creacion': 'fecha_creacion', 
+            '-fecha_creacion': '-fecha_creacion',
+        }
+        
+        orden_final = orden_permitido.get(orden, 'id')
+        print(f"Orden final: {orden_final}")
+        
+        tipos = tipos.order_by(orden_final)
+        print(f"Query SQL: {tipos.query}")
+        
+        context = {
+            'tipos': tipos,
+        }
+        return render(request, 'catalogos/tipos_servicio_list.html', context)
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"ERROR EN tipo_servicio_list: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        
+        return HttpResponse(f"""
+            <h1>Error en tipo_servicio_list</h1>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <h2>Traceback:</h2>
+            <pre>{error_traceback}</pre>
+            <h2>GET parameters:</h2>
+            <pre>{dict(request.GET)}</pre>
+        """)
 
 def tipo_servicio_create(request):
     """Crear un nuevo tipo de servicio"""
@@ -657,7 +686,7 @@ def tipo_servicio_delete(request, id):
         except Exception as e:
             messages.error(request, f'Error al eliminar tipo de servicio: {str(e)}')
     
-    return redirect('tipo_servicio_list')
+    return redirect('tipos_servicio_list')
 
 def proyectos_list(request):
     """Lista todos los proyectos con filtro por cliente opcional"""
@@ -819,8 +848,6 @@ def proyectos_por_cliente(request, cliente_id):
 def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, objetos_encontrados):
     """Genera y guarda un ticket en la base de datos"""
     
-    """Genera y guarda un ticket en la base de datos"""
-    
     # Obtener valores para los argumentos
     tipo_servicio_code = tipo_servicio_form
     tipo_pruebas_nom = nomenclaturas.get('tipo_pruebas_nomenclatura', '???')
@@ -896,3 +923,73 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
         print(f"❌ Error al guardar ticket: {str(e)}")
         # Si hay error, devolver solo el código sin ticket guardado
         return ticket_code, None
+
+
+def ticket_list(request):
+    """Listado de tickets con filtros (similar a clientes_list)"""
+    tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio')
+
+    # Filtros
+    estado = request.GET.get('estado')
+    cliente_id = request.GET.get('cliente')
+    proyecto_id = request.GET.get('proyecto')
+    busqueda = request.GET.get('q')
+
+    if estado:
+        tickets = tickets.filter(estado=estado)
+    if cliente_id:
+        tickets = tickets.filter(cliente_id=cliente_id)
+    if proyecto_id:
+        tickets = tickets.filter(proyecto_id=proyecto_id)
+    if busqueda:
+        tickets = tickets.filter(
+            Q(codigo__icontains=busqueda) |
+            Q(responsable_solicitud__icontains=busqueda) |
+            Q(lider_proyecto__icontains=busqueda)
+        )
+
+    # Ordenamiento (igual que en clientes)
+    orden = request.GET.get('orden', '-fecha_creacion')
+    tickets = tickets.order_by(orden)
+
+    # Estadísticas
+    context = {
+        'tickets': tickets,
+        'total_tickets': Ticket.objects.count(),
+        'tickets_generados': Ticket.objects.filter(estado='GENERADO').count(),
+        'tickets_proceso': Ticket.objects.filter(estado='EN_PROCESO').count(),
+        'tickets_completados': Ticket.objects.filter(estado='COMPLETADO').count(),
+        'tickets_cancelados': Ticket.objects.filter(estado='CANCELADO').count(),
+        'clientes': Cliente.objects.filter(activo=True),
+        'tipos_servicio': TipoServicio.objects.filter(activo=True),
+        'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
+        'estados_disponibles': Ticket.ESTADOS_TICKET,
+        # Filtros actuales
+        'estado_selected': estado,
+        'cliente_selected': int(cliente_id) if cliente_id else 0,
+        'proyecto_selected': int(proyecto_id) if proyecto_id else 0,
+        'busqueda': busqueda or '',
+        'orden_actual': orden,
+    }
+    return render(request, 'catalogos/ticket_list.html', context)
+
+
+
+def ticket_detail(request, id):
+    """Ver detalle de un ticket"""
+    ticket = get_object_or_404(Ticket, id=id)
+    context = {
+        'ticket': ticket,
+        'partes_codigo': ticket.get_detalle_partes(),
+        'estados_disponibles': Ticket.ESTADOS_TICKET,
+    }
+    return render(request, 'catalogos/ticket_detail.html', context)
+
+
+
+
+
+
+
+
+

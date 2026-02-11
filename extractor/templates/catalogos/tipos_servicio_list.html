@@ -5,17 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tipo de pruebas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        .sortable:hover {
+            cursor: pointer;
+            background-color: #f8f9fa;
+        }
+        .sort-icon {
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-4">
+    <div class="container-fluid mt-4 px-4">
+        <!-- Encabezado estilo tickets - SOLO ESTO SE MODIFICÓ -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Tipo de pruebas</h1>
             <div>
-                <a href="{% url 'tipo_servicio_create' %}" class="btn btn-primary">Tipo de pruebas</a>
-                <a href="{% url 'clientes_list' %}" class="btn btn-outline-secondary">Ver Clientes</a>
-                <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">Volver al Inicio</a>
+                <h1 class="display-6">
+                    <i class="bi bi-list-check text-primary"></i> 
+                    Tipo de pruebas
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}">Inicio</a></li>
+                        <li class="breadcrumb-item active">Tipos de pruebas</li>
+                    </ol>
+                </nav>
+            </div>
+            <div>
+                <a href="{% url 'tipo_servicio_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo Tipo de Prueba
+                </a>
+                <a href="{% url 'clientes_list' %}" class="btn btn-outline-info">
+                    <i class="bi bi-people"></i> Ver Clientes
+                </a>
+                <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
             </div>
         </div>
+        <!-- FIN del encabezado modificado -->
         
         {% if messages %}
             {% for message in messages %}
@@ -28,14 +58,71 @@
         
         <div class="card">
             <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        Total de tipos de prueba: {{ tipos|length }}
+                    </h5>
+                    
+                    <!-- Ordenamiento rápido -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            Ordenar por: 
+                            {% if request.GET.orden == 'id' %}ID (asc)
+                            {% elif request.GET.orden == '-id' %}ID (desc)
+                            {% elif request.GET.orden == 'nombre' %}Nombre (A-Z)
+                            {% elif request.GET.orden == '-nombre' %}Nombre (Z-A)
+                            {% elif request.GET.orden == 'nomenclatura' %}Nomenclatura (A-Z)
+                            {% elif request.GET.orden == '-nomenclatura' %}Nomenclatura (Z-A)
+                            {% elif request.GET.orden == 'activo' %}Activos primero
+                            {% elif request.GET.orden == '-activo' %}Inactivos primero
+                            {% elif request.GET.orden == 'fecha_creacion' %}Más antiguos
+                            {% elif request.GET.orden == '-fecha_creacion' %}Más recientes
+                            {% else %}ID (asc)
+                            {% endif %}
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="?orden=id">ID (asc)</a></li>
+                            <li><a class="dropdown-item" href="?orden=-id">ID (desc)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?orden=nombre">Nombre (A-Z)</a></li>
+                            <li><a class="dropdown-item" href="?orden=-nombre">Nombre (Z-A)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?orden=nomenclatura">Nomenclatura (A-Z)</a></li>
+                            <li><a class="dropdown-item" href="?orden=-nomenclatura">Nomenclatura (Z-A)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?orden=activo">Activos primero</a></li>
+                            <li><a class="dropdown-item" href="?orden=-activo">Inactivos primero</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?orden=fecha_creacion">Más antiguos</a></li>
+                            <li><a class="dropdown-item" href="?orden=-fecha_creacion">Más recientes</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
-                             <th class="sortable" data-sort="id">ID</th>
-                            <th class="sortable" data-sort="nombre">Nombre</th>
-                            <th class="sortable" data-sort="nomenclatura">Nomenclatura</th>
-                            <th class="sortable" data-sort="activo">Estado</th>
-                            <th class="sortable" data-sort="fecha_creacion">Fecha Creación</th>
+                            <th class="sortable" data-sort="id">
+                                ID
+                                {% if request.GET.orden == 'id' %}↑{% elif request.GET.orden == '-id' %}↓{% endif %}
+                            </th>
+                            <th class="sortable" data-sort="nombre">
+                                Nombre
+                                {% if request.GET.orden == 'nombre' %}↑{% elif request.GET.orden == '-nombre' %}↓{% endif %}
+                            </th>
+                            <th class="sortable" data-sort="nomenclatura">
+                                Nomenclatura
+                                {% if request.GET.orden == 'nomenclatura' %}↑{% elif request.GET.orden == '-nomenclatura' %}↓{% endif %}
+                            </th>
+                            <th class="sortable" data-sort="activo">
+                                Estado
+                                {% if request.GET.orden == 'activo' %}↑{% elif request.GET.orden == '-activo' %}↓{% endif %}
+                            </th>
+                            <th class="sortable" data-sort="fecha_creacion">
+                                Fecha Creación
+                                {% if request.GET.orden == 'fecha_creacion' %}↑{% elif request.GET.orden == '-fecha_creacion' %}↓{% endif %}
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -104,5 +191,56 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Función para construir URLs con parámetros
+        function buildUrl(params) {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Actualizar parámetros
+            Object.keys(params).forEach(key => {
+                if (params[key] === null || params[key] === undefined) {
+                    urlParams.delete(key);
+                } else {
+                    urlParams.set(key, params[key]);
+                }
+            });
+            
+            return '?' + urlParams.toString();
+        }
+        
+        // Función para ordenar al hacer clic en las columnas
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', function() {
+                const sortField = this.getAttribute('data-sort');
+                const currentOrder = new URLSearchParams(window.location.search).get('orden');
+                
+                // Determinar el nuevo orden
+                let newOrder;
+                if (currentOrder === sortField) {
+                    newOrder = '-' + sortField; // Cambiar a descendente
+                } else if (currentOrder === '-' + sortField) {
+                    newOrder = null; // Eliminar orden
+                } else {
+                    newOrder = sortField; // Ordenar ascendente
+                }
+                
+                // Construir nueva URL
+                const newUrl = buildUrl({ orden: newOrder });
+                window.location.href = newUrl;
+            });
+        });
+        
+        // Función para manejar el dropdown de ordenamiento
+        document.querySelectorAll('.dropdown-menu a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('href');
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -50,10 +50,14 @@
         nav ul {
             display: flex;
             list-style: none;
+            margin: 0;
+            padding: 0;
+            align-items: center;
         }
         
         nav ul li {
             margin-left: 20px;
+            position: relative;
         }
         
         nav ul li a {
@@ -62,10 +66,87 @@
             padding: 8px 15px;
             border-radius: 4px;
             transition: background-color 0.3s;
+            display: block;
         }
         
         nav ul li a:hover {
             background-color: #34495e;
+        }
+        
+        /* Estilos para el dropdown - CORREGIDO */
+        .dropdown {
+            position: relative;
+        }
+        
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: white;
+            min-width: 250px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border-radius: 4px;
+            padding: 8px 0;
+            z-index: 1000;
+            /* IMPORTANTE: Eliminar el margin-top que crea el gap */
+            margin-top: 0;
+            /* Agregar un padding-top invisible para cubrir el gap */
+            padding-top: 10px;
+            /* Agregar un borde transparente para extender el área */
+            border-top: 5px solid transparent;
+            background-clip: padding-box;
+        }
+        
+        /* Extender el área hover del dropdown */
+        .dropdown:hover .dropdown-menu {
+            display: block;
+        }
+        
+        /* Crear un puente invisible entre el botón y el menú */
+        .dropdown::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 15px;
+            background: transparent;
+            z-index: 999;
+        }
+        
+        .dropdown-menu a {
+            color: #333 !important;
+            padding: 10px 20px;
+            display: block;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+        
+        .dropdown-menu a:hover {
+            background-color: #f8f9fa !important;
+            color: #2c3e50 !important;
+        }
+        
+        .dropdown-menu hr {
+            margin: 8px 0;
+            border: 0;
+            border-top: 1px solid #eee;
+        }
+        
+        .dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+            z-index: 1001;
+        }
+        
+        .dropdown-toggle::after {
+            content: "▼";
+            font-size: 0.7em;
+            margin-left: 5px;
         }
         
         .main-content {
@@ -73,6 +154,7 @@
             border-radius: 8px;
             padding: 30px;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            min-height: 400px;
         }
         
         .page-header {
@@ -155,6 +237,59 @@
         .back-link:hover {
             text-decoration: underline;
         }
+
+        /* Badge para contador de tickets */
+        .badge {
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+
+        /* Para dispositivos móviles */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            nav ul {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            nav ul li {
+                margin: 5px;
+            }
+            
+            .dropdown-menu {
+                position: static;
+                box-shadow: none;
+                background-color: #34495e;
+                margin-top: 5px;
+                border-top: none;
+                padding-top: 0;
+                min-width: 100%;
+            }
+            
+            .dropdown::after {
+                display: none;
+            }
+            
+            .dropdown-menu a {
+                color: white !important;
+            }
+            
+            .dropdown-menu a:hover {
+                background-color: #2c3e50 !important;
+            }
+            
+            .dropdown-menu hr {
+                border-top-color: #4a5c68;
+            }
+        }
     </style>
 </head>
 <body>
@@ -163,10 +298,36 @@
             <div class="logo">📊 Extractor de Excel</div>
             <nav>
                 <ul>
-                    <li><a href="{% url 'upload_excel' %}">Cargar Archivo</a></li>
-                    <li><a href="{% url 'data_list' %}">Ver Datos</a></li>
-                      <li><a href="{% url 'clientes_list' %}" class="btn btn-primary">Cliente</a></li>
-                    <li><a href="{% url 'tipo_servicio_list' %}" class="btn btn-primary">Tipo de pruebas</a></li>
+                    <li><a href="{% url 'upload_excel' %}">📤 Cargar Archivo</a></li>
+                    <li><a href="{% url 'data_list' %}">📁 Ver Datos</a></li>
+                    
+                    <!-- Dropdown para Tickets - NUEVO -->
+                   <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" onclick="return false;">🎫 Tickets</a>
+                       <div class="dropdown-menu">
+                            <a href="{% url 'ticket_list' %}">📋 Todos los Tickets</a>
+                        </div>
+                    </li>
+                    
+              
+                    <!-- Dropdown para Acciones Rápidas -->
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" onclick="return false;">⚡ Acciones</a>
+                        <div class="dropdown-menu">
+                           <strong style="padding: 10px 20px; display: block; color: #6c757d;">CLIENTES</strong>
+                            <a href="{% url 'clientes_list' %}">📋 Ver Clientes</a>
+                            <a href="{% url 'cliente_create' %}">➕ Nuevo Cliente</a>
+                            <hr>
+                            <strong style="padding: 10px 20px; display: block; color: #6c757d;">PROYECTOS</strong>
+                            <a href="{% url 'proyectos_list' %}">📋 Ver Proyectos</a>
+                            <a href="{% url 'proyecto_create' %}">➕ Nuevo Proyecto</a>
+                            <hr>
+                            <strong style="padding: 10px 20px; display: block; color: #6c757d;">TIPOS DE SERVICIO</strong>
+                            <a href="{% url 'tipo_servicio_list' %}">📋 Ver Tipos</a>
+                            <a href="{% url 'tipo_servicio_create' %}">➕ Nuevo Tipo</a>
+                  
+                        </div>
+                    </li>
                 </ul>
             </nav>
         </div>
@@ -174,6 +335,14 @@
     
     <div class="container">
         <main class="main-content">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert {% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
             {% block content %}
             {% endblock %}
         </main>
@@ -184,5 +353,40 @@
             <p>Sistema de extracción de datos de Excel &copy; {% now "Y" %}</p>
         </div>
     </footer>
+
+    <!-- Script para mejor manejo de dropdowns -->
+    <script>
+        // Prevenir comportamiento por defecto en los dropdowns para mejor UX
+        document.querySelectorAll('.dropdown-toggle').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+            });
+        });
+        
+        // Opcional: Cerrar dropdowns al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                    if (window.innerWidth > 768) {
+                        menu.style.display = 'none';
+                    }
+                });
+            }
+        });
+        
+        // Reabrir dropdown al hover después de cerrar con clic
+        document.querySelectorAll('.dropdown').forEach(dropdown => {
+            dropdown.addEventListener('mouseenter', function() {
+                if (window.innerWidth > 768) {
+                    this.querySelector('.dropdown-menu').style.display = 'block';
+                }
+            });
+            dropdown.addEventListener('mouseleave', function() {
+                if (window.innerWidth > 768) {
+                    this.querySelector('.dropdown-menu').style.display = 'none';
+                }
+            });
+        });
+    </script>
 </body>
 </html>
