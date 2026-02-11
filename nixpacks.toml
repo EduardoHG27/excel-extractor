@@ -1,5 +1,0 @@
-﻿[build]
-command = "pip install -r requirements.txt && python manage.py collectstatic --noinput"
-
-[start]
-command = "python manage.py migrate && gunicorn excel_extractor.wsgi"
