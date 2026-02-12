@@ -41,6 +41,32 @@
                         </select>
                     </div>
 
+                    <!-- NUEVO: Campo para consecutivo manual -->
+                    <div class="form-group" id="consecutivo-group">
+                        <label for="consecutivo">
+                            Número Consecutivo 
+                            <span class="badge badge-info" style="background-color: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px;">
+                                Opcional - Dejar vacío para auto-generar
+                            </span>
+                        </label>
+                        <div class="consecutivo-input-group">
+                            <span class="consecutivo-prefix" id="codigo-preview">BID-???-???-???-???-???-</span>
+                            <input type="number" 
+                                   name="consecutivo" 
+                                   id="consecutivo" 
+                                   class="form-control consecutivo-input" 
+                                   placeholder="001" 
+                                   min="1" 
+                                   max="999"
+                                   step="1">
+                        </div>
+                        <small class="form-text text-muted">
+                            Ingrese un número entre 1 y 999. El sistema verificará que no exista otro ticket con el mismo consecutivo para esta combinación.
+                            <br>Último consecutivo usado: <strong>{{ ultimo_consecutivo|default:"0"|stringformat:"03d" }}</strong>
+                        </small>
+                        <div id="consecutivo-validacion" style="margin-top: 5px; font-size: 14px;"></div>
+                    </div>
+
                     <hr>
                     <h4>Información Adicional</h4>
                     
@@ -129,6 +155,31 @@
         box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
     }
     
+    .consecutivo-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .consecutivo-prefix {
+        background-color: #f8f9fa;
+        padding: 10px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 16px;
+        color: #6c757d;
+        min-width: 300px;
+    }
+    
+    .consecutivo-input {
+        max-width: 120px;
+        text-align: center;
+        font-family: monospace;
+        font-size: 18px;
+    }
+    
     .btn-lg {
         padding: 12px 30px;
         font-size: 18px;
@@ -159,6 +210,37 @@
         background-color: #f8f9fa;
         cursor: not-allowed;
     }
+    
+    .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: normal;
+    }
+    
+    #consecutivo-validacion {
+        padding: 5px 10px;
+        border-radius: 4px;
+    }
+    
+    .validacion-exito {
+        background-color: #d4edda;
+        color: #155724;
+        border-left: 4px solid #28a745;
+    }
+    
+    .validacion-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .validacion-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border-left: 4px solid #17a2b8;
+    }
 </style>
 
 <script>
@@ -187,6 +269,7 @@
                         const option = document.createElement('option');
                         option.value = proyecto.id;
                         option.textContent = `${proyecto.nombre} (${proyecto.codigo})`;
+                        option.dataset.codigo = proyecto.codigo;
                         proyectoSelect.appendChild(option);
                     });
                     proyectoSelect.disabled = false;
@@ -198,6 +281,117 @@
                 console.error('Error:', error);
                 proyectoSelect.innerHTML = '<option value="">-- Error al cargar proyectos --</option>';
             });
+    });
+
+    // NUEVO: Actualizar preview del código de ticket
+    function actualizarPreviewCodigo() {
+        const clienteSelect = document.getElementById('cliente');
+        const proyectoSelect = document.getElementById('proyecto');
+        const tipoSelect = document.getElementById('tipo_servicio');
+        const consecutivoInput = document.getElementById('consecutivo');
+        
+        let preview = 'BID-';
+        
+        // Tipo de servicio (nomenclatura)
+        if (tipoSelect.selectedIndex > 0) {
+            const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
+            const match = tipoText.match(/\(([^)]+)\)/);
+            preview += (match ? match[1] : '???') + '-';
+        } else {
+            preview += '???-';
+        }
+        
+        // Función (misma nomenclatura)
+        if (tipoSelect.selectedIndex > 0) {
+            const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
+            const match = tipoText.match(/\(([^)]+)\)/);
+            preview += (match ? match[1] : '???') + '-';
+        } else {
+            preview += '???-';
+        }
+        
+        // Versión (ID del tipo)
+        if (tipoSelect.value) {
+            preview += tipoSelect.value + '-';
+        } else {
+            preview += '???-';
+        }
+        
+        // Cliente (nomenclatura)
+        if (clienteSelect.selectedIndex > 0) {
+            const clienteText = clienteSelect.options[clienteSelect.selectedIndex].text;
+            const match = clienteText.match(/\(([^)]+)\)/);
+            preview += (match ? match[1] : '???') + '-';
+        } else {
+            preview += '???-';
+        }
+        
+        // Proyecto (código)
+        if (proyectoSelect.selectedIndex > 0 && !proyectoSelect.disabled) {
+            const selectedOption = proyectoSelect.options[proyectoSelect.selectedIndex];
+            preview += (selectedOption.dataset.codigo || '???') + '-';
+        } else {
+            preview += '???-';
+        }
+        
+        // Consecutivo
+        if (consecutivoInput.value) {
+            const cons = parseInt(consecutivoInput.value);
+            if (!isNaN(cons) && cons >= 1 && cons <= 999) {
+                preview += cons.toString().padStart(3, '0');
+            } else {
+                preview += '???';
+            }
+        } else {
+            preview += 'XXX';  // Indicador de auto-generado
+        }
+        
+        document.querySelector('.consecutivo-prefix').textContent = preview;
+    }
+
+    // Agregar event listeners para actualizar el preview
+    document.getElementById('cliente').addEventListener('change', actualizarPreviewCodigo);
+    document.getElementById('proyecto').addEventListener('change', actualizarPreviewCodigo);
+    document.getElementById('tipo_servicio').addEventListener('change', actualizarPreviewCodigo);
+    document.getElementById('consecutivo').addEventListener('input', actualizarPreviewCodigo);
+    
+    // NUEVO: Validar consecutivo en tiempo real
+    document.getElementById('consecutivo').addEventListener('input', function() {
+        const consecutivo = this.value;
+        const validacionDiv = document.getElementById('consecutivo-validacion');
+        const clienteSelect = document.getElementById('cliente');
+        const proyectoSelect = document.getElementById('proyecto');
+        const tipoSelect = document.getElementById('tipo_servicio');
+        
+        if (!consecutivo) {
+            validacionDiv.innerHTML = '🔢 Consecutivo auto-generado automáticamente';
+            validacionDiv.className = 'validacion-info';
+            return;
+        }
+        
+        const consNum = parseInt(consecutivo);
+        if (isNaN(consNum) || consNum < 1 || consNum > 999) {
+            validacionDiv.innerHTML = '❌ El consecutivo debe ser un número entre 1 y 999';
+            validacionDiv.className = 'validacion-error';
+            return;
+        }
+        
+        // Validar que todos los campos necesarios estén seleccionados
+        if (!clienteSelect.value || !proyectoSelect.value || !tipoSelect.value) {
+            validacionDiv.innerHTML = '⚠️ Seleccione cliente, proyecto y tipo de servicio para verificar disponibilidad';
+            validacionDiv.className = 'validacion-info';
+            return;
+        }
+        
+        // Aquí podrías hacer una validación AJAX para verificar si el consecutivo ya existe
+        // Por ahora, solo mostramos un mensaje
+        validacionDiv.innerHTML = `✅ Consecutivo ${consNum.toString().padStart(3, '0')} disponible (se verificará al guardar)`;
+        validacionDiv.className = 'validacion-exito';
+    });
+
+    // Inicializar preview cuando se carga la página
+    document.addEventListener('DOMContentLoaded', function() {
+        actualizarPreviewCodigo();
     });
 </script>
 {% endblock %}

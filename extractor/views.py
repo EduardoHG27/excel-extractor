@@ -997,6 +997,9 @@ def ticket_create(request):
             lider = request.POST.get('lider_proyecto', '').strip()
             numero_version = request.POST.get('numero_version', '').strip()
             
+            # NUEVO: Obtener el consecutivo del formulario
+            consecutivo_manual = request.POST.get('consecutivo', '').strip()
+            
             # Validaciones básicas
             if not all([cliente_id, proyecto_id, tipo_servicio_id]):
                 messages.error(request, 'Los campos Cliente, Proyecto y Tipo de Servicio son obligatorios')
@@ -1011,6 +1014,38 @@ def ticket_create(request):
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto seleccionado no pertenece al cliente')
                 return redirect('ticket_create')
+            
+            # Validar consecutivo si se proporcionó
+            consecutivo_num = None
+            consecutivo_str = None
+            
+            if consecutivo_manual:
+                try:
+                    consecutivo_num = int(consecutivo_manual)
+                    if consecutivo_num < 1 or consecutivo_num > 999:
+                        messages.error(request, 'El consecutivo debe estar entre 1 y 999')
+                        return redirect('ticket_create')
+                    
+                    # Verificar si ya existe un ticket con ese consecutivo para la misma combinación
+                    ticket_existente = Ticket.objects.filter(
+                        empresa_code="BID",
+                        tipo_servicio_code=tipo_servicio.nomenclatura,
+                        funcion_code=tipo_servicio.nomenclatura,
+                        version_code=str(tipo_servicio.id),
+                        cliente_code=cliente.nomenclatura,
+                        proyecto_code=proyecto.codigo,
+                        consecutivo=consecutivo_num
+                    ).exists()
+                    
+                    if ticket_existente:
+                        messages.error(request, f'Ya existe un ticket con el consecutivo {consecutivo_num:03d} para esta combinación')
+                        return redirect('ticket_create')
+                    
+                    consecutivo_str = f"{consecutivo_num:03d}"
+                    
+                except ValueError:
+                    messages.error(request, 'El consecutivo debe ser un número válido')
+                    return redirect('ticket_create')
             
             # Preparar los datos para generar el ticket
             extracted_data = {
@@ -1041,12 +1076,37 @@ def ticket_create(request):
             }
             
             # Generar y guardar el ticket
-            ticket_code, ticket = generate_and_save_ticket(
-                extracted_data=extracted_data,
-                tipo_servicio_form=tipo_servicio.nomenclatura,
-                nomenclaturas=nomenclaturas,
-                objetos_encontrados=objetos_encontrados
-            )
+            if consecutivo_num:
+                # Usar el consecutivo manual
+                ticket_code = f"BID-{tipo_servicio.nomenclatura}-{tipo_servicio.nomenclatura}-{tipo_servicio.id}-{cliente.nomenclatura}-{proyecto.codigo}-{consecutivo_str}"
+                
+                # Crear el ticket manualmente con el consecutivo específico
+                ticket = Ticket.objects.create(
+                    codigo=ticket_code,
+                    empresa_code="BID",
+                    tipo_servicio_code=tipo_servicio.nomenclatura,
+                    funcion_code=tipo_servicio.nomenclatura,
+                    version_code=str(tipo_servicio.id),
+                    cliente_code=cliente.nomenclatura,
+                    proyecto_code=proyecto.codigo,
+                    consecutivo=consecutivo_num,
+                    cliente=cliente,
+                    proyecto=proyecto,
+                    tipo_servicio=tipo_servicio,
+                    responsable_solicitud=responsable,
+                    lider_proyecto=lider,
+                    numero_version=numero_version
+                )
+                
+                messages.info(request, f'✅ Ticket creado con consecutivo manual: {consecutivo_num:03d}')
+            else:
+                # Usar el generador automático
+                ticket_code, ticket = generate_and_save_ticket(
+                    extracted_data=extracted_data,
+                    tipo_servicio_form=tipo_servicio.nomenclatura,
+                    nomenclaturas=nomenclaturas,
+                    objetos_encontrados=objetos_encontrados
+                )
             
             # Si se proporcionaron datos adicionales, crear un registro ExcelData asociado
             if any([extracted_data['funcionalidad_liberacion'], 
@@ -1071,7 +1131,7 @@ def ticket_create(request):
                     ticket.excel_data = excel_data
                     ticket.save()
             
-            messages.success(request, f'Ticket creado exitosamente: {ticket_code}')
+            messages.success(request, f'🎫 Ticket creado exitosamente: {ticket_code}')
             return redirect('ticket_detail', id=ticket.id)
             
         except Exception as e:
@@ -1082,10 +1142,15 @@ def ticket_create(request):
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
     tipos_servicio = TipoServicio.objects.filter(activo=True).order_by('nombre')
     
+    # Obtener el último consecutivo general para mostrar como referencia
+    ultimo_ticket = Ticket.objects.order_by('-consecutivo').first()
+    ultimo_consecutivo = ultimo_ticket.consecutivo if ultimo_ticket else 0
+    
     context = {
         'clientes': clientes,
         'tipos_servicio': tipos_servicio,
         'proyectos': [],  # Vacío inicialmente, se llenarán vía AJAX
+        'ultimo_consecutivo': ultimo_consecutivo,
     }
     return render(request, 'catalogos/new_ticket_form.html', context)
 
