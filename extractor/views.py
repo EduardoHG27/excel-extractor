@@ -985,6 +985,125 @@ def ticket_detail(request, id):
     }
     return render(request, 'catalogos/ticket_detail.html', context)
 
+def ticket_create(request):
+    """Crear un nuevo ticket manualmente"""
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            cliente_id = request.POST.get('cliente')
+            proyecto_id = request.POST.get('proyecto')
+            tipo_servicio_id = request.POST.get('tipo_servicio')
+            responsable = request.POST.get('responsable_solicitud', '').strip()
+            lider = request.POST.get('lider_proyecto', '').strip()
+            numero_version = request.POST.get('numero_version', '').strip()
+            
+            # Validaciones básicas
+            if not all([cliente_id, proyecto_id, tipo_servicio_id]):
+                messages.error(request, 'Los campos Cliente, Proyecto y Tipo de Servicio son obligatorios')
+                return redirect('ticket_create')
+            
+            # Obtener los objetos relacionados
+            cliente = get_object_or_404(Cliente, id=cliente_id)
+            proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+            tipo_servicio = get_object_or_404(TipoServicio, id=tipo_servicio_id)
+            
+            # Verificar que el proyecto pertenezca al cliente
+            if proyecto.cliente_id != cliente.id:
+                messages.error(request, 'El proyecto seleccionado no pertenece al cliente')
+                return redirect('ticket_create')
+            
+            # Preparar los datos para generar el ticket
+            extracted_data = {
+                'cliente': str(cliente.id),
+                'proyecto': str(proyecto.id),
+                'tipo_pruebas': str(tipo_servicio.id),
+                'responsable_solicitud': responsable,
+                'lider_proyecto': lider,
+                'numero_version': numero_version,
+                'funcionalidad_liberacion': request.POST.get('funcionalidad_liberacion', ''),
+                'detalle_cambios': request.POST.get('detalle_cambios', ''),
+                'justificacion_cambio': request.POST.get('justificacion_cambio', ''),
+            }
+            
+            # Nomenclaturas
+            nomenclaturas = {
+                'cliente_nomenclatura': cliente.nomenclatura,
+                'proyecto_nomenclatura': proyecto.codigo,
+                'tipo_pruebas_nomenclatura': tipo_servicio.nomenclatura,
+                'tipo_servicio_nomenclatura': tipo_servicio.nomenclatura
+            }
+            
+            # Objetos encontrados
+            objetos_encontrados = {
+                'cliente_obj': cliente,
+                'proyecto_obj': proyecto,
+                'tipo_servicio_obj': tipo_servicio
+            }
+            
+            # Generar y guardar el ticket
+            ticket_code, ticket = generate_and_save_ticket(
+                extracted_data=extracted_data,
+                tipo_servicio_form=tipo_servicio.nomenclatura,
+                nomenclaturas=nomenclaturas,
+                objetos_encontrados=objetos_encontrados
+            )
+            
+            # Si se proporcionaron datos adicionales, crear un registro ExcelData asociado
+            if any([extracted_data['funcionalidad_liberacion'], 
+                   extracted_data['detalle_cambios'], 
+                   extracted_data['justificacion_cambio']]):
+                
+                excel_data = ExcelData.objects.create(
+                    cliente=str(cliente.id),
+                    proyecto=str(proyecto.id),
+                    tipo_pruebas=str(tipo_servicio.id),
+                    tipo_servicio=tipo_servicio.nomenclatura,
+                    responsable_solicitud=responsable,
+                    lider_proyecto=lider,
+                    numero_version=numero_version,
+                    funcionalidad_liberacion=extracted_data['funcionalidad_liberacion'],
+                    detalle_cambios=extracted_data['detalle_cambios'],
+                    justificacion_cambio=extracted_data['justificacion_cambio'],
+                    ticket_code=ticket_code
+                )
+                
+                if ticket:
+                    ticket.excel_data = excel_data
+                    ticket.save()
+            
+            messages.success(request, f'Ticket creado exitosamente: {ticket_code}')
+            return redirect('ticket_detail', id=ticket.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error al crear ticket: {str(e)}')
+            return redirect('ticket_create')
+    
+    # GET request - mostrar formulario
+    clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+    tipos_servicio = TipoServicio.objects.filter(activo=True).order_by('nombre')
+    
+    context = {
+        'clientes': clientes,
+        'tipos_servicio': tipos_servicio,
+        'proyectos': [],  # Vacío inicialmente, se llenarán vía AJAX
+    }
+    return render(request, 'catalogos/new_ticket_form.html', context)
+
+def proyectos_por_cliente(request, cliente_id):
+    """Obtener proyectos de un cliente específico (para AJAX)"""
+    try:
+        cliente = get_object_or_404(Cliente, id=cliente_id)
+        proyectos = Proyecto.objects.filter(cliente=cliente, activo=True).order_by('nombre')
+        
+        proyectos_list = [
+            {'id': p.id, 'nombre': p.nombre, 'codigo': p.codigo}
+            for p in proyectos
+        ]
+        
+        return JsonResponse({'proyectos': proyectos_list})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
 
 
 

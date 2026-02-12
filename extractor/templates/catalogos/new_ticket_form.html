@@ -1,0 +1,203 @@
+<!-- templates/catalogos/ticket_form.html -->
+{% extends 'extractor/base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🎫 Crear Nuevo Ticket Manual</h1>
+    <p class="text-muted">Complete los campos para generar un ticket personalizado</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8 col-md-offset-2">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" id="ticketForm">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="cliente">Cliente *</label>
+                        <select name="cliente" id="cliente" class="form-control" required>
+                            <option value="">-- Seleccione un cliente --</option>
+                            {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}">{{ cliente.nombre }} ({{ cliente.nomenclatura }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proyecto">Proyecto *</label>
+                        <select name="proyecto" id="proyecto" class="form-control" required disabled>
+                            <option value="">-- Primero seleccione un cliente --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipo_servicio">Tipo de Servicio *</label>
+                        <select name="tipo_servicio" id="tipo_servicio" class="form-control" required>
+                            <option value="">-- Seleccione un tipo de servicio --</option>
+                            {% for tipo in tipos_servicio %}
+                                <option value="{{ tipo.id }}">{{ tipo.nombre }} ({{ tipo.nomenclatura }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <hr>
+                    <h4>Información Adicional</h4>
+                    
+                    <div class="form-group">
+                        <label for="responsable_solicitud">Responsable de Solicitud</label>
+                        <input type="text" name="responsable_solicitud" id="responsable_solicitud" 
+                               class="form-control" placeholder="Nombre del responsable">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lider_proyecto">Líder de Proyecto</label>
+                        <input type="text" name="lider_proyecto" id="lider_proyecto" 
+                               class="form-control" placeholder="Nombre del líder">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numero_version">Número de Versión</label>
+                        <input type="text" name="numero_version" id="numero_version" 
+                               class="form-control" placeholder="Ej: 1.0, 2.5, etc.">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionalidad_liberacion">Funcionalidad de Liberación</label>
+                        <textarea name="funcionalidad_liberacion" id="funcionalidad_liberacion" 
+                                  class="form-control" rows="3" placeholder="Describa la funcionalidad..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="detalle_cambios">Detalle de Cambios</label>
+                        <textarea name="detalle_cambios" id="detalle_cambios" 
+                                  class="form-control" rows="3" placeholder="Describa los cambios..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="justificacion_cambio">Justificación del Cambio</label>
+                        <textarea name="justificacion_cambio" id="justificacion_cambio" 
+                                  class="form-control" rows="3" placeholder="Justifique el cambio..."></textarea>
+                    </div>
+
+                    <div class="form-group text-center">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            🎫 Generar Ticket
+                        </button>
+                        <a href="{% url 'ticket_list' %}" class="btn btn-secondary btn-lg">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 25px;
+        margin-top: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 10px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 4px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+    }
+    
+    .form-control:focus {
+        border-color: #3498db;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+    }
+    
+    .btn-lg {
+        padding: 12px 30px;
+        font-size: 18px;
+        margin: 0 10px;
+    }
+    
+    hr {
+        margin: 30px 0;
+        border: 0;
+        border-top: 2px solid #eee;
+    }
+    
+    h4 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+    }
+    
+    .text-muted {
+        color: #7f8c8d;
+        font-size: 0.9em;
+    }
+    
+    .text-center {
+        text-align: center;
+    }
+    
+    select[disabled] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+</style>
+
+<script>
+    // Script para cargar proyectos dinámicamente según el cliente seleccionado
+    document.getElementById('cliente').addEventListener('change', function() {
+        const clienteId = this.value;
+        const proyectoSelect = document.getElementById('proyecto');
+        
+        // Resetear y deshabilitar el select de proyectos
+        proyectoSelect.innerHTML = '<option value="">-- Cargando proyectos... --</option>';
+        proyectoSelect.disabled = true;
+        
+        if (!clienteId) {
+            proyectoSelect.innerHTML = '<option value="">-- Primero seleccione un cliente --</option>';
+            return;
+        }
+        
+        // Hacer la petición AJAX
+        fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
+            .then(response => response.json())
+            .then(data => {
+                proyectoSelect.innerHTML = '<option value="">-- Seleccione un proyecto --</option>';
+                
+                if (data.proyectos && data.proyectos.length > 0) {
+                    data.proyectos.forEach(proyecto => {
+                        const option = document.createElement('option');
+                        option.value = proyecto.id;
+                        option.textContent = `${proyecto.nombre} (${proyecto.codigo})`;
+                        proyectoSelect.appendChild(option);
+                    });
+                    proyectoSelect.disabled = false;
+                } else {
+                    proyectoSelect.innerHTML = '<option value="">-- No hay proyectos para este cliente --</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                proyectoSelect.innerHTML = '<option value="">-- Error al cargar proyectos --</option>';
+            });
+    });
+</script>
+{% endblock %}
