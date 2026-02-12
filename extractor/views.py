@@ -560,35 +560,40 @@ def tipos_servicio_list(request):
     try:
         tipos = TipoServicio.objects.filter(activo=True)
         
-        # Debug
-        print(f"GET parameters: {request.GET}")
-        
-        # Ordenamiento
+        # Ordenamiento - con validación EXTRA
         orden = request.GET.get('orden', 'id')
-        print(f"Orden solicitado: {orden}")
         
-        # Diccionario de ordenamiento permitido
-        orden_permitido = {
-            'id': 'id', 
-            '-id': '-id',
-            'nombre': 'nombre', 
-            '-nombre': '-nombre',
-            'nomenclatura': 'nomenclatura', 
-            '-nomenclatura': '-nomenclatura',
-            'activo': 'activo', 
-            '-activo': '-activo',
-            'fecha_creacion': 'fecha_creacion', 
-            '-fecha_creacion': '-fecha_creacion',
-        }
+        # Solo permitir campos que existen en el modelo
+        campos_validos = ['id', 'nombre', 'nomenclatura', 'activo', 'fecha_creacion']
         
-        orden_final = orden_permitido.get(orden, 'id')
-        print(f"Orden final: {orden_final}")
+        orden_final = 'id'  # Valor por defecto
         
+        if orden:
+            orden_limpio = orden.lstrip('-')
+            if orden_limpio in campos_validos:
+                # Si el campo es válido, mantener el prefijo de orden
+                orden_final = orden
+            else:
+                orden_final = 'id'
+        
+        # Aplicar ordenamiento SOLO si es seguro
         tipos = tipos.order_by(orden_final)
-        print(f"Query SQL: {tipos.query}")
+        
+        # NO imprimas el query SQL directamente en producción
+        # print(f"Query SQL: {tipos.query}")  ← COMENTA ESTA LÍNEA
         
         context = {
             'tipos': tipos,
+        }
+        return render(request, 'catalogos/tipos_servicio_list.html', context)
+        
+    except Exception as e:
+        # Manejo de error mejorado
+        print(f"ERROR EN tipo_servicio_list: {str(e)}")
+        # Devolver lista vacía en caso de error
+        context = {
+            'tipos': TipoServicio.objects.none(),
+            'error': str(e)
         }
         return render(request, 'catalogos/tipos_servicio_list.html', context)
         
@@ -1126,16 +1131,27 @@ def ticket_create(request):
     
     # GET request - mostrar formulario
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
-    tipos_servicio = TipoServicio.objects.filter(activo=True).order_by('nombre')
     
-    # Obtener el último consecutivo general para mostrar como referencia
+    # ✅ FORZAR que sea un QuerySet válido
+    tipos_servicio = TipoServicio.objects.filter(activo=True)
+    tipos_servicio = tipos_servicio.order_by('nombre')
+    
+    # ✅ VERIFICACIÓN - Agrega estos prints para debuggear
+    print("\n=== DEBUG TICKET CREATE GET ===")
+    print(f"Tipo de tipos_servicio: {type(tipos_servicio)}")
+    print(f"Es QuerySet? {isinstance(tipos_servicio, models.QuerySet)}")
+    print(f"SQL: {tipos_servicio.query}")
+    print(f"Cantidad: {tipos_servicio.count()}")
+    print("===============================\n")
+    
+    # Obtener el último consecutivo
     ultimo_ticket = Ticket.objects.order_by('-consecutivo').first()
     ultimo_consecutivo = ultimo_ticket.consecutivo if ultimo_ticket else 0
     
     context = {
         'clientes': clientes,
-        'tipos_servicio': tipos_servicio,
-        'proyectos': [],  # Vacío inicialmente, se llenarán vía AJAX
+        'tipos_servicio': tipos_servicio,  # ✅ Esto SÍ es un QuerySet
+        'proyectos': [],  # Vacío inicialmente
         'ultimo_consecutivo': ultimo_consecutivo,
     }
     return render(request, 'catalogos/new_ticket_form.html', context)
