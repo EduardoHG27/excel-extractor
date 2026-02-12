@@ -558,7 +558,7 @@ def cliente_delete(request, id):
 
 def tipos_servicio_list(request):
     try:
-        tipos = TipoServicio.objects.all()
+        tipos = TipoServicio.objects.filter(activo=1)
         
         # Debug
         print(f"GET parameters: {request.GET}")
@@ -698,7 +698,7 @@ def proyectos_list(request):
     else:
         proyectos = Proyecto.objects.all().order_by('cliente__nombre', 'nombre')
     
-    clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+    clientes = Cliente.objects.filter(activo=1).order_by('nombre')
     
     return render(request, 'catalogos/proyectos_list.html', {
         'proyectos': proyectos,
@@ -834,7 +834,7 @@ def proyectos_por_cliente(request, cliente_id):
     """Obtener proyectos de un cliente específico (para AJAX)"""
     try:
         cliente = get_object_or_404(Cliente, id=cliente_id)
-        proyectos = Proyecto.objects.filter(cliente=cliente, activo=True).order_by('nombre')
+        proyectos = Proyecto.objects.filter(cliente=cliente, activo=1).order_by('nombre')
         
         proyectos_list = [
             {'id': p.id, 'nombre': p.nombre, 'codigo': p.codigo}
@@ -960,9 +960,9 @@ def ticket_list(request):
         'tickets_proceso': Ticket.objects.filter(estado='EN_PROCESO').count(),
         'tickets_completados': Ticket.objects.filter(estado='COMPLETADO').count(),
         'tickets_cancelados': Ticket.objects.filter(estado='CANCELADO').count(),
-        'clientes': Cliente.objects.filter(activo=True),
-        'tipos_servicio': TipoServicio.objects.filter(activo=True),
-        'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
+        'clientes': Cliente.objects.filter(activo=1),
+        'tipos_servicio': TipoServicio.objects.filter(activo=1),
+        'proyectos': Proyecto.objects.filter(activo=1).select_related('cliente'),
         'estados_disponibles': Ticket.ESTADOS_TICKET,
         # Filtros actuales
         'estado_selected': estado,
@@ -1140,7 +1140,7 @@ def ticket_create(request):
     
     # GET request - mostrar formulario
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
-    tipos_servicio = TipoServicio.objects.filter(activo=True).order_by('nombre')
+    tipos_servicio = TipoServicio.objects.filter(activo=1).order_by('nombre')
     
     # Obtener el último consecutivo general para mostrar como referencia
     ultimo_ticket = Ticket.objects.order_by('-consecutivo').first()
@@ -1158,7 +1158,7 @@ def proyectos_por_cliente(request, cliente_id):
     """Obtener proyectos de un cliente específico (para AJAX)"""
     try:
         cliente = get_object_or_404(Cliente, id=cliente_id)
-        proyectos = Proyecto.objects.filter(cliente=cliente, activo=True).order_by('nombre')
+        proyectos = Proyecto.objects.filter(cliente=cliente, activo=1).order_by('nombre')
         
         proyectos_list = [
             {'id': p.id, 'nombre': p.nombre, 'codigo': p.codigo}
