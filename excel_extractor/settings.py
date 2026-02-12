@@ -8,51 +8,25 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ============ VARIABLES DE ENTORNO ============
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7_&y#o%h#g#_c!b6z^w8m)0+7o8xr5i@%$k!*&p)q+@v#h$4s@9')
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+# ============ DEBUG TOTAL - TEMPORAL ============
+DEBUG = True  # FORZADO A TRUE
+SECRET_KEY = 'django-insecure-debug-key-7_&y#o%h#g#_c!b6z^w8m)0+7o8xr5i@%$k!*&p)q+@v#h$4s@9'
 
-# ============ HOSTS Y CSRF CONFIG ============
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '.railway.app',
-    '.up.railway.app',
-]
+# ============ HOSTS - PERMITIR TODO ============
+ALLOWED_HOSTS = ['*']  # TEMPORAL - permite cualquier host
 
-# Agregar host de Railway si existe
-RAILWAY_PUBLIC_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
-if RAILWAY_PUBLIC_DOMAIN:
-    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+# ============ CSRF - DESACTIVADO TEMPORALMENTE ============
+CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = None
 
-# Si hay variable ALLOWED_HOSTS en entorno, agregarla
-env_hosts = os.environ.get('ALLOWED_HOSTS')
-if env_hosts:
-    ALLOWED_HOSTS.extend(env_hosts.split(','))
-
-# ============ CRÍTICO PARA CSRF ============
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-    'https://*.railway.app',
-    'https://*.up.railway.app',
-]
-
-if RAILWAY_PUBLIC_DOMAIN:
-    CSRF_TRUSTED_ORIGINS.append('https://' + RAILWAY_PUBLIC_DOMAIN)
-
-# ============ PROXY CONFIG (IMPORTANTE PARA RAILWAY) ============
+# ============ PROXY ============
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
-
-# ============ COOKIES SEGURAS ============
-if not DEBUG:
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_HTTPONLY = True
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SAMESITE = 'Lax'
 
 # ============ APLICACIONES ============
 INSTALLED_APPS = [
@@ -70,7 +44,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',  # Activado pero relajado
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -78,14 +52,14 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'excel_extractor.urls'
 
+# ============ TEMPLATES - CONFIGURACIÓN ROBUSTA ============
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'extractor/templates'),
-            os.path.join(BASE_DIR, 'templates'),            
+            BASE_DIR / 'templates',  # Path global
         ],
-        'APP_DIRS': True,
+        'APP_DIRS': True,  # Esto busca en extractor/templates/
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -93,6 +67,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            # DEBUG DE TEMPLATES
+            'debug': True,
         },
     },
 ]
@@ -105,7 +81,7 @@ if 'DATABASE_URL' in os.environ:
         'default': dj_database_url.config(
             default=os.environ.get('DATABASE_URL'),
             conn_max_age=600,
-            ssl_require=True
+            ssl_require=False  # TEMPORAL - desactivar SSL
         )
     }
 else:
@@ -116,13 +92,61 @@ else:
         }
     }
 
+# ============ LOGGING - VER TODO ============
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'debug.log',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.template': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'extractor': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
 # ============ VALIDACIÓN ============
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
+AUTH_PASSWORD_VALIDATORS = []  # TEMPORAL - sin validaciones
 
 # ============ INTERNACIONALIZACIÓN ============
 LANGUAGE_CODE = 'es-mx'
@@ -131,15 +155,32 @@ USE_I18N = True
 USE_TZ = True
 
 # ============ ARCHIVOS ESTÁTICOS ============
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-if DEBUG:
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# BÚSQUEDA DE ARCHIVOS ESTÁTICOS
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+if not STATICFILES_DIRS[0].exists():
+    STATICFILES_DIRS = []  # No fallar si no existe
 
 # ============ MEDIA FILES ============
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
+# ============ DEFAULT AUTO FIELD ============
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ============ SEGURIDAD - DESACTIVADA PARA DEBUG ============
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_CONTENT_TYPE_NOSNIFF = False
+SECURE_BROWSER_XSS_FILTER = False
+X_FRAME_OPTIONS = 'ALLOWALL'
