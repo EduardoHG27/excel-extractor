@@ -259,7 +259,8 @@
         }
         
         // Hacer la petición AJAX
-        fetch("{% url 'proyectos_por_cliente' 0 %}".replace('0', clienteId))
+        const url = "{% url 'proyectos_por_cliente' 0 %}";
+        fetch(url.replace('0', clienteId))
             .then(response => response.json())
             .then(data => {
                 proyectoSelect.innerHTML = '<option value="">-- Seleccione un proyecto --</option>';
