@@ -25,4 +25,6 @@ urlpatterns = [
     path('catalogos/tickets/', views.ticket_list, name='ticket_list'),
     path('catalogos/tickets/<int:id>/', views.ticket_detail, name='ticket_detail'),
     path('catalogos/tickets/nuevo/', views.ticket_create, name='ticket_create'),
+
+    path('catalogos/tickets/nuevo/simple/', views.ticket_create_simple, name='ticket_create_simple'),
   ]

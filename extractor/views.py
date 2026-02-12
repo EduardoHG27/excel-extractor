@@ -1169,7 +1169,152 @@ def proyectos_por_cliente(request, cliente_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
-
+def ticket_create_simple(request):
+    """VERSIÓN SIMPLIFICADA - Crear un nuevo ticket manualmente"""
+    
+    # GET - Mostrar formulario
+    if request.method == 'GET':
+        context = {
+            'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
+            'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
+        }
+        return render(request, 'catalogos/new_ticket_form_simple.html', context)
+    
+    # POST - Procesar formulario
+    if request.method == 'POST':
+        try:
+            # 1. OBTENER DATOS BÁSICOS
+            cliente_id = request.POST.get('cliente')
+            proyecto_id = request.POST.get('proyecto')
+            tipo_servicio_id = request.POST.get('tipo_servicio')
+            
+            # Validación MÍNIMA
+            if not cliente_id or not proyecto_id or not tipo_servicio_id:
+                messages.error(request, 'Cliente, Proyecto y Tipo de Servicio son obligatorios')
+                return redirect('ticket_create_simple')
+            
+            # 2. OBTENER OBJETOS
+            try:
+                cliente = Cliente.objects.get(id=cliente_id, activo=True)
+                proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
+                tipo_servicio = TipoServicio.objects.get(id=tipo_servicio_id, activo=True)
+            except (Cliente.DoesNotExist, Proyecto.DoesNotExist, TipoServicio.DoesNotExist):
+                messages.error(request, 'Uno de los elementos seleccionados no existe')
+                return redirect('ticket_create_simple')
+            
+            # 3. VALIDAR QUE EL PROYECTO PERTENEZCA AL CLIENTE
+            if proyecto.cliente_id != cliente.id:
+                messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
+                return redirect('ticket_create_simple')
+            
+            # 4. PROCESAR CONSECUTIVO
+            consecutivo_manual = request.POST.get('consecutivo', '').strip()
+            
+            if consecutivo_manual:
+                # USAR CONSECUTIVO MANUAL
+                try:
+                    consecutivo_num = int(consecutivo_manual)
+                    if consecutivo_num < 1 or consecutivo_num > 999:
+                        messages.error(request, 'El consecutivo debe ser entre 1 y 999')
+                        return redirect('ticket_create_simple')
+                    
+                    # Verificar si ya existe
+                    existe = Ticket.objects.filter(
+                        empresa_code="BID",
+                        tipo_servicio_code=tipo_servicio.nomenclatura,
+                        funcion_code=tipo_servicio.nomenclatura,
+                        version_code=str(tipo_servicio.id),
+                        cliente_code=cliente.nomenclatura,
+                        proyecto_code=proyecto.codigo,
+                        consecutivo=consecutivo_num
+                    ).exists()
+                    
+                    if existe:
+                        messages.error(request, f'Ya existe un ticket con consecutivo {consecutivo_num:03d}')
+                        return redirect('ticket_create_simple')
+                    
+                    consecutivo_str = f"{consecutivo_num:03d}"
+                    
+                except ValueError:
+                    messages.error(request, 'El consecutivo debe ser un número')
+                    return redirect('ticket_create_simple')
+            else:
+                # AUTO-GENERAR CONSECUTIVO
+                tickets_existentes = Ticket.objects.filter(
+                    empresa_code="BID",
+                    tipo_servicio_code=tipo_servicio.nomenclatura,
+                    funcion_code=tipo_servicio.nomenclatura,
+                    version_code=str(tipo_servicio.id),
+                    cliente_code=cliente.nomenclatura,
+                    proyecto_code=proyecto.codigo
+                )
+                
+                if tickets_existentes.exists():
+                    max_consecutivo = tickets_existentes.aggregate(models.Max('consecutivo'))['consecutivo__max']
+                    consecutivo_num = (max_consecutivo or 0) + 1
+                else:
+                    consecutivo_num = 1
+                
+                consecutivo_str = f"{consecutivo_num:03d}"
+            
+            # 5. GENERAR CÓDIGO DEL TICKET
+            ticket_code = f"BID-{tipo_servicio.nomenclatura}-{tipo_servicio.nomenclatura}-{tipo_servicio.id}-{cliente.nomenclatura}-{proyecto.codigo}-{consecutivo_str}"
+            
+            # 6. CREAR TICKET
+            ticket = Ticket.objects.create(
+                codigo=ticket_code,
+                empresa_code="BID",
+                tipo_servicio_code=tipo_servicio.nomenclatura,
+                funcion_code=tipo_servicio.nomenclatura,
+                version_code=str(tipo_servicio.id),
+                cliente_code=cliente.nomenclatura,
+                proyecto_code=proyecto.codigo,
+                consecutivo=consecutivo_num,
+                cliente=cliente,
+                proyecto=proyecto,
+                tipo_servicio=tipo_servicio,
+                responsable_solicitud=request.POST.get('responsable_solicitud', '')[:255],
+                lider_proyecto=request.POST.get('lider_proyecto', '')[:255],
+                numero_version=request.POST.get('numero_version', '')[:255],
+                estado='GENERADO'
+            )
+            
+            # 7. CREAR DATOS EXCEL ASOCIADOS (si hay información adicional)
+            if any([
+                request.POST.get('funcionalidad_liberacion'),
+                request.POST.get('detalle_cambios'),
+                request.POST.get('justificacion_cambio')
+            ]):
+                excel_data = ExcelData.objects.create(
+                    cliente=str(cliente.id),
+                    proyecto=str(proyecto.id),
+                    tipo_pruebas=str(tipo_servicio.id),
+                    tipo_servicio=tipo_servicio.nomenclatura,
+                    responsable_solicitud=request.POST.get('responsable_solicitud', ''),
+                    lider_proyecto=request.POST.get('lider_proyecto', ''),
+                    numero_version=request.POST.get('numero_version', ''),
+                    funcionalidad_liberacion=request.POST.get('funcionalidad_liberacion', ''),
+                    detalle_cambios=request.POST.get('detalle_cambios', ''),
+                    justificacion_cambio=request.POST.get('justificacion_cambio', ''),
+                    ticket_code=ticket_code
+                )
+                ticket.excel_data = excel_data
+                ticket.save()
+            
+            # 8. MENSAJE DE ÉXITO
+            messages.success(request, f'✅ Ticket creado exitosamente: {ticket_code}')
+            
+            # Redirigir al detalle o al listado
+            return redirect('ticket_detail', id=ticket.id)
+            
+        except Exception as e:
+            # CAPTURAR CUALQUIER ERROR
+            import traceback
+            print(f"ERROR EN TICKET CREATE SIMPLE: {str(e)}")
+            print(traceback.format_exc())
+            
+            messages.error(request, f'Error al crear ticket: {str(e)}')
+            return redirect('ticket_create_simple')
 
 
 
