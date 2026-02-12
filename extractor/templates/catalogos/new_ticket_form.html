@@ -259,7 +259,7 @@
         }
         
         // Hacer la petición AJAX
-        fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
+        fetch("{% url 'proyectos_por_cliente' 0 %}".replace('0', clienteId))
             .then(response => response.json())
             .then(data => {
                 proyectoSelect.innerHTML = '<option value="">-- Seleccione un proyecto --</option>';
