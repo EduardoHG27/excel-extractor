@@ -54,6 +54,11 @@ if not DEBUG:
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
 
+# ============ CONFIGURACIÓN DE AUTENTICACIÓN ============
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'upload_excel'
+LOGOUT_REDIRECT_URL = 'login'
+
 # ============ APLICACIONES ============
 INSTALLED_APPS = [
     'django.contrib.admin',

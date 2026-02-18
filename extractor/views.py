@@ -12,6 +12,11 @@ from .models import ExcelData, Cliente ,TipoServicio, Proyecto, Ticket
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.db import models
 import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
+import io
+from datetime import datetime
 import json
 
 def extract_excel_data(file_path):
@@ -329,6 +334,7 @@ def upload_excel(request):
                 'objetos_encontrados': objetos_encontrados,
                 'ticket_code': ticket_code,  # Si implementas la función de generar ticket
                 'ticket_parts': ticket_parts, 
+                'ticket': ticket_obj,
                 'tipo_servicio_form': tipo_servicio_form  # Opcional, para uso específico
             })
             
@@ -1323,9 +1329,223 @@ def ticket_create_simple(request):
             messages.error(request, f'Error al crear ticket: {str(e)}')
             return redirect('ticket_create_simple')
 
+def generar_excel_dictamen(request, ticket_id):
+    """
+    Genera el archivo Excel de Dictamen de Pruebas con la información del ticket
+    """
+    import io
+    from datetime import datetime
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    
+    # Crear un nuevo workbook
+    wb = Workbook()
+    
+    # Eliminar hoja por defecto
+    wb.remove(wb.active)
+    
+    # Crear hoja de Dictamen
+    ws_dictamen = wb.create_sheet("Dictamen", 0)
+    
+    # Definir estilos
+    titulo_font = Font(bold=True, size=12)
+    header_font = Font(bold=True)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Configurar anchos de columna
+    column_widths = [5, 15, 5, 30, 5, 15, 5, 15, 5, 15, 5, 15, 5, 15, 5, 15, 5]
+    for i, width in enumerate(column_widths, 1):
+        col_letter = ws_dictamen.cell(row=1, column=i).column_letter
+        ws_dictamen.column_dimensions[col_letter].width = width
+    
+    # 1. Ticket en fila 3
+    ws_dictamen.cell(row=3, column=4, value="En continuidad a la solicitud de realización de pruebas con el número de ticket:")
+    ws_dictamen.cell(row=3, column=8, value=ticket.codigo)
+    ws_dictamen.cell(row=3, column=8).font = Font(bold=True, color="2563EB")
+    
+    # 2. Cliente
+    ws_dictamen.cell(row=6, column=1, value="Cliente")
+    ws_dictamen.cell(row=6, column=1).font = header_font
+    if ticket.cliente:
+        ws_dictamen.cell(row=6, column=4, value=ticket.cliente.nombre)
+    
+    # 3. Proyecto
+    ws_dictamen.cell(row=7, column=1, value="Proyecto")
+    ws_dictamen.cell(row=7, column=1).font = header_font
+    if ticket.proyecto:
+        ws_dictamen.cell(row=7, column=4, value=ticket.proyecto.nombre)
+    
+    # 4. Tipo de pruebas realizadas
+    ws_dictamen.cell(row=8, column=1, value="Tipo de pruebas realizadas")
+    ws_dictamen.cell(row=8, column=1).font = header_font
+    if ticket.tipo_servicio:
+        ws_dictamen.cell(row=8, column=4, value=ticket.tipo_servicio.nombre)
+    
+    # 5. Fecha de emisión
+    ws_dictamen.cell(row=7, column=6, value="Fecha de emisión")
+    ws_dictamen.cell(row=7, column=6).font = header_font
+    ws_dictamen.cell(row=7, column=8, value=datetime.now().strftime("%d/%m/%Y"))
+    
+    # 6. Versión
+    ws_dictamen.cell(row=8, column=6, value="Versión")
+    ws_dictamen.cell(row=8, column=6).font = header_font
+    ws_dictamen.cell(row=8, column=8, value=f"v{ticket.numero_version or '1.0'}")
+    
+    # 7. Responsable de QA / Tester
+    ws_dictamen.cell(row=24, column=1, value="Responsable de QA")
+    ws_dictamen.cell(row=24, column=1).font = header_font
+    ws_dictamen.cell(row=24, column=6, value="Tester responsable de pruebas")
+    ws_dictamen.cell(row=24, column=6).font = header_font
+    ws_dictamen.cell(row=24, column=8, value=ticket.responsable_solicitud or "")
+    
+    # Guardar en un buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    # Crear la respuesta HTTP
+    response = HttpResponse(
+        buffer.getvalue(),  # Usar getvalue() en lugar del buffer directamente
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="Dictamen_Pruebas_{ticket.codigo}.xlsx"'
+    response['Content-Length'] = len(buffer.getvalue())
+    
+    return response
 
 
-
-
-
+def generar_excel_resultados(request, ticket_id):
+    """
+    Genera el archivo Excel de Documentación de Resultados de Pruebas con la información del ticket
+    """
+    import io
+    from datetime import datetime
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Border, Side
+    
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    
+    # Crear un nuevo workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resultados Pruebas"
+    
+    # Definir estilos
+    header_font = Font(bold=True)
+    ticket_font = Font(bold=True, size=14, color="2563EB")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Configurar anchos
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 5
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 5
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 5
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 5
+    ws.column_dimensions['J'].width = 15
+    ws.column_dimensions['K'].width = 5
+    ws.column_dimensions['L'].width = 15
+    ws.column_dimensions['M'].width = 30
+    
+    # TICKET
+    ws.cell(row=2, column=1, value="TICKET:")
+    ws.cell(row=2, column=1).font = header_font
+    ws.cell(row=2, column=2, value=ticket.codigo)
+    ws.cell(row=2, column=2).font = ticket_font
+    
+    # AMBIENTE
+    ws.cell(row=3, column=1, value="AMBIENTE:")
+    ws.cell(row=3, column=1).font = header_font
+    ws.cell(row=3, column=2, value="QA")
+    
+    # URL
+    ws.cell(row=3, column=4, value="URL:")
+    ws.cell(row=3, column=4).font = header_font
+    
+    # VERSIÓN
+    ws.cell(row=3, column=11, value="VERSIÓN:")
+    ws.cell(row=3, column=11).font = header_font
+    ws.cell(row=3, column=12, value=f"Versión {ticket.numero_version or '1.0.0'}")
+    
+    # CREDENCIALES
+    ws.cell(row=4, column=1, value="CREDENCIALES")
+    ws.cell(row=4, column=1).font = header_font
+    ws.cell(row=4, column=3, value="USER")
+    ws.cell(row=4, column=3).font = header_font
+    ws.cell(row=4, column=4, value="N/A")
+    ws.cell(row=4, column=7, value="PASSWORD")
+    ws.cell(row=4, column=7).font = header_font
+    ws.cell(row=4, column=8, value="N/A")
+    
+    # PRECONDICIONES
+    ws.cell(row=5, column=1, value="PRECONDICIONES")
+    ws.cell(row=5, column=1).font = header_font
+    
+    # DESCRIPCIÓN
+    ws.cell(row=7, column=1, value="DESCRIPCIÓN")
+    ws.cell(row=7, column=1).font = header_font
+    
+    # Información del ticket como descripción
+    descripcion = []
+    if ticket.funcion_code:
+        descripcion.append(f"Funcionalidad: {ticket.funcion_code}")
+    if ticket.cliente:
+        descripcion.append(f"Cliente: {ticket.cliente.nombre}")
+    if ticket.proyecto:
+        descripcion.append(f"Proyecto: {ticket.proyecto.nombre}")
+    
+    ws.cell(row=8, column=2, value=" - ".join(descripcion))
+    
+    # Tabla de casos de prueba
+    headers = ['ID', 'CASO DE PRUEBA', '', 'EVIDENCIAS', '', '', '', '', '', '', 'RESULTADO', 'OBSERVACIONES']
+    col_positions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13]
+    
+    row_num = 10
+    for col_num, header in zip(col_positions, headers):
+        cell = ws.cell(row=row_num, column=col_num, value=header)
+        cell.font = header_font
+        cell.fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
+    
+    # Fila de ejemplo
+    ws.cell(row=row_num + 1, column=1, value="001")
+    ws.cell(row=row_num + 1, column=11, value="EXITOSO")
+    
+    # CONCLUSIONES
+    ws.cell(row=row_num + 3, column=1, value="CONCLUSIONES")
+    ws.cell(row=row_num + 3, column=1).font = header_font
+    
+    conclusion = f"Pruebas ejecutadas para el ticket {ticket.codigo}"
+    if ticket.tipo_servicio:
+        conclusion += f" - {ticket.tipo_servicio.nombre}"
+    ws.cell(row=row_num + 4, column=2, value=conclusion)
+    
+    # Guardar en buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    # Crear respuesta
+    response = HttpResponse(
+        buffer.getvalue(),  # Usar getvalue() en lugar del buffer directamente
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="Resultados_Pruebas_{ticket.codigo}.xlsx"'
+    response['Content-Length'] = len(buffer.getvalue())
+    
+    return response
 

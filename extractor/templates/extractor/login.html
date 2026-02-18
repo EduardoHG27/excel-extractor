@@ -1,0 +1,52 @@
+<!-- extractor/templates/extractor/login.html -->
+{% extends "extractor/base.html" %}
+
+{% block content %}
+<div class="login-container" style="max-width: 400px; margin: 0 auto;">
+    <div class="page-header">
+        <h1>Iniciar Sesión</h1>
+    </div>
+
+    {% if form.errors %}
+    <div class="alert error">
+        <strong>Error:</strong> Usuario o contraseña incorrectos. Por favor intenta de nuevo.
+    </div>
+    {% endif %}
+
+    {% if next %}
+        {% if user.is_authenticated %}
+        <div class="alert">
+            <p>Tu cuenta no tiene acceso a esta página. Para continuar, por favor inicia sesión con una cuenta que tenga acceso.</p>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <form method="post" action="{% url 'login' %}" style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label for="id_username" style="display: block; margin-bottom: 8px; font-weight: bold;">Usuario:</label>
+            <input type="text" name="username" id="id_username" required 
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label for="id_password" style="display: block; margin-bottom: 8px; font-weight: bold;">Contraseña:</label>
+            <input type="password" name="password" id="id_password" required 
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%; padding: 12px; font-size: 16px;">
+            Iniciar Sesión
+        </button>
+        
+        <input type="hidden" name="next" value="{{ next }}">
+    </form>
+
+    <div style="text-align: center; margin-top: 20px; padding: 15px; background-color: #e7f3ff; border-radius: 4px;">
+        <p style="margin-bottom: 5px;"><strong>Credenciales de prueba:</strong></p>
+        <p>Usuario: <code>admin</code> / Contraseña: <code>admin123</code></p>
+        <p style="font-size: 0.9em; color: #666;">(Recuerda cambiar estas credenciales en producción)</p>
+    </div>
+</div>
+{% endblock %}

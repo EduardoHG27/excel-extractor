@@ -122,17 +122,19 @@
             </div>
         </div>
         
-        <!-- Botones de Acción -->
-        <div style="margin-top: 25px; text-align: center; display: flex; gap: 10px; justify-content: center;">
-            <button onclick="imprimirTicket()" class="btn" style="background-color: #3498db; color: white; padding: 10px 20px;">
-                🖨️ Imprimir Ticket
-            </button>
-            <button onclick="descargarPDF()" class="btn" style="background-color: #e74c3c; color: white; padding: 10px 20px;">
-                📄 Descargar PDF
-            </button>
-            <button onclick="enviarPorEmail()" class="btn" style="background-color: #2ecc71; color: white; padding: 10px 20px;">
-                📧 Enviar por Email
-            </button>
+       <div style="margin-top: 25px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+            {% if ticket and ticket.id %}
+            <a href="{% url 'generar_dictamen' ticket.id %}" class="btn" style="background-color: #27ae60; color: white; padding: 10px 20px; text-decoration: none;">
+                📊 Descargar Dictamen
+            </a>
+            <a href="{% url 'generar_resultados' ticket.id %}" class="btn" style="background-color: #e67e22; color: white; padding: 10px 20px; text-decoration: none;">
+                📋 Descargar Resultados
+            </a>
+            {% else %}
+            <div style="color: #e74c3c; padding: 10px; background-color: #fde8e8; border-radius: 4px;">
+                No se pudo generar el ticket. No hay archivos para descargar.
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

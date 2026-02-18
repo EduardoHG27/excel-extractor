@@ -133,6 +133,16 @@
                                 {{ ticket.get_estado_display }}
                             </span>
                         </div>
+                          <div class="card-body">
+                            <div class="btn-group">
+                                <a href="{% url 'generar_dictamen' ticket.id %}" class="btn btn-success">
+                                    <i class="bi bi-file-excel"></i> Descargar Dictamen
+                                </a>
+                                <a href="{% url 'generar_resultados' ticket.id %}" class="btn btn-warning">
+                                    <i class="bi bi-file-excel"></i> Descargar Resultados
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

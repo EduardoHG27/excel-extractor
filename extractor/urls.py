@@ -1,10 +1,13 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views 
 from . import views
 
 urlpatterns = [
     path('upload/', views.upload_excel, name='upload_excel'),
     path('list/', views.data_list, name='data_list'),
     
+    path('login/', auth_views.LoginView.as_view(template_name='extractor/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     # Rutas para catálogo de clientes
     path('catalogos/clientes/', views.clientes_list, name='clientes_list'),
     path('catalogos/clientes/nuevo/', views.cliente_create, name='cliente_create'),
@@ -27,4 +30,7 @@ urlpatterns = [
     path('catalogos/tickets/nuevo/', views.ticket_create, name='ticket_create'),
 
     path('catalogos/tickets/nuevo/simple/', views.ticket_create_simple, name='ticket_create_simple'),
+
+    path('tickets/<int:ticket_id>/dictamen/', views.generar_excel_dictamen, name='generar_dictamen'),
+    path('tickets/<int:ticket_id>/resultados/', views.generar_excel_resultados, name='generar_resultados'),
   ]
