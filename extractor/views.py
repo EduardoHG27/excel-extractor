@@ -24,8 +24,14 @@ def extract_excel_data(file_path):
     Extrae las celdas específicas según las reglas dadas
     """
     try:
-        # Leer el archivo Excel
-        df = pd.read_excel(file_path, sheet_name='Solicitud de Pruebas V4', header=None)
+        # Verificar que la hoja existe
+        try:
+            df = pd.read_excel(file_path, sheet_name='Solicitud de Pruebas V4', header=None)
+        except ValueError as e:
+            if "No sheet named" in str(e):
+                raise Exception("El archivo no contiene la hoja 'Solicitud de Pruebas V4'")
+            else:
+                raise Exception(f"Error al leer el archivo: {str(e)}")
         
         # Inicializar diccionario para datos
         extracted_data = {}
@@ -40,86 +46,99 @@ def extract_excel_data(file_path):
             
             # Intentar convertir a número y eliminar .0 si es entero
             try:
-                # Si es un número flotante
                 float_value = float(str_value)
-                # Verificar si es un entero (ej: 6.0, 7.0)
                 if float_value.is_integer():
                     return str(int(float_value))
                 else:
                     return str(float_value)
             except ValueError:
-                # Si no se puede convertir a número, devolver el string original
                 return str_value
         
-        # Extraer celdas directamente sin reglas condicionales
-        # Siempre extraer celda C5 (fila 5, columna C) - CLIENTE
+        # LISTA DE VALIDACIONES OBLIGATORIAS
+        campos_obligatorios = []
+        
+        # Extraer y validar CLIENTE (C5)
         try:
             cell_value = df.iat[4, 2] if pd.notna(df.iat[4, 2]) else ""
-            extracted_data['cliente'] = clean_numeric_value(cell_value)
+            cliente_valor = clean_numeric_value(cell_value)
+            extracted_data['cliente'] = cliente_valor
+            
+            if not cliente_valor:
+                campos_obligatorios.append("Cliente (celda C5)")
         except:
             extracted_data['cliente'] = ""
+            campos_obligatorios.append("Cliente (celda C5)")
         
-        # Siempre extraer celda H5 (fila 5, columna H) - PROYECTO
+        # Extraer y validar PROYECTO (H5)
         try:
             cell_value = df.iat[4, 7] if pd.notna(df.iat[4, 7]) else ""
-            extracted_data['proyecto'] = clean_numeric_value(cell_value)
+            proyecto_valor = clean_numeric_value(cell_value)
+            extracted_data['proyecto'] = proyecto_valor
+            
+            if not proyecto_valor:
+                campos_obligatorios.append("Proyecto (celda H5)")
         except:
             extracted_data['proyecto'] = ""
+            campos_obligatorios.append("Proyecto (celda H5)")
         
-        # Extraer otras celdas directamente - TIPO DE PRUEBAS
+        # Extraer y validar TIPO DE PRUEBAS (D8)
         try:
-            cell_value = df.iat[7, 3] if pd.notna(df.iat[7, 3]) else ""  # d8
-            extracted_data['tipo_pruebas'] = clean_numeric_value(cell_value)
+            cell_value = df.iat[7, 3] if pd.notna(df.iat[7, 3]) else ""
+            tipo_pruebas_valor = clean_numeric_value(cell_value)
+            extracted_data['tipo_pruebas'] = tipo_pruebas_valor
+            
+            if not tipo_pruebas_valor:
+                campos_obligatorios.append("Tipo de Pruebas (celda D8)")
         except:
             extracted_data['tipo_pruebas'] = ""
+            campos_obligatorios.append("Tipo de Pruebas (celda D8)")
         
-        # El resto de los campos no necesitan limpieza numérica especial
+        # Extraer responsable_solicitud (opcional)
         try:
-            extracted_data['responsable_solicitud'] = str(df.iat[11, 3]) if pd.notna(df.iat[11, 3]) else ""  # d12
+            extracted_data['responsable_solicitud'] = str(df.iat[11, 3]) if pd.notna(df.iat[11, 3]) else ""
         except:
             extracted_data['responsable_solicitud'] = ""
         
+        # Extraer lider_proyecto (opcional)
         try:
-            extracted_data['lider_proyecto'] = str(df.iat[11, 9]) if pd.notna(df.iat[11, 9]) else ""  # j12
+            extracted_data['lider_proyecto'] = str(df.iat[11, 9]) if pd.notna(df.iat[11, 9]) else ""
         except:
             extracted_data['lider_proyecto'] = ""
         
+        # Extraer tipo_aplicacion (opcional)
         try:
-            extracted_data['tipo_aplicacion'] = str(df.iat[16, 3]) if pd.notna(df.iat[16, 3]) else ""  # d17
+            extracted_data['tipo_aplicacion'] = str(df.iat[16, 3]) if pd.notna(df.iat[16, 3]) else ""
         except:
             extracted_data['tipo_aplicacion'] = ""
         
+        # Extraer numero_version (opcional)
         try:
-            extracted_data['numero_version'] = str(df.iat[16, 12]) if pd.notna(df.iat[16, 12]) else ""  # m17
+            extracted_data['numero_version'] = str(df.iat[16, 12]) if pd.notna(df.iat[16, 12]) else ""
         except:
             extracted_data['numero_version'] = ""
         
-        # Extraer los nuevos campos según el formato del Excel
-        # "Funcionalidad de la liberación del producto desarrollado" está en D20 (fila 19, columna 3)
+        # Extraer funcionalidad_liberacion (opcional)
         try:
             funcionalidad = str(df.iat[19, 3]) if pd.notna(df.iat[19, 3]) else ""
-            # Si hay texto adicional en D21, concatenarlo
             if pd.notna(df.iat[20, 3]):
                 funcionalidad += "\n" + str(df.iat[20, 3])
             extracted_data['funcionalidad_liberacion'] = funcionalidad
         except:
             extracted_data['funcionalidad_liberacion'] = ""
         
-        # "Detalle de los cambios" está en D22 (fila 21, columna 3)
+        # Extraer detalle_cambios (opcional)
         try:
             detalle_cambios = ""
-            # Extraer múltiples filas para detalle de cambios (D22, D23, D24, etc.)
             row = 21
-            while pd.notna(df.iat[row, 3]) and row < 30:  # Hasta fila 30 máximo
+            while pd.notna(df.iat[row, 3]) and row < 30:
                 detalle_cambios += str(df.iat[row, 3]) + "\n"
                 row += 1
             extracted_data['detalle_cambios'] = detalle_cambios.strip()
         except:
             extracted_data['detalle_cambios'] = ""
         
-        # "Justificación del cambio" está después de "Detalle de los cambios"
+        # Extraer justificacion_cambio (opcional)
         try:
-            # Buscar la fila que contiene "Justificación del cambio"
             justificacion_row = None
             for row in range(21, 30):
                 if pd.notna(df.iat[row, 2]) and "Justificación" in str(df.iat[row, 2]):
@@ -127,10 +146,9 @@ def extract_excel_data(file_path):
                     break
             
             if justificacion_row is not None:
-                # El contenido está en la columna D (índice 3) de la siguiente fila
                 content_row = justificacion_row + 1
                 justificacion = ""
-                while pd.notna(df.iat[content_row, 3]) and content_row < 40:  # Hasta fila 40 máximo
+                while pd.notna(df.iat[content_row, 3]) and content_row < 40:
                     justificacion += str(df.iat[content_row, 3]) + "\n"
                     content_row += 1
                 extracted_data['justificacion_cambio'] = justificacion.strip()
@@ -139,213 +157,226 @@ def extract_excel_data(file_path):
         except:
             extracted_data['justificacion_cambio'] = ""
         
-        # DEPURACIÓN: Mostrar valores extraídos antes y después de la limpieza
-        print("=== VALORES LIMPIADOS ===")
-        print(f"Cliente original: {df.iat[4, 2] if pd.notna(df.iat[4, 2]) else 'Vacío'} -> Limpio: '{extracted_data['cliente']}'")
-        print(f"Proyecto original: {df.iat[4, 7] if pd.notna(df.iat[4, 7]) else 'Vacío'} -> Limpio: '{extracted_data['proyecto']}'")
-        print(f"Tipo pruebas original: {df.iat[7, 3] if pd.notna(df.iat[7, 3]) else 'Vacío'} -> Limpio: '{extracted_data['tipo_pruebas']}'")
+        # VALIDACIÓN FINAL: Si hay campos obligatorios faltantes, lanzar excepción
+        if campos_obligatorios:
+            mensaje_error = "El archivo no contiene los siguientes campos obligatorios:\n"
+            mensaje_error += "\n".join(f"• {campo}" for campo in campos_obligatorios)
+            raise Exception(mensaje_error)
+        
+        # DEPURACIÓN: Mostrar valores extraídos
+        print("=== VALORES EXTRAÍDOS ===")
+        for key, value in extracted_data.items():
+            print(f"{key}: '{value}'")
         print("==========================")
         
         return extracted_data
         
     except Exception as e:
         print(f"Error al extraer datos: {e}")
-        return {}
+        raise  # Re-lanzar la excepción para que la capture la vista
 
 def upload_excel(request):
     if request.method == 'POST':
-        # Obtener el tipo de servicio del formulario
-        tipo_servicio_form = request.POST.get('tipo_servicio', '').strip()
-        excel_file = request.FILES.get('excel_file')
-        
-        # Validar tipo de servicio
-        if not tipo_servicio_form:
-            messages.error(request, 'Por favor selecciona un tipo de servicio')
-            return render(request, 'extractor/upload.html')
-        
-        if not excel_file:
-            messages.error(request, 'Por favor selecciona un archivo Excel')
-            return render(request, 'extractor/upload.html')
-        
-        # Validar extensión del archivo
-        allowed_extensions = ['.xlsx', '.xls']
-        file_extension = os.path.splitext(excel_file.name)[1].lower()
-        
-        if file_extension not in allowed_extensions:
-            messages.error(request, 'Formato de archivo no válido. Solo se permiten archivos .xlsx y .xls')
-            return render(request, 'extractor/upload.html')
-        
-        fs = FileSystemStorage()
-        
-        try:
-            # Guardar el archivo temporalmente
-            filename = fs.save(excel_file.name, excel_file)
-            file_path = os.path.join(settings.MEDIA_ROOT, filename)
+            # Obtener el tipo de servicio del formulario
+            tipo_servicio_form = request.POST.get('tipo_servicio', '').strip()
+            excel_file = request.FILES.get('excel_file')
             
-            # Extraer datos del Excel
-            extracted_data = extract_excel_data(file_path)
+            # Validar tipo de servicio
+            if not tipo_servicio_form:
+                messages.error(request, 'Por favor selecciona un tipo de servicio')
+                return render(request, 'extractor/upload.html')
             
-            # DEPURACIÓN: Mostrar qué se extrajo
-            print("=== DATOS EXTRAÍDOS DEL EXCEL ===")
-            print(f"Cliente ID (C5): '{extracted_data.get('cliente', '')}'")
-            print(f"Proyecto ID (H5): '{extracted_data.get('proyecto', '')}'")
-            print(f"Tipo prueba ID (D8): '{extracted_data.get('tipo_pruebas', '')}'")
-            print(f"Tipo Servicio (formulario): '{tipo_servicio_form}'")
-            print("==================================")
+            if not excel_file:
+                messages.error(request, 'Por favor selecciona un archivo Excel')
+                return render(request, 'extractor/upload.html')
             
-            # Inicializar nomenclaturas
-            nomenclaturas = {
-                'cliente_nomenclatura': '',
-                'proyecto_nomenclatura': '',
-                'tipo_pruebas_nomenclatura': '',
-                'tipo_servicio_nomenclatura': tipo_servicio_form
-            }
+            # Validar extensión del archivo
+            allowed_extensions = ['.xlsx', '.xls']
+            file_extension = os.path.splitext(excel_file.name)[1].lower()
             
-            # Inicializar objetos encontrados para usar en la plantilla si es necesario
-            objetos_encontrados = {
-                'cliente_obj': None,
-                'proyecto_obj': None,
-                'tipo_servicio_obj': None
-            }
+            if file_extension not in allowed_extensions:
+                messages.error(request, 'Formato de archivo no válido. Solo se permiten archivos .xlsx y .xls')
+                return render(request, 'extractor/upload.html')
             
-            # 1. BUSCAR CLIENTE POR ID en tabla Cliente
-            cliente_id_str = extracted_data.get('cliente', '').strip()
-            if cliente_id_str:
-                try:
-                    cliente_id = int(cliente_id_str)
-                    print(f"🔍 Buscando Cliente con ID: {cliente_id}")
+            fs = FileSystemStorage()
+            file_path = None
+            
+            try:
+                # Guardar el archivo temporalmente
+                filename = fs.save(excel_file.name, excel_file)
+                file_path = os.path.join(settings.MEDIA_ROOT, filename)
+                
+                # VALIDACIÓN 1: Intentar extraer datos (esto lanzará excepción si faltan campos)
+                extracted_data = extract_excel_data(file_path)
+                
+                # VALIDACIÓN 2: Verificar que los IDs existan en la base de datos
+                campos_invalidos = []
+                
+                # Validar Cliente
+                cliente_id_str = extracted_data.get('cliente', '').strip()
+                cliente_obj = None
+                if cliente_id_str:
+                    try:
+                        cliente_id = int(cliente_id_str)
+                        cliente_obj = Cliente.objects.filter(id=cliente_id).first()
+                        if not cliente_obj:
+                            campos_invalidos.append(f"Cliente con ID {cliente_id} no existe en el catálogo")
+                    except ValueError:
+                        campos_invalidos.append(f"El valor del Cliente '{cliente_id_str}' no es un ID válido")
+                else:
+                    campos_invalidos.append("El campo Cliente está vacío")
+                
+                # Validar Proyecto
+                proyecto_id_str = extracted_data.get('proyecto', '').strip()
+                proyecto_obj = None
+                if proyecto_id_str:
+                    try:
+                        proyecto_id = int(proyecto_id_str)
+                        proyecto_obj = Proyecto.objects.filter(id=proyecto_id).first()
+                        if not proyecto_obj:
+                            campos_invalidos.append(f"Proyecto con ID {proyecto_id} no existe en el catálogo")
+                    except ValueError:
+                        campos_invalidos.append(f"El valor del Proyecto '{proyecto_id_str}' no es un ID válido")
+                else:
+                    campos_invalidos.append("El campo Proyecto está vacío")
+                
+                # Validar Tipo de Pruebas
+                tipo_pruebas_id_str = extracted_data.get('tipo_pruebas', '').strip()
+                tipo_servicio_obj = None
+                if tipo_pruebas_id_str:
+                    try:
+                        tipo_pruebas_id = int(tipo_pruebas_id_str)
+                        tipo_servicio_obj = TipoServicio.objects.filter(id=tipo_pruebas_id).first()
+                        if not tipo_servicio_obj:
+                            campos_invalidos.append(f"Tipo de Pruebas con ID {tipo_pruebas_id} no existe en el catálogo")
+                    except ValueError:
+                        campos_invalidos.append(f"El valor de Tipo de Pruebas '{tipo_pruebas_id_str}' no es un ID válido")
+                else:
+                    campos_invalidos.append("El campo Tipo de Pruebas está vacío")
+                
+                # Si hay campos inválidos, mostrar error y NO guardar
+                if campos_invalidos:
+                    mensaje_error = "❌ El archivo contiene errores que impiden generar el ticket:\n"
+                    mensaje_error += "\n".join(f"• {campo}" for campo in campos_invalidos)
+                    messages.error(request, mensaje_error)
                     
-                    cliente = Cliente.objects.filter(id=cliente_id).first()
-                    if cliente:
-                        nomenclaturas['cliente_nomenclatura'] = cliente.nomenclatura
-                        objetos_encontrados['cliente_obj'] = cliente
-                        print(f"✅ Cliente encontrado: ID={cliente.id}, Nombre='{cliente.nombre}', Nomenclatura='{cliente.nomenclatura}'")
-                    else:
-                        print(f"❌ No se encontró Cliente con ID {cliente_id}")
-                        nomenclaturas['cliente_nomenclatura'] = f"ID {cliente_id} no encontrado"
+                    # Eliminar archivo temporal
+                    if file_path and os.path.exists(file_path):
+                        os.remove(file_path)
                         
-                except ValueError:
-                    print(f"⚠️ El valor '{cliente_id_str}' no es un ID válido para Cliente")
-                    nomenclaturas['cliente_nomenclatura'] = "ID inválido"
-            
-            # 2. BUSCAR PROYECTO POR ID en tabla Proyecto
-            proyecto_id_str = extracted_data.get('proyecto', '').strip()
-            if proyecto_id_str:
-                try:
-                    proyecto_id = int(proyecto_id_str)
-                    print(f"🔍 Buscando Proyecto con ID: {proyecto_id}")
+                    return render(request, 'extractor/upload.html')
+                
+                # DEPURACIÓN: Mostrar qué se extrajo
+                print("=== DATOS EXTRAÍDOS DEL EXCEL ===")
+                print(f"Cliente ID (C5): '{extracted_data.get('cliente', '')}'")
+                print(f"Proyecto ID (H5): '{extracted_data.get('proyecto', '')}'")
+                print(f"Tipo prueba ID (D8): '{extracted_data.get('tipo_pruebas', '')}'")
+                print(f"Tipo Servicio (formulario): '{tipo_servicio_form}'")
+                print("==================================")
+                
+                # Inicializar nomenclaturas
+                nomenclaturas = {
+                    'cliente_nomenclatura': cliente_obj.nomenclatura if cliente_obj else '',
+                    'proyecto_nomenclatura': proyecto_obj.codigo if proyecto_obj else '',
+                    'tipo_pruebas_nomenclatura': tipo_servicio_obj.nomenclatura if tipo_servicio_obj else '',
+                    'tipo_servicio_nomenclatura': tipo_servicio_form
+                }
+                
+                # Inicializar objetos encontrados
+                objetos_encontrados = {
+                    'cliente_obj': cliente_obj,
+                    'proyecto_obj': proyecto_obj,
+                    'tipo_servicio_obj': tipo_servicio_obj
+                }
+                
+                # Mostrar resumen de búsqueda
+                print("\n=== RESUMEN DE BÚSQUEDA ===")
+                print(f"Nomenclatura Cliente: {nomenclaturas['cliente_nomenclatura']}")
+                print(f"Nomenclatura Proyecto: {nomenclaturas['proyecto_nomenclatura']}")
+                print(f"Nomenclatura Tipo Pruebas: {nomenclaturas['tipo_pruebas_nomenclatura']}")
+                print(f"Nomenclatura Tipo Servicio (formulario): {nomenclaturas['tipo_servicio_nomenclatura']}")
+                print("===========================\n")
+                
+                # Generar ticket
+                ticket_code, ticket_obj = generate_and_save_ticket(
+                    extracted_data=extracted_data,
+                    tipo_servicio_form=tipo_servicio_form,
+                    nomenclaturas=nomenclaturas,
+                    objetos_encontrados=objetos_encontrados
+                )
+                
+                ticket_parts = generate_ticket_parts(ticket_code)
+                
+                # Guardar en la base de datos ExcelData
+                excel_data = ExcelData.objects.create(
+                    cliente=extracted_data.get('cliente', ''),
+                    proyecto=extracted_data.get('proyecto', ''),
+                    tipo_pruebas=extracted_data.get('tipo_pruebas', ''),
+                    tipo_servicio=tipo_servicio_form,
+                    responsable_solicitud=extracted_data.get('responsable_solicitud', ''),
+                    lider_proyecto=extracted_data.get('lider_proyecto', ''),
+                    tipo_aplicacion=extracted_data.get('tipo_aplicacion', ''),
+                    numero_version=extracted_data.get('numero_version', ''),
+                    funcionalidad_liberacion=extracted_data.get('funcionalidad_liberacion', ''),
+                    detalle_cambios=extracted_data.get('detalle_cambios', ''),
+                    justificacion_cambio=extracted_data.get('justificacion_cambio', ''),
+                    ticket_code=ticket_code
+                )
+                
+                # Asociar el ticket con los datos del Excel
+                if ticket_obj:
+                    ticket_obj.excel_data = excel_data
+                    ticket_obj.save()
+                
+                # Mensaje de éxito
+                messages.success(request, f'✅ Archivo procesado exitosamente. Ticket generado: {ticket_code}')
+                
+                # Preparar datos para la plantilla
+                data_for_template = {
+                    'cliente': excel_data.cliente,
+                    'proyecto': excel_data.proyecto,
+                    'tipo_pruebas': excel_data.tipo_pruebas,
+                    'tipo_servicio': excel_data.tipo_servicio,
+                    'responsable_solicitud': excel_data.responsable_solicitud,
+                    'lider_proyecto': excel_data.lider_proyecto,
+                    'tipo_aplicacion': excel_data.tipo_aplicacion,
+                    'numero_version': excel_data.numero_version,
+                    'funcionalidad_liberacion': excel_data.funcionalidad_liberacion,
+                    'detalle_cambios': excel_data.detalle_cambios,
+                    'justificacion_cambio': excel_data.justificacion_cambio,
+                    'extracted_date': excel_data.extracted_date
+                }
+                
+                return render(request, 'extractor/result.html', {
+                    'data': data_for_template,
+                    'excel_data': excel_data,
+                    'nomenclaturas': nomenclaturas,
+                    'objetos_encontrados': objetos_encontrados,
+                    'ticket_code': ticket_code,
+                    'ticket_parts': ticket_parts,
+                    'ticket': ticket_obj,
+                    'tipo_servicio_form': tipo_servicio_form
+                })
+                
+            except Exception as e:
+                print(f"❌ ERROR en procesamiento: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                
+                # Mensaje de error amigable para el usuario
+                error_message = str(e)
+                if "no contiene los siguientes campos obligatorios" in error_message:
+                    messages.error(request, error_message)
+                else:
+                    messages.error(request, f'Error al procesar el archivo: {error_message}')
+                
+                # Eliminar archivo temporal en caso de error
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
                     
-                    proyecto = Proyecto.objects.filter(id=proyecto_id).first()
-                    if proyecto:
-                        nomenclaturas['proyecto_nomenclatura'] = proyecto.codigo
-                        objetos_encontrados['proyecto_obj'] = proyecto
-                        print(f"✅ Proyecto encontrado: ID={proyecto.id}, Nombre='{proyecto.nombre}', Nomenclatura='{proyecto.codigo}'")
-                    else:
-                        print(f"❌ No se encontró Proyecto con ID {proyecto_id}")
-                        nomenclaturas['proyecto_nomenclatura'] = f"ID {proyecto_id} no encontrado"
-                        
-                except ValueError:
-                    print(f"⚠️ El valor '{proyecto_id_str}' no es un ID válido para Proyecto")
-                    nomenclaturas['proyecto_nomenclatura'] = "ID inválido"
+                return render(request, 'extractor/upload.html')
             
-            # 3. BUSCAR TIPO DE SERVICIO POR ID en tabla TipoServicio
-            tipo_pruebas_id_str = extracted_data.get('tipo_pruebas', '').strip()
-            if tipo_pruebas_id_str:
-                try:
-                    tipo_pruebas_id = int(tipo_pruebas_id_str)
-                    print(f"🔍 Buscando Tipo de Servicio con ID: {tipo_pruebas_id}")
-                    
-                    tipo_servicio = TipoServicio.objects.filter(id=tipo_pruebas_id).first()
-                    if tipo_servicio:
-                        nomenclaturas['tipo_pruebas_nomenclatura'] = tipo_servicio.nomenclatura
-                        objetos_encontrados['tipo_servicio_obj'] = tipo_servicio
-                        print(f"✅ Tipo de Servicio encontrado: ID={tipo_servicio.id}, Nombre='{tipo_servicio.nombre}', Nomenclatura='{tipo_servicio.nomenclatura}'")
-                    else:
-                        print(f"❌ No se encontró Tipo de Servicio con ID {tipo_pruebas_id}")
-                        nomenclaturas['tipo_pruebas_nomenclatura'] = f"ID {tipo_pruebas_id} no encontrado"
-                        
-                except ValueError:
-                    print(f"⚠️ El valor '{tipo_pruebas_id_str}' no es un ID válido para Tipo de Servicio")
-                    nomenclaturas['tipo_pruebas_nomenclatura'] = "ID inválido"
-            
-
-            ticket_code, ticket_obj = generate_and_save_ticket(
-                extracted_data=extracted_data,
-                tipo_servicio_form=tipo_servicio_form,
-                nomenclaturas=nomenclaturas,
-                objetos_encontrados=objetos_encontrados)
-
-            ticket_parts = generate_ticket_parts(ticket_code)
-
-            # Mostrar resumen de búsqueda
-            print("\n=== RESUMEN DE BÚSQUEDA ===")
-            print(f"Nomenclatura Cliente: {nomenclaturas['cliente_nomenclatura']}")
-            print(f"Nomenclatura Proyecto: {nomenclaturas['proyecto_nomenclatura']}")
-            print(f"Nomenclatura Tipo Pruebas: {nomenclaturas['tipo_pruebas_nomenclatura']}")
-            print(f"Nomenclatura Tipo Servicio (formulario): {nomenclaturas['tipo_servicio_nomenclatura']}")
-            print("===========================\n")
-    
-            
-            # Guardar en la base de datos ExcelData - AGREGAR CAMPO TIPO_SERVICIO
-            excel_data = ExcelData.objects.create(
-                cliente=extracted_data.get('cliente', ''),
-                proyecto=extracted_data.get('proyecto', ''),
-                tipo_pruebas=extracted_data.get('tipo_pruebas', ''),
-                tipo_servicio=tipo_servicio_form,  # <-- NUEVO: Guardar tipo servicio del formulario
-                responsable_solicitud=extracted_data.get('responsable_solicitud', ''),
-                lider_proyecto=extracted_data.get('lider_proyecto', ''),
-                tipo_aplicacion=extracted_data.get('tipo_aplicacion', ''),
-                numero_version=extracted_data.get('numero_version', ''),
-                funcionalidad_liberacion=extracted_data.get('funcionalidad_liberacion', ''),
-                detalle_cambios=extracted_data.get('detalle_cambios', ''),
-                justificacion_cambio=extracted_data.get('justificacion_cambio', ''),
-                ticket_code=ticket_code 
-            )
-            
-            if ticket_obj:
-               ticket_obj.excel_data = excel_data
-               ticket_obj.save()
-
-            # Eliminar archivo temporal
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            
-            # Preparar datos para la plantilla
-            # Crear un diccionario con todos los datos para pasar a la plantilla
-            data_for_template = {
-                'cliente': excel_data.cliente,
-                'proyecto': excel_data.proyecto,
-                'tipo_pruebas': excel_data.tipo_pruebas,
-                'tipo_servicio': excel_data.tipo_servicio,  # <-- NUEVO
-                'responsable_solicitud': excel_data.responsable_solicitud,
-                'lider_proyecto': excel_data.lider_proyecto,
-                'tipo_aplicacion': excel_data.tipo_aplicacion,
-                'numero_version': excel_data.numero_version,
-                'funcionalidad_liberacion': excel_data.funcionalidad_liberacion,
-                'detalle_cambios': excel_data.detalle_cambios,
-                'justificacion_cambio': excel_data.justificacion_cambio,
-                'extracted_date': excel_data.extracted_date
-            }
-            
-            return render(request, 'extractor/result.html', {
-                'data': data_for_template,  # Diccionario con todos los datos
-                'excel_data': excel_data,  # También pasar el objeto completo si lo necesitas
-                'nomenclaturas': nomenclaturas,
-                'objetos_encontrados': objetos_encontrados,
-                'ticket_code': ticket_code,  # Si implementas la función de generar ticket
-                'ticket_parts': ticket_parts, 
-                'ticket': ticket_obj,
-                'tipo_servicio_form': tipo_servicio_form  # Opcional, para uso específico
-            })
-            
-        except Exception as e:
-            print(f"❌ ERROR en procesamiento: {str(e)}")
-            messages.error(request, f'Error al procesar el archivo: {str(e)}')
-            return render(request, 'extractor/upload.html')
-    
     return render(request, 'extractor/upload.html')
-
-
 
 # Añade esta función para generar el código del ticket
 def generate_ticket_code(extracted_data, tipo_servicio):
