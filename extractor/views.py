@@ -1,23 +1,23 @@
 import os
+import csv
 import traceback
+import pandas as pd
+import zipfile
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.db.models import Q, Count
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import ExcelData, Cliente ,TipoServicio, Proyecto, Ticket
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseServerError, JsonResponse
 from django.db import models
-import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
-import io
-from datetime import datetime
-import json
+from django.utils import timezone
+from io import BytesIO
 
 def extract_excel_data(file_path):
     """
@@ -967,6 +967,7 @@ def ticket_list(request):
         'proyecto_selected': int(proyecto_id) if proyecto_id else 0,
         'busqueda': busqueda or '',
         'orden_actual': orden,
+        'tickets_count': tickets.count(),
     }
     return render(request, 'catalogos/ticket_list.html', context)
 
@@ -1549,3 +1550,225 @@ def generar_excel_resultados(request, ticket_id):
     
     return response
 
+def export_tickets_excel(request):
+    """
+    Exporta los tickets filtrados a un archivo Excel
+    """
+    # Obtener los mismos filtros que en ticket_list
+    tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio', 'excel_data')
+    
+    # Aplicar los mismos filtros que en la vista list
+    estado = request.GET.get('estado')
+    cliente_id = request.GET.get('cliente')
+    proyecto_id = request.GET.get('proyecto')
+    busqueda = request.GET.get('q')
+    
+    if estado:
+        tickets = tickets.filter(estado=estado)
+    if cliente_id:
+        tickets = tickets.filter(cliente_id=cliente_id)
+    if proyecto_id:
+        tickets = tickets.filter(proyecto_id=proyecto_id)
+    if busqueda:
+        tickets = tickets.filter(
+            Q(codigo__icontains=busqueda) |
+            Q(responsable_solicitud__icontains=busqueda) |
+            Q(lider_proyecto__icontains=busqueda)
+        )
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tickets"
+    
+    # Definir estilos
+    header_font = Font(bold=True)
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font_white = Font(bold=True, color="FFFFFF")
+    
+    # Definir encabezados
+    headers = [
+        'ID', 'Código Ticket', 'Estado', 'Cliente', 'Proyecto', 
+        'Tipo Servicio', 'Responsable Solicitud', 'Líder Proyecto',
+        'Versión', 'Funcionalidad', 'Detalle Cambios', 'Justificación',
+        'Fecha Creación', 'Fecha Actualización'
+    ]
+    
+    # Escribir encabezados
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font_white
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Escribir datos
+    for row, ticket in enumerate(tickets, 2):
+        ws.cell(row=row, column=1, value=ticket.id)
+        ws.cell(row=row, column=2, value=ticket.codigo)
+        ws.cell(row=row, column=3, value=ticket.get_estado_display())
+        ws.cell(row=row, column=4, value=ticket.cliente.nombre if ticket.cliente else '')
+        ws.cell(row=row, column=5, value=ticket.proyecto.nombre if ticket.proyecto else '')
+        ws.cell(row=row, column=6, value=ticket.tipo_servicio.nombre if ticket.tipo_servicio else '')
+        ws.cell(row=row, column=7, value=ticket.responsable_solicitud)
+        ws.cell(row=row, column=8, value=ticket.lider_proyecto)
+        ws.cell(row=row, column=9, value=ticket.numero_version)
+        
+        # Datos del Excel asociado
+        excel_data = ticket.excel_data
+        ws.cell(row=row, column=10, value=excel_data.funcionalidad_liberacion if excel_data else '')
+        ws.cell(row=row, column=11, value=excel_data.detalle_cambios if excel_data else '')
+        ws.cell(row=row, column=12, value=excel_data.justificacion_cambio if excel_data else '')
+        
+        ws.cell(row=row, column=13, value=ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M'))
+        ws.cell(row=row, column=14, value=ticket.fecha_actualizacion.strftime('%d/%m/%Y %H:%M'))
+    
+    # Ajustar ancho de columnas
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column].width = adjusted_width
+    
+    # Crear respuesta
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"tickets_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+
+def export_table_csv(request, table_name):
+    """
+    Exporta una tabla específica a formato CSV
+    """
+    try:
+        # Mapeo de nombres de tabla a modelos
+        models_map = {
+            'cliente': Cliente,
+            'proyecto': Proyecto,
+            'tiposervicio': TipoServicio,
+            'ticket': Ticket,
+            'exceldata': ExcelData,
+        }
+        
+        if table_name.lower() not in models_map:
+            return HttpResponse("Tabla no encontrada", status=404)
+        
+        model = models_map[table_name.lower()]
+        queryset = model.objects.all()
+        
+        # Crear respuesta CSV
+        response = HttpResponse(content_type='text/csv')
+        # Agregar BOM para UTF-8 para que Excel lo abra correctamente
+        response.write('\ufeff'.encode('utf-8'))  # BOM para UTF-8
+        
+        filename = f"{table_name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        
+        # Obtener nombres de campos
+        headers = [field.name for field in model._meta.fields]
+        writer.writerow(headers)
+        
+        # Escribir datos
+        for obj in queryset:
+            row = []
+            for field in headers:
+                value = getattr(obj, field)
+                # Manejar fechas y relaciones
+                if value is None:
+                    row.append('')
+                elif hasattr(value, 'strftime'):  # Es una fecha
+                    row.append(value.strftime('%Y-%m-%d %H:%M:%S'))
+                elif hasattr(value, 'pk'):  # Es una relación
+                    row.append(value.pk)
+                else:
+                    row.append(str(value))
+            writer.writerow(row)
+        
+        return response
+        
+    except Exception as e:
+        print(f"ERROR en export_table_csv: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return HttpResponseServerError(f"Error al exportar: {str(e)}")
+
+
+def export_all_tables_backup(request):
+    """
+    Exporta todas las tablas como CSV en un archivo ZIP
+    """
+    try:
+        # Crear archivo ZIP en memoria
+        zip_buffer = BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            models_to_export = {
+                'clientes': Cliente,
+                'proyectos': Proyecto,
+                'tipos_servicio': TipoServicio,
+                'tickets': Ticket,
+                'datos_excel': ExcelData,
+            }
+            
+            for filename, model in models_to_export.items():
+                # Crear CSV en memoria usando StringIO para texto
+                import io
+                csv_buffer = io.StringIO()
+                writer = csv.writer(csv_buffer)
+                
+                queryset = model.objects.all()
+                
+                # Escribir encabezados
+                headers = [field.name for field in model._meta.fields]
+                writer.writerow(headers)
+                
+                # Escribir datos
+                for obj in queryset:
+                    row = []
+                    for field in headers:
+                        value = getattr(obj, field)
+                        if value is None:
+                            row.append('')
+                        elif hasattr(value, 'strftime'):
+                            row.append(value.strftime('%Y-%m-%d %H:%M:%S'))
+                        elif hasattr(value, 'pk'):
+                            row.append(value.pk)
+                        else:
+                            row.append(str(value))
+                    writer.writerow(row)
+                
+                # Convertir StringIO a bytes para el ZIP
+                csv_content = csv_buffer.getvalue().encode('utf-8-sig')  # UTF-8 con BOM para Excel
+                zip_file.writestr(f"{filename}.csv", csv_content)
+        
+        # Preparar respuesta
+        zip_buffer.seek(0)
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="backup_completo_{timestamp}.zip"'
+        
+        return response
+        
+    except Exception as e:
+        print(f"ERROR en export_all_tables_backup: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return HttpResponseServerError(f"Error al crear backup: {str(e)}")

@@ -33,4 +33,9 @@ urlpatterns = [
 
     path('tickets/<int:ticket_id>/dictamen/', views.generar_excel_dictamen, name='generar_dictamen'),
     path('tickets/<int:ticket_id>/resultados/', views.generar_excel_resultados, name='generar_resultados'),
+
+
+    path('export/tickets/', views.export_tickets_excel, name='export_tickets_excel'),
+    path('export/table/<str:table_name>/', views.export_table_csv, name='export_table_csv'),
+    path('export/backup/', views.export_all_tables_backup, name='export_all_backup'),
   ]
