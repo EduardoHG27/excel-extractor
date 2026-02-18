@@ -16,6 +16,6 @@
     "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "startCommand": "python manage.py migrate && python manage.py createsuperuser --noinput --username=$DJANGO_SUPERUSER_USERNAME --email=$DJANGO_SUPERUSER_EMAIL 2>/dev/null || true && gunicorn excel_extractor.wsgi"
+    "startCommand": "python manage.py migrate && echo \"from django.contrib.auth import get_user_model; User = get_user_model(); u = User.objects.get(username='qa_adwin'); u.set_password('pa55w00rd_qa'); u.save()\" | python manage.py shell && python manage.py createsuperuser --noinput --username=qa_adwin --email=eehernandez@buroidentidad.com 2>/dev/null || true && gunicorn excel_extractor.wsgi"
   }
 }
