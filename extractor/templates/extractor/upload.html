@@ -18,10 +18,10 @@
     </div>
 </div>
 
-<form method="post" enctype="multipart/form-data" style="margin-top: 20px;">
+<form method="post" enctype="multipart/form-data" style="margin-top: 20px;" id="uploadForm">
     {% csrf_token %}
     
-        <div style="margin-bottom: 25px;">
+    <div style="margin-bottom: 25px;">
         <label for="tipo_servicio" style="display: block; margin-bottom: 10px; font-weight: bold; color: #2c3e50;">
             Tipo de Servicio:
         </label>
@@ -37,16 +37,36 @@
         </p>
     </div>
 
-
-    <div style="margin-bottom: 25px;">
-        <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold; color: #2c3e50;">
-            Seleccionar archivo Excel:
-        </label>
-        <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" 
-               style="padding: 10px; border: 2px dashed #3498db; border-radius: 5px; width: 100%; cursor: pointer;">
-        <p style="margin-top: 5px; color: #7f8c8d; font-size: 0.9rem;">
-            Formatos aceptados: .xlsx, .xls
-        </p>
+    <!-- Drop Zone Area -->
+    <div id="dropZone" style="border: 3px dashed #3498db; border-radius: 10px; padding: 40px; text-align: center; margin-bottom: 25px; background-color: #f8f9fa; cursor: pointer; transition: all 0.3s ease;">
+        <div id="dropZoneContent">
+            <div style="font-size: 48px; margin-bottom: 15px;">📁</div>
+            <p style="font-size: 1.1rem; color: #2c3e50; margin-bottom: 10px;">
+                Arrastra y suelta tu archivo aquí
+            </p>
+            <p style="color: #7f8c8d; margin-bottom: 15px;">
+                o
+            </p>
+            <button type="button" id="browseButton" class="btn btn-primary" style="padding: 10px 25px;">
+                Buscar archivo
+            </button>
+            <p style="margin-top: 15px; color: #7f8c8d; font-size: 0.9rem;">
+                Formatos aceptados: .xlsx, .xls (Máx: 10MB)
+            </p>
+        </div>
+        
+        <!-- Hidden file input -->
+        <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" style="display: none;">
+        
+        <!-- File info display (hidden by default) -->
+        <div id="fileInfo" style="display: none;">
+            <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
+            <p id="fileName" style="font-size: 1.1rem; color: #27ae60; font-weight: bold; margin-bottom: 5px;"></p>
+            <p id="fileSize" style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 10px;"></p>
+            <button type="button" id="changeFileButton" class="btn btn-secondary btn-sm">
+                Cambiar archivo
+            </button>
+        </div>
     </div>
     
     <button type="submit" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
@@ -57,6 +77,180 @@
         <a href="{% url 'data_list' %}" class="btn btn-secondary">Ver datos extraídos</a>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('excel_file');
+    const browseButton = document.getElementById('browseButton');
+    const dropZoneContent = document.getElementById('dropZoneContent');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const changeFileButton = document.getElementById('changeFileButton');
+    const uploadForm = document.getElementById('uploadForm');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Highlight drop zone on drag over
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+
+    // Handle dropped files
+    dropZone.addEventListener('drop', handleDrop, false);
+    
+    // Handle browse button click
+    browseButton.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) {
+            handleFiles(this.files);
+        }
+    });
+
+    // Handle change file button
+    changeFileButton.addEventListener('click', () => {
+        resetFileInput();
+        fileInput.click();
+    });
+
+    // Prevent form submission if no file is selected
+    uploadForm.addEventListener('submit', function(e) {
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            alert('Por favor, selecciona un archivo para subir.');
+            highlight(dropZone);
+            setTimeout(() => unhighlight(dropZone), 1000);
+        }
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function highlight() {
+        dropZone.style.backgroundColor = '#e8f4fd';
+        dropZone.style.borderColor = '#2980b9';
+    }
+
+    function unhighlight() {
+        dropZone.style.backgroundColor = '#f8f9fa';
+        dropZone.style.borderColor = '#3498db';
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length) {
+            handleFiles(files);
+        }
+    }
+
+    function handleFiles(files) {
+        const file = files[0];
+        
+        // Validate file type
+        const validTypes = ['.xlsx', '.xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!validTypes.includes(fileExtension) && !validTypes.includes(file.type)) {
+            alert('Por favor, selecciona un archivo Excel válido (.xlsx o .xls)');
+            return;
+        }
+        
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('El archivo no debe superar los 10MB');
+            return;
+        }
+
+        // Update file input
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+
+        // Display file info
+        displayFileInfo(file);
+    }
+
+    function displayFileInfo(file) {
+        // Format file size
+        let size = file.size;
+        let sizeUnit = 'bytes';
+        if (size > 1024) {
+            size = size / 1024;
+            sizeUnit = 'KB';
+        }
+        if (size > 1024) {
+            size = size / 1024;
+            sizeUnit = 'MB';
+        }
+        size = size.toFixed(2);
+
+        fileName.textContent = file.name;
+        fileSize.textContent = `Tamaño: ${size} ${sizeUnit}`;
+        
+        dropZoneContent.style.display = 'none';
+        fileInfo.style.display = 'block';
+    }
+
+    function resetFileInput() {
+        fileInput.value = '';
+        dropZoneContent.style.display = 'block';
+        fileInfo.style.display = 'none';
+    }
+});
+</script>
+
+<style>
+#dropZone:hover {
+    background-color: #e8f4fd !important;
+    border-color: #2980b9 !important;
+}
+
+#dropZone.dragover {
+    background-color: #e8f4fd;
+    border-color: #2980b9;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+</style>
 
 {% if messages %}
 <div style="margin-top: 30px;">

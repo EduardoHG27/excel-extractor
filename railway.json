@@ -16,6 +16,6 @@
     "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "startCommand": "python manage.py migrate && python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(username='qa_adwin').exists() or User.objects.create_superuser('qa_adwin', 'eehernandez@buroidentidad.com', 'pa55w00rd_qa')\" && gunicorn excel_extractor.wsgi"
+    "startCommand": "python manage.py migrate && python manage.py fix_sequences && python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(username='qa_adwin').exists() or User.objects.create_superuser('qa_adwin', 'eehernandez@buroidentidad.com', 'pa55w00rd_qa')\" && gunicorn excel_extractor.wsgi"
   }
 }
