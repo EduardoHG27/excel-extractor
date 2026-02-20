@@ -1363,94 +1363,166 @@ def ticket_create_simple(request):
 
 def generar_excel_dictamen(request, ticket_id):
     """
-    Genera el archivo Excel de Dictamen de Pruebas con la información del ticket
+    Genera el Dictamen de Pruebas usando la plantilla
     """
     import io
+    import os
+    from django.conf import settings
+    from openpyxl import load_workbook
     from datetime import datetime
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from django.contrib import messages
     
     ticket = get_object_or_404(Ticket, id=ticket_id)
     
-    # Crear un nuevo workbook
-    wb = Workbook()
-    
-    # Eliminar hoja por defecto
-    wb.remove(wb.active)
-    
-    # Crear hoja de Dictamen
-    ws_dictamen = wb.create_sheet("Dictamen", 0)
-    
-    # Definir estilos
-    titulo_font = Font(bold=True, size=12)
-    header_font = Font(bold=True)
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
+    # Ruta a la plantilla
+    plantilla_path = os.path.join(
+        settings.BASE_DIR,
+        'static',
+        'plantillas',
+        'XXX-XXX-XXX-X-XXX-XXX-XXX DictamenPruebas PRUEBAS.xlsx'
     )
     
-    # Configurar anchos de columna
-    column_widths = [5, 15, 5, 30, 5, 15, 5, 15, 5, 15, 5, 15, 5, 15, 5, 15, 5]
-    for i, width in enumerate(column_widths, 1):
-        col_letter = ws_dictamen.cell(row=1, column=i).column_letter
-        ws_dictamen.column_dimensions[col_letter].width = width
+    # Verificar que la plantilla existe
+    if not os.path.exists(plantilla_path):
+        messages.error(
+            request, 
+            f"No se encontró la plantilla. Por favor, coloca el archivo en: {plantilla_path}"
+        )
+        return redirect('ticket_detail', id=ticket.id)
     
-    # 1. Ticket en fila 3
-    ws_dictamen.cell(row=3, column=4, value="En continuidad a la solicitud de realización de pruebas con el número de ticket:")
-    ws_dictamen.cell(row=3, column=8, value=ticket.codigo)
-    ws_dictamen.cell(row=3, column=8).font = Font(bold=True, color="2563EB")
+    try:
+        # Cargar la plantilla
+        wb = load_workbook(plantilla_path)
+        
+        # Seleccionar la hoja de Dictamen
+        if 'Dictamen' in wb.sheetnames:
+            ws = wb['Dictamen']
+        else:
+            ws = wb.active
+        
+        # Desglosar código del ticket
+        partes = ticket.codigo.split('-')
+        print(f"Partes del ticket: {partes}")
+        
+        # MAPEO SEGÚN SYS.TXT - Usando coordenadas de celda
+        if len(partes) >= 7:
+            # MODIFICACIÓN: Verificar si la celda está fusionada antes de asignar
+            try:
+                # Verificar si G2 está en un rango fusionado
+                is_merged = False
+                for merged_range in ws.merged_cells.ranges:
+                    if ws['G2'].coordinate in merged_range:
+                        is_merged = True
+                        print(f"✅ G2 está fusionada en el rango: {merged_range}")
+                        # Obtener la celda superior izquierda del rango fusionado
+                        top_left_cell = ws[merged_range.start_cell.coordinate]
+                        top_left_cell.value = partes[1]
+                        print(f"✅ Celda fusionada {merged_range.start_cell.coordinate} = {partes[1]}")
+                        break
+                
+                if not is_merged:
+                    # Si no está fusionada, asignar directamente
+                    ws['G2'] = partes[1]
+                    print(f"✅ G2 = {partes[1]}")
+            except Exception as e:
+                print(f"❌ Error al asignar G2: {e}")
+            
+            # I2 = Tipo de pruebas
+            try:
+                ws['I2'] = partes[2]
+                print(f"✅ I2 = {partes[2]}")
+            except Exception as e:
+                print(f"❌ Error en I2: {e}")
+            
+            # K2 = No. Pruebas
+            try:
+                ws['K2'] = partes[3]
+                print(f"✅ K2 = {partes[3]}")
+            except Exception as e:
+                print(f"❌ Error en K2: {e}")
+            
+            # M2 = Cliente
+            try:
+                ws['M2'] = partes[4]
+                print(f"✅ M2 = {partes[4]}")
+            except Exception as e:
+                print(f"❌ Error en M2: {e}")
+            
+            # ✅ NUEVO: O2 = Nomenclatura del Proyecto (parte 5 del código)
+            try:
+                ws['O2'] = partes[5]
+                print(f"✅ O2 = {partes[5]}")
+            except Exception as e:
+                print(f"❌ Error en O2: {e}")
+            
+            # Q2 = Consecutivo
+            try:
+                ws['Q2'] = partes[6]
+                print(f"✅ Q2 = {partes[6]}")
+            except Exception as e:
+                print(f"❌ Error en Q2: {e}")
+        
+        # Otros campos
+        campos = [
+            ('B5', ticket.cliente.nombre if ticket.cliente else ''),
+            ('B6', ticket.proyecto.nombre if ticket.proyecto else ''),
+            ('C7', ticket.tipo_servicio.nombre if ticket.tipo_servicio else ''),
+            ('H6', datetime.now().strftime('%d/%m/%Y')),
+            ('B24', ticket.responsable_solicitud or ''),
+            ('H24', ticket.lider_proyecto or ''),
+        ]
+        
+        for celda, valor in campos:
+            try:
+                ws[celda] = valor
+                print(f"✅ {celda} = {valor}")
+            except Exception as e:
+                print(f"❌ Error en {celda}: {e}")
+        
+        ws.row_dimensions[37].height = 32.6
+        # Guardar en buffer
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        # Crear respuesta
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{ticket.codigo} Dictamen Pruebas.xlsx"'
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Error al generar dictamen: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        messages.error(request, f"Error al generar dictamen: {str(e)}")
+        return redirect('ticket_detail', id=ticket.id)
+
+def verificar_plantilla(request):
+    import os
+    from django.conf import settings
+    from django.http import HttpResponse
     
-    # 2. Cliente
-    ws_dictamen.cell(row=6, column=1, value="Cliente")
-    ws_dictamen.cell(row=6, column=1).font = header_font
-    if ticket.cliente:
-        ws_dictamen.cell(row=6, column=4, value=ticket.cliente.nombre)
+    # Posibles rutas a verificar
+    rutas = [
+        os.path.join(settings.BASE_DIR, 'static', 'plantillas', 'XXX-XXX-XXX-X-XXX-XXX-XXX DictamenPruebas PRUEBAS.xlsx'),
+        os.path.join(settings.BASE_DIR, 'extractor', 'static', 'plantillas', 'XXX-XXX-XXX-X-XXX-XXX-XXX DictamenPruebas PRUEBAS.xlsx'),
+        os.path.join(settings.MEDIA_ROOT, 'plantillas', 'XXX-XXX-XXX-X-XXX-XXX-XXX DictamenPruebas PRUEBAS.xlsx'),
+    ]
     
-    # 3. Proyecto
-    ws_dictamen.cell(row=7, column=1, value="Proyecto")
-    ws_dictamen.cell(row=7, column=1).font = header_font
-    if ticket.proyecto:
-        ws_dictamen.cell(row=7, column=4, value=ticket.proyecto.nombre)
+    resultado = "<h1>Verificación de Plantilla</h1>"
+    resultado += f"<p>BASE_DIR: {settings.BASE_DIR}</p>"
     
-    # 4. Tipo de pruebas realizadas
-    ws_dictamen.cell(row=8, column=1, value="Tipo de pruebas realizadas")
-    ws_dictamen.cell(row=8, column=1).font = header_font
-    if ticket.tipo_servicio:
-        ws_dictamen.cell(row=8, column=4, value=ticket.tipo_servicio.nombre)
+    for ruta in rutas:
+        existe = os.path.exists(ruta)
+        resultado += f"<p>Ruta: {ruta}<br>Existe: {existe}</p>"
+        if existe:
+            resultado += f"<p>✅ ¡ENCONTRADA AQUÍ!</p>"
     
-    # 5. Fecha de emisión
-    ws_dictamen.cell(row=7, column=6, value="Fecha de emisión")
-    ws_dictamen.cell(row=7, column=6).font = header_font
-    ws_dictamen.cell(row=7, column=8, value=datetime.now().strftime("%d/%m/%Y"))
-    
-    # 6. Versión
-    ws_dictamen.cell(row=8, column=6, value="Versión")
-    ws_dictamen.cell(row=8, column=6).font = header_font
-    ws_dictamen.cell(row=8, column=8, value=f"v{ticket.numero_version or '1.0'}")
-    
-    # 7. Responsable de QA / Tester
-    ws_dictamen.cell(row=24, column=1, value="Responsable de QA")
-    ws_dictamen.cell(row=24, column=1).font = header_font
-    ws_dictamen.cell(row=24, column=6, value="Tester responsable de pruebas")
-    ws_dictamen.cell(row=24, column=6).font = header_font
-    ws_dictamen.cell(row=24, column=8, value=ticket.responsable_solicitud or "")
-    
-    # Guardar en un buffer
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    
-    # Crear la respuesta HTTP
-    response = HttpResponse(
-        buffer.getvalue(),  # Usar getvalue() en lugar del buffer directamente
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = f'attachment; filename="Dictamen_Pruebas_{ticket.codigo}.xlsx"'
-    response['Content-Length'] = len(buffer.getvalue())
-    
-    return response
+    return HttpResponse(resultado)
 
 
 def generar_excel_resultados(request, ticket_id):
@@ -1458,125 +1530,74 @@ def generar_excel_resultados(request, ticket_id):
     Genera el archivo Excel de Documentación de Resultados de Pruebas con la información del ticket
     """
     import io
+    import os
     from datetime import datetime
-    from openpyxl import Workbook
+    from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Font, PatternFill, Border, Side
+    from django.conf import settings
     
     ticket = get_object_or_404(Ticket, id=ticket_id)
     
-    # Crear un nuevo workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Resultados Pruebas"
-    
-    # Definir estilos
-    header_font = Font(bold=True)
-    ticket_font = Font(bold=True, size=14, color="2563EB")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
+    # Ruta a la plantilla de resultados
+    plantilla_resultados_path = os.path.join(
+        settings.BASE_DIR,
+        'static',
+        'plantillas',
+        'XXX-XXX-XXX-X-XXX-XXX-XXX Documentación de Resultados.xlsx'
     )
     
-    # Configurar anchos
-    ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 30
-    ws.column_dimensions['C'].width = 5
-    ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 5
-    ws.column_dimensions['F'].width = 15
-    ws.column_dimensions['G'].width = 5
-    ws.column_dimensions['H'].width = 15
-    ws.column_dimensions['I'].width = 5
-    ws.column_dimensions['J'].width = 15
-    ws.column_dimensions['K'].width = 5
-    ws.column_dimensions['L'].width = 15
-    ws.column_dimensions['M'].width = 30
+    # Verificar si existe la plantilla
+    if os.path.exists(plantilla_resultados_path):
+        # Usar la plantilla
+        wb = load_workbook(plantilla_resultados_path)
+        ws = wb.active
+        ws.title = "Resultados Pruebas"
+    else:
+        # Crear un nuevo workbook si no existe la plantilla
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Resultados Pruebas"
+        
+        # Configurar anchos de columna básicos
+        ws.column_dimensions['A'].width = 8
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['L'].width = 15
+        ws.column_dimensions['M'].width = 30
     
-    # TICKET
-    ws.cell(row=2, column=1, value="TICKET:")
-    ws.cell(row=2, column=1).font = header_font
-    ws.cell(row=2, column=2, value=ticket.codigo)
-    ws.cell(row=2, column=2).font = ticket_font
+    # Definir estilos (solo si creamos el documento desde cero, si usamos plantilla se mantienen los estilos)
+    if not os.path.exists(plantilla_resultados_path):
+        header_font = Font(bold=True)
+        ticket_font = Font(bold=True, size=14, color="2563EB")
+        
+        # TICKET - SOLO SI ES DOCUMENTO NUEVO
+        ws.cell(row=2, column=1, value="TICKET:")
+        ws.cell(row=2, column=1).font = header_font
     
-    # AMBIENTE
-    ws.cell(row=3, column=1, value="AMBIENTE:")
-    ws.cell(row=3, column=1).font = header_font
-    ws.cell(row=3, column=2, value="QA")
+    # AGREGAR EL TICKET EN C2 (esto funciona tanto en plantilla como en documento nuevo)
+    ws['C2'] = ticket.codigo
     
-    # URL
-    ws.cell(row=3, column=4, value="URL:")
-    ws.cell(row=3, column=4).font = header_font
+    # Si es documento nuevo, aplicar estilo al ticket
+    if not os.path.exists(plantilla_resultados_path):
+        ws['C2'].font = Font(bold=True, size=14, color="2563EB")
     
-    # VERSIÓN
-    ws.cell(row=3, column=11, value="VERSIÓN:")
-    ws.cell(row=3, column=11).font = header_font
-    ws.cell(row=3, column=12, value=f"Versión {ticket.numero_version or '1.0.0'}")
-    
-    # CREDENCIALES
-    ws.cell(row=4, column=1, value="CREDENCIALES")
-    ws.cell(row=4, column=1).font = header_font
-    ws.cell(row=4, column=3, value="USER")
-    ws.cell(row=4, column=3).font = header_font
-    ws.cell(row=4, column=4, value="N/A")
-    ws.cell(row=4, column=7, value="PASSWORD")
-    ws.cell(row=4, column=7).font = header_font
-    ws.cell(row=4, column=8, value="N/A")
-    
-    # PRECONDICIONES
-    ws.cell(row=5, column=1, value="PRECONDICIONES")
-    ws.cell(row=5, column=1).font = header_font
-    
-    # DESCRIPCIÓN
-    ws.cell(row=7, column=1, value="DESCRIPCIÓN")
-    ws.cell(row=7, column=1).font = header_font
-    
-    # Información del ticket como descripción
-    descripcion = []
-    if ticket.funcion_code:
-        descripcion.append(f"Funcionalidad: {ticket.funcion_code}")
-    if ticket.cliente:
-        descripcion.append(f"Cliente: {ticket.cliente.nombre}")
-    if ticket.proyecto:
-        descripcion.append(f"Proyecto: {ticket.proyecto.nombre}")
-    
-    ws.cell(row=8, column=2, value=" - ".join(descripcion))
-    
-    # Tabla de casos de prueba
-    headers = ['ID', 'CASO DE PRUEBA', '', 'EVIDENCIAS', '', '', '', '', '', '', 'RESULTADO', 'OBSERVACIONES']
-    col_positions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13]
-    
-    row_num = 10
-    for col_num, header in zip(col_positions, headers):
-        cell = ws.cell(row=row_num, column=col_num, value=header)
-        cell.font = header_font
-        cell.fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
-    
-    # Fila de ejemplo
-    ws.cell(row=row_num + 1, column=1, value="001")
-    ws.cell(row=row_num + 1, column=11, value="EXITOSO")
-    
-    # CONCLUSIONES
-    ws.cell(row=row_num + 3, column=1, value="CONCLUSIONES")
-    ws.cell(row=row_num + 3, column=1).font = header_font
-    
-    conclusion = f"Pruebas ejecutadas para el ticket {ticket.codigo}"
-    if ticket.tipo_servicio:
-        conclusion += f" - {ticket.tipo_servicio.nombre}"
-    ws.cell(row=row_num + 4, column=2, value=conclusion)
+    # Versión (si no existe en la plantilla)
+    if ws['M3'].value is None or "Versión" not in str(ws['M3'].value):
+        ws['M3'] = f"VERSIÓN: Versión {ticket.numero_version or '1.0.0'}"
     
     # Guardar en buffer
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
     
-    # Crear respuesta
+    # Crear respuesta con el nombre del archivo basado en el ticket
     response = HttpResponse(
-        buffer.getvalue(),  # Usar getvalue() en lugar del buffer directamente
+        buffer.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = f'attachment; filename="Resultados_Pruebas_{ticket.codigo}.xlsx"'
+    
+    # ✅ RENOMBRAR EL ARCHIVO con el código del ticket
+    filename = f"{ticket.codigo} Documentación de Resultados.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     response['Content-Length'] = len(buffer.getvalue())
     
     return response

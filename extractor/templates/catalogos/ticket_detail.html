@@ -152,7 +152,7 @@
         <div class="card info-card mb-4">
             <div class="card-header bg-white py-3">
                 <h5 class="mb-0">
-                    <i class="bi bi-upc-scan text-primary"></i> Componentes del Código
+                    <i class="bi bi-upc-scan text-primary"></i> Componentes del Ticket
                 </h5>
             </div>
             <div class="card-body">
@@ -168,11 +168,11 @@
                                 <span class="parte-valor">{{ partes.tipo_servicio }}</span>
                             </span>
                             <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Función</span>
+                                <span class="parte-titulo d-block">Tipo de pruebas</span>
                                 <span class="parte-valor">{{ partes.funcion }}</span>
                             </span>
                             <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Versión</span>
+                                <span class="parte-titulo d-block">No. Pruebas</span>
                                 <span class="parte-valor">{{ partes.version }}</span>
                             </span>
                             <span class="parte-codigo">
@@ -227,7 +227,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Tipo Servicio:</th>
+                                <th>Tipo de pruebas:</th>
                                 <td>
                                     {% if ticket.tipo_servicio %}
                                         <strong>{{ ticket.tipo_servicio.nombre }}</strong>

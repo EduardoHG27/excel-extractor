@@ -38,4 +38,6 @@ urlpatterns = [
     path('export/tickets/', views.export_tickets_excel, name='export_tickets_excel'),
     path('export/table/<str:table_name>/', views.export_table_csv, name='export_table_csv'),
     path('export/backup/', views.export_all_tables_backup, name='export_all_backup'),
+
+    path('verificar-plantilla/', views.verificar_plantilla, name='verificar_plantilla'),
   ]
