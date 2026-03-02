@@ -31,17 +31,28 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label for="tipo_servicio">Tipo de Servicio *</label>
-                        <select name="tipo_servicio" id="tipo_servicio" class="form-control" required>
-                            <option value="">-- Seleccione un tipo de servicio --</option>
-                            {% for tipo in tipos_servicio %}
-                                <option value="{{ tipo.id }}">{{ tipo.nombre }} ({{ tipo.nomenclatura }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                       
+                <div class="form-group">
+                    <label for="tipo_prueba">Tipo de Prueba *</label>
+                    <select name="tipo_prueba" id="tipo_prueba" class="form-control" required>
+                        <option value="">-- Seleccione un tipo de prueba --</option>
+                        {% for tipo in tipos_servicio %}
+                            <option value="{{ tipo.id }}" data-nomenclatura="{{ tipo.nomenclatura }}">{{ tipo.nombre }} ({{ tipo.nomenclatura }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    <!-- NUEVO: Campo para consecutivo manual -->
+                <!-- NUEVO combo: TIPO DE SERVICIO (igual al de upload.html) -->
+                <div class="form-group">
+                    <label for="tipo_servicio">Tipo de Servicio *</label>
+                    <select name="tipo_servicio_code" id="tipo_servicio" class="form-control" required>
+                        <option value="">-- Seleccionar tipo de servicio --</option>
+                        <option value="PRU">Pruebas (PRU)</option>
+                        <option value="EST">Estimación (EST)</option>
+                        <option value="G&A">Gestión y administración (G&A)</option>
+                    </select>
+                </div>
+                   
                     <div class="form-group" id="consecutivo-group">
                         <label for="consecutivo">
                             Número Consecutivo 
@@ -65,6 +76,14 @@
                             <br>Último consecutivo usado: <strong>{{ ultimo_consecutivo|default:"0"|stringformat:"03d" }}</strong>
                         </small>
                         <div id="consecutivo-validacion" style="margin-top: 5px; font-size: 14px;"></div>
+                    </div>
+                                        <div class="form-group text-center">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            🎫 Generar Ticket
+                        </button>
+                        <a href="{% url 'ticket_list' %}" class="btn btn-secondary btn-lg">
+                            Cancelar
+                        </a>
                     </div>
 
                     <hr>
@@ -104,15 +123,6 @@
                         <label for="justificacion_cambio">Justificación del Cambio</label>
                         <textarea name="justificacion_cambio" id="justificacion_cambio" 
                                   class="form-control" rows="3" placeholder="Justifique el cambio..."></textarea>
-                    </div>
-
-                    <div class="form-group text-center">
-                        <button type="submit" class="btn btn-success btn-lg">
-                            🎫 Generar Ticket
-                        </button>
-                        <a href="{% url 'ticket_list' %}" class="btn btn-secondary btn-lg">
-                            Cancelar
-                        </a>
                     </div>
                 </form>
             </div>
@@ -286,109 +296,119 @@
 
     // NUEVO: Actualizar preview del código de ticket
     function actualizarPreviewCodigo() {
-        const clienteSelect = document.getElementById('cliente');
-        const proyectoSelect = document.getElementById('proyecto');
-        const tipoSelect = document.getElementById('tipo_servicio');
-        const consecutivoInput = document.getElementById('consecutivo');
-        
-        let preview = 'BID-';
-        
-        // Tipo de servicio (nomenclatura)
-        if (tipoSelect.selectedIndex > 0) {
-            const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
-            const match = tipoText.match(/\(([^)]+)\)/);
-            preview += (match ? match[1] : '???') + '-';
-        } else {
-            preview += '???-';
-        }
-        
-        // Función (misma nomenclatura)
-        if (tipoSelect.selectedIndex > 0) {
-            const tipoText = tipoSelect.options[tipoSelect.selectedIndex].text;
-            const match = tipoText.match(/\(([^)]+)\)/);
-            preview += (match ? match[1] : '???') + '-';
-        } else {
-            preview += '???-';
-        }
-        
-        // Versión (ID del tipo)
-        if (tipoSelect.value) {
-            preview += tipoSelect.value + '-';
-        } else {
-            preview += '???-';
-        }
-        
-        // Cliente (nomenclatura)
-        if (clienteSelect.selectedIndex > 0) {
-            const clienteText = clienteSelect.options[clienteSelect.selectedIndex].text;
-            const match = clienteText.match(/\(([^)]+)\)/);
-            preview += (match ? match[1] : '???') + '-';
-        } else {
-            preview += '???-';
-        }
-        
-        // Proyecto (código)
-        if (proyectoSelect.selectedIndex > 0 && !proyectoSelect.disabled) {
-            const selectedOption = proyectoSelect.options[proyectoSelect.selectedIndex];
-            preview += (selectedOption.dataset.codigo || '???') + '-';
-        } else {
-            preview += '???-';
-        }
-        
-        // Consecutivo
-        if (consecutivoInput.value) {
-            const cons = parseInt(consecutivoInput.value);
-            if (!isNaN(cons) && cons >= 1 && cons <= 999) {
-                preview += cons.toString().padStart(3, '0');
-            } else {
-                preview += '???';
-            }
-        } else {
-            preview += 'XXX';  // Indicador de auto-generado
-        }
-        
-        document.querySelector('.consecutivo-prefix').textContent = preview;
+    const clienteSelect = document.getElementById('cliente');
+    const proyectoSelect = document.getElementById('proyecto');
+    const tipoServicioCodeSelect = document.getElementById('tipo_servicio'); // PRU/EST/G&A
+    const tipoPruebaSelect = document.getElementById('tipo_prueba'); // FUN/INT etc.
+    const consecutivoInput = document.getElementById('consecutivo');
+    
+    let preview = 'BID-';
+    
+    // PRIMER SEGMENTO: Tipo de Servicio Code (PRU, EST, G&A)
+    if (tipoServicioCodeSelect.value) {
+        preview += tipoServicioCodeSelect.value + '-';
+    } else {
+        preview += '???-';
     }
+    
+    // SEGUNDO SEGMENTO: Tipo de Prueba (nomenclatura: FUN, INT, etc.)
+    if (tipoPruebaSelect.selectedIndex > 0 && tipoPruebaSelect.value) {
+        const selectedOption = tipoPruebaSelect.options[tipoPruebaSelect.selectedIndex];
+        preview += (selectedOption.dataset.nomenclatura || '???') + '-';
+    } else {
+        preview += '???-';
+    }
+    
+    // TERCER SEGMENTO: ID del tipo de prueba (formateado a 3 dígitos)
+    if (tipoPruebaSelect.value) {
+        preview += tipoPruebaSelect.value.padStart(3, '0') + '-';
+    } else {
+        preview += '???-';
+    }
+    
+    // Cliente (nomenclatura)
+    if (clienteSelect.selectedIndex > 0) {
+        const clienteText = clienteSelect.options[clienteSelect.selectedIndex].text;
+        const match = clienteText.match(/\(([^)]+)\)/);
+        preview += (match ? match[1] : '???') + '-';
+    } else {
+        preview += '???-';
+    }
+    
+    // Proyecto (código)
+    if (proyectoSelect.selectedIndex > 0 && !proyectoSelect.disabled) {
+        const selectedOption = proyectoSelect.options[proyectoSelect.selectedIndex];
+        preview += (selectedOption.dataset.codigo || '???') + '-';
+    } else {
+        preview += '???-';
+    }
+    
+    // Consecutivo
+    if (consecutivoInput.value) {
+        const cons = parseInt(consecutivoInput.value);
+        if (!isNaN(cons) && cons >= 1 && cons <= 999) {
+            preview += cons.toString().padStart(3, '0');
+        } else {
+            preview += '???';
+        }
+    } else {
+        preview += 'XXX';
+    }
+    
+    document.querySelector('.consecutivo-prefix').textContent = preview;
+}
 
-    // Agregar event listeners para actualizar el preview
+// Agregar todos los event listeners necesarios
+document.addEventListener('DOMContentLoaded', function() {
+    // Event listeners existentes
     document.getElementById('cliente').addEventListener('change', actualizarPreviewCodigo);
     document.getElementById('proyecto').addEventListener('change', actualizarPreviewCodigo);
     document.getElementById('tipo_servicio').addEventListener('change', actualizarPreviewCodigo);
+    document.getElementById('tipo_prueba').addEventListener('change', actualizarPreviewCodigo); // NUEVO
+    document.getElementById('consecutivo').addEventListener('input', actualizarPreviewCodigo);
+    
+    // Inicializar preview
+    actualizarPreviewCodigo();
+});
+    
+
+    // Actualiza los event listeners para incluir el nuevo combo
+    document.getElementById('cliente').addEventListener('change', actualizarPreviewCodigo);
+    document.getElementById('proyecto').addEventListener('change', actualizarPreviewCodigo);
+    document.getElementById('tipo_servicio').addEventListener('change', actualizarPreviewCodigo); // El nuevo combo
     document.getElementById('consecutivo').addEventListener('input', actualizarPreviewCodigo);
     
     // NUEVO: Validar consecutivo en tiempo real
-    document.getElementById('consecutivo').addEventListener('input', function() {
-        const consecutivo = this.value;
-        const validacionDiv = document.getElementById('consecutivo-validacion');
-        const clienteSelect = document.getElementById('cliente');
-        const proyectoSelect = document.getElementById('proyecto');
-        const tipoSelect = document.getElementById('tipo_servicio');
-        
-        if (!consecutivo) {
-            validacionDiv.innerHTML = '🔢 Consecutivo auto-generado automáticamente';
-            validacionDiv.className = 'validacion-info';
-            return;
-        }
-        
-        const consNum = parseInt(consecutivo);
-        if (isNaN(consNum) || consNum < 1 || consNum > 999) {
-            validacionDiv.innerHTML = '❌ El consecutivo debe ser un número entre 1 y 999';
-            validacionDiv.className = 'validacion-error';
-            return;
-        }
-        
-        // Validar que todos los campos necesarios estén seleccionados
-        if (!clienteSelect.value || !proyectoSelect.value || !tipoSelect.value) {
-            validacionDiv.innerHTML = '⚠️ Seleccione cliente, proyecto y tipo de servicio para verificar disponibilidad';
-            validacionDiv.className = 'validacion-info';
-            return;
-        }
-        
-        // Aquí podrías hacer una validación AJAX para verificar si el consecutivo ya existe
-        // Por ahora, solo mostramos un mensaje
-        validacionDiv.innerHTML = `✅ Consecutivo ${consNum.toString().padStart(3, '0')} disponible (se verificará al guardar)`;
-        validacionDiv.className = 'validacion-exito';
-    });
+document.getElementById('consecutivo').addEventListener('input', function() {
+    const consecutivo = this.value;
+    const validacionDiv = document.getElementById('consecutivo-validacion');
+    const clienteSelect = document.getElementById('cliente');
+    const proyectoSelect = document.getElementById('proyecto');
+    const tipoServicioSelect = document.getElementById('tipo_servicio'); // El nuevo combo
+    
+    if (!consecutivo) {
+        validacionDiv.innerHTML = '🔢 Consecutivo auto-generado automáticamente';
+        validacionDiv.className = 'validacion-info';
+        return;
+    }
+    
+    const consNum = parseInt(consecutivo);
+    if (isNaN(consNum) || consNum < 1 || consNum > 999) {
+        validacionDiv.innerHTML = '❌ El consecutivo debe ser un número entre 1 y 999';
+        validacionDiv.className = 'validacion-error';
+        return;
+    }
+    
+    // Validar que todos los campos necesarios estén seleccionados
+    if (!clienteSelect.value || !proyectoSelect.value || !tipoServicioSelect.value) {
+        validacionDiv.innerHTML = '⚠️ Seleccione cliente, proyecto y tipo de servicio para verificar disponibilidad';
+        validacionDiv.className = 'validacion-info';
+        return;
+    }
+    
+    validacionDiv.innerHTML = `✅ Consecutivo ${consNum.toString().padStart(3, '0')} disponible (se verificará al guardar)`;
+    validacionDiv.className = 'validacion-exito';
+});
 
     // Inicializar preview cuando se carga la página
     document.addEventListener('DOMContentLoaded', function() {

@@ -143,6 +143,22 @@
                                 </a>
                             </div>
                         </div>
+                                                <!-- Acciones rápidas -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{% url 'ticket_create' %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-plus-circle"></i> Nuevo Ticket Manual
+                                    </a>
+                                    <a href="{% url 'upload_excel' %}" class="btn btn-outline-success">
+                                        <i class="bi bi-upload"></i> Subir Excel
+                                    </a>
+                                    <a href="{% url 'ticket_list' %}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-list-ul"></i> Listado de Tickets
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
