@@ -115,7 +115,14 @@
                             <small class="text-muted text-uppercase fw-bold">Código de Ticket</small>
                             <div class="codigo-ticket">
                                 {{ ticket.codigo }}
+
+                              <button class="btn btn-outline-secondary btn-sm ms-3" 
+                                onclick="navigator.clipboard.writeText('{{ ticket.codigo }}')"
+                                title="Copiar código">
+                            <i class="bi bi-clipboard"></i>
                             </div>
+
+                        </button>
                             <div class="mt-2">
                                 <span class="badge bg-light text-dark me-2">
                                     <i class="bi bi-calendar3"></i> Creado: {{ ticket.fecha_creacion|date:"d/m/Y H:i" }}

@@ -1019,6 +1019,28 @@ def ticket_list(request):
     return render(request, 'catalogos/ticket_list.html', context)
 
 
+def ticket_delete(request, id):
+    """Eliminar un ticket"""
+    ticket = get_object_or_404(Ticket, id=id)
+    
+    if request.method == 'POST':
+        try:
+            codigo = ticket.codigo
+            
+            # Si el ticket tiene datos Excel asociados, también se eliminarán (on_delete=CASCADE)
+            ticket.delete()
+            
+            messages.success(request, f'✅ Ticket "{codigo}" eliminado exitosamente')
+            return redirect('ticket_list')
+        except Exception as e:
+            messages.error(request, f'Error al eliminar ticket: {str(e)}')
+            return redirect('ticket_detail', id=id)
+    
+    # GET request - mostrar página de confirmación
+    context = {
+        'ticket': ticket,
+    }
+    return render(request, 'catalogos/ticket_confirm_delete.html', context)
 
 def ticket_detail(request, id):
     """Ver detalle de un ticket"""
