@@ -1475,26 +1475,24 @@ def ticket_create(request):
     }
     return render(request, 'catalogos/new_ticket_form.html', context)
 
-@login_required(login_url='login')
+
 def proyectos_por_cliente(request, cliente_id):
     """Obtener proyectos de un cliente específico (para AJAX)"""
     try:
-        cliente = get_object_or_404(Cliente, id=cliente_id)
-        # CORREGIDO: activo=True en lugar de activo=1
+        # CORREGIDO: Usar el nombre correcto del campo
         proyectos = Proyecto.objects.filter(
-            cliente=cliente, 
+            cliente_id=cliente_id, 
             activo=True
-        ).order_by('nombre')
+        ).order_by('nombre').values('id', 'nombre', 'codigo', 'nomenclatura')
         
-        proyectos_list = [
-            {'id': p.id, 'nombre': p.nombre, 'codigo': p.codigo}
-            for p in proyectos
-        ]
+        proyectos_list = list(proyectos)
+        print(f"Proyectos encontrados para cliente {cliente_id}: {len(proyectos_list)}")
         
         return JsonResponse({'proyectos': proyectos_list})
+        
     except Exception as e:
-        print(f"Error en proyectos_por_cliente: {e}")
-        return JsonResponse({'error': str(e), 'proyectos': []}, status=200)
+        print(f"Error en proyectos_por_cliente: {str(e)}")
+        return JsonResponse({'error': str(e), 'proyectos': []})
 
 @login_required(login_url='login')
 def ticket_create_simple(request):

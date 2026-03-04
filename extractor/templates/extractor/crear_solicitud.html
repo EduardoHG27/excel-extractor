@@ -289,43 +289,69 @@ document.addEventListener('DOMContentLoaded', function() {
     const filesList = document.getElementById('filesList');
 
     // Cargar proyectos cuando se selecciona un cliente
-    clienteSelect.addEventListener('change', function() {
-        const clienteId = this.value;
-        
-        // Limpiar y deshabilitar select de proyectos
-        proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
+clienteSelect.addEventListener('change', function() {
+    const clienteId = this.value;
+    
+    // Resetear el select de proyectos
+    proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
+    proyectoSelect.disabled = true;
+
+    if (!clienteId) {
+        proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
         proyectoSelect.disabled = true;
+        return;
+    }
 
-        if (!clienteId) {
-            proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
-            proyectoSelect.disabled = true;
-            return;
+    // URL CORRECTA según tu urls.py
+    const url = `/catalogos/proyectos/por-cliente/${clienteId}/`;
+    
+    console.log('Cargando proyectos para:', clienteId, 'URL:', url);
+
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
         }
-
-        // Fetch para obtener proyectos del cliente
-        fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
-            .then(response => response.json())
-            .then(data => {
-                proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
-                
-                if (data.proyectos && data.proyectos.length > 0) {
-                    data.proyectos.forEach(proyecto => {
-                        const option = document.createElement('option');
-                        option.value = proyecto.id;
-                        option.setAttribute('data-codigo', proyecto.codigo);
-                        option.textContent = `${proyecto.nombre} (${proyecto.codigo})`;
-                        proyectoSelect.appendChild(option);
-                    });
-                    proyectoSelect.disabled = false;
-                } else {
-                    proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Datos recibidos:', data);
+        
+        // Limpiar el select
+        proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
+        
+        // Verificar el formato de la respuesta
+        let proyectos = [];
+        if (data.proyectos) {
+            proyectos = data.proyectos;  // Formato {proyectos: [...]}
+        } else if (Array.isArray(data)) {
+            proyectos = data;  // Formato [...] directo
+        }
+        
+        if (proyectos.length > 0) {
+            proyectos.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id;
+                const codigo = proyecto.codigo || proyecto.nomenclatura || '';
+                option.textContent = codigo ? `${proyecto.nombre} (${codigo})` : proyecto.nombre;
+                proyectoSelect.appendChild(option);
             });
+            proyectoSelect.disabled = false;
+        } else {
+            proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
     });
+});
 
     // Drag & Drop para archivos adjuntos
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
