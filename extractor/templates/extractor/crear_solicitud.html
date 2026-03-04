@@ -1,0 +1,484 @@
+<!-- extractor/templates/extractor/crear_solicitud.html -->
+{% extends 'extractor/base_solicitudes.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📝 Nueva Solicitud de Pruebas</h1>
+    <p>Completa el formulario para generar una nueva solicitud de pruebas</p>
+</div>
+
+<div class="upload-instructions">
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 15px;">📋 Formato de Solicitud de Pruebas QA</h3>
+        <p style="margin-bottom: 10px;"><strong>Clave del Documento:</strong> BID-PMC-FORM-00017 | <strong>Versión:</strong> 4</p>
+        <p><strong>Nivel de Seguridad:</strong> Privada | <strong>Dueño:</strong> Buró de Identidad Digital</p>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" style="margin-top: 20px;" id="solicitudForm">
+    {% csrf_token %}
+    
+    <!-- Sección: Datos de Solicitud -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📊 Datos de Solicitud</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Cliente (usando catálogo) -->
+            <div style="margin-bottom: 15px;">
+                <label for="cliente" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Cliente: <span style="color: #e74c3c;">*</span>
+                </label>
+                <select name="cliente" id="cliente" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                    <option value="">--- Seleccionar cliente ---</option>
+                    {% for cliente in clientes %}
+                    <option value="{{ cliente.id }}" data-nomenclatura="{{ cliente.nomenclatura }}">
+                        {{ cliente.nombre }} ({{ cliente.nomenclatura }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Proyecto (se carga vía AJAX según cliente) -->
+            <div style="margin-bottom: 15px;">
+                <label for="proyecto" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Proyecto: <span style="color: #e74c3c;">*</span>
+                </label>
+                <select name="proyecto" id="proyecto" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                    <option value="">--- Primero selecciona un cliente ---</option>
+                </select>
+            </div>
+
+            <!-- Fecha Solicitud -->
+            <div style="margin-bottom: 15px;">
+                <label for="fecha_solicitud" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Fecha de Solicitud: <span style="color: #e74c3c;">*</span>
+                </label>
+                <input type="date" name="fecha_solicitud" id="fecha_solicitud" 
+                       value="{{ today|date:'Y-m-d' }}" readonly required
+                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; background-color: #f0f0f0;">
+            </div>
+
+            <!-- Hora Solicitud -->
+            <div style="margin-bottom: 15px;">
+                <label for="hora_solicitud" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Hora de Solicitud: <span style="color: #e74c3c;">*</span>
+                </label>
+                <input type="time" name="hora_solicitud" id="hora_solicitud" 
+                       value="{{ now|time:'H:i' }}" readonly required
+                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; background-color: #f0f0f0;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Tipo de Pruebas y Área -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Tipo de Servicio (PRU, EST, G&A) -->
+            <div style="margin-bottom: 15px;">
+                <label for="tipo_servicio_code" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Tipo de Servicio: <span style="color: #e74c3c;">*</span>
+                </label>
+                <select name="tipo_servicio_code" id="tipo_servicio_code" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                    <option value="">--- Seleccionar ---</option>
+                    <option value="PRU">Pruebas (PRU)</option>
+                    <option value="EST">Estimación (EST)</option>
+                    <option value="G&A">Gestión y administración (G&A)</option>
+                </select>
+            </div>
+
+            <!-- Tipo de Pruebas (del catálogo TipoServicio) -->
+            <div style="margin-bottom: 15px;">
+                <label for="tipo_prueba" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Tipo de Pruebas: <span style="color: #e74c3c;">*</span>
+                </label>
+                <select name="tipo_prueba" id="tipo_prueba" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                    <option value="">--- Seleccionar tipo de pruebas ---</option>
+                    {% for tipo in tipos_servicio %}
+                    <option value="{{ tipo.id }}" data-nomenclatura="{{ tipo.nomenclatura }}">
+                        {{ tipo.nombre }} ({{ tipo.nomenclatura }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Área Solicitante -->
+            <div style="margin-bottom: 15px;">
+                <label for="area_solicitante" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Área Solicitante: <span style="color: #e74c3c;">*</span>
+                </label>
+                <select name="area_solicitante" id="area_solicitante" required
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                    <option value="">--- Seleccionar área ---</option>
+                    <option value="Proyectos">Proyectos</option>
+                    <option value="Desarrollo">Desarrollo</option>
+                    <option value="Infraestructura">Infraestructura</option>
+                    <option value="Soporte">Soporte</option>
+                </select>
+            </div>
+
+            <!-- Número de Versión -->
+            <div style="margin-bottom: 15px;">
+                <label for="numero_version" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Número de Versión: <span style="color: #e74c3c;">*</span>
+                </label>
+                <input type="text" name="numero_version" id="numero_version" required
+                       placeholder="Ej: 1.2.0"
+                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Responsables -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Responsable Solicitud -->
+            <div style="margin-bottom: 15px;">
+                <label for="responsable_solicitud" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Responsable de Solicitud: <span style="color: #e74c3c;">*</span>
+                </label>
+                <input type="text" name="responsable_solicitud" id="responsable_solicitud" required
+                       placeholder="Nombre completo"
+                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+            </div>
+
+            <!-- Líder de Proyecto -->
+            <div style="margin-bottom: 15px;">
+                <label for="lider_proyecto" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Líder de Proyecto: <span style="color: #e74c3c;">*</span>
+                </label>
+                <input type="text" name="lider_proyecto" id="lider_proyecto" required
+                       placeholder="Nombre completo"
+                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Información de Aplicación -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📱 Información de Aplicación</h3>
+        
+        <div style="margin-bottom: 20px;">
+            <label for="tipo_aplicacion" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Tipo de Aplicación: <span style="color: #e74c3c;">*</span>
+            </label>
+            <select name="tipo_aplicacion" id="tipo_aplicacion" required
+                    style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                <option value="">--- Seleccionar tipo de aplicación ---</option>
+                <option value="Portal WEB">Portal WEB</option>
+                <option value="App - Android">App - Android</option>
+                <option value="App - IOS">App - IOS</option>
+                <option value="App - Android & IOS">App - Android & IOS</option>
+                <option value="Servicio">Servicio</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Sección: Descripción de Cambios -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📝 Descripción de Cambios</h3>
+        
+        <!-- Funcionalidad -->
+        <div style="margin-bottom: 20px;">
+            <label for="funcionalidad_liberacion" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Funcionalidad de la liberación: <span style="color: #e74c3c;">*</span>
+            </label>
+            <textarea name="funcionalidad_liberacion" id="funcionalidad_liberacion" rows="4" required
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+        </div>
+
+        <!-- Detalle de cambios -->
+        <div style="margin-bottom: 20px;">
+            <label for="detalle_cambios" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Detalle de los cambios: <span style="color: #e74c3c;">*</span>
+            </label>
+            <textarea name="detalle_cambios" id="detalle_cambios" rows="6" required
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+        </div>
+
+        <!-- Justificación -->
+        <div style="margin-bottom: 20px;">
+            <label for="justificacion_cambio" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Justificación del cambio: <span style="color: #e74c3c;">*</span>
+            </label>
+            <textarea name="justificacion_cambio" id="justificacion_cambio" rows="4" required
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+        </div>
+    </div>
+
+    <!-- Sección: Puntos a Considerar y Pendientes -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Puntos a Considerar -->
+            <div style="margin-bottom: 15px;">
+                <label for="puntos_considerar" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Puntos a Considerar: <span style="color: #e74c3c;">*</span>
+                </label>
+                <textarea name="puntos_considerar" id="puntos_considerar" rows="4" required
+                          style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+            </div>
+
+            <!-- Pendientes -->
+            <div style="margin-bottom: 15px;">
+                <label for="pendientes" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                    Pendientes: <span style="color: #e74c3c;">*</span>
+                </label>
+                <textarea name="pendientes" id="pendientes" rows="4" required
+                          style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Insumos Requeridos -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📎 Insumos Requeridos</h3>
+        
+        <div style="margin-bottom: 15px;">
+            <label for="insumos" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Insumos Requeridos: <span style="color: #e74c3c;">*</span>
+            </label>
+            <textarea name="insumos" id="insumos" rows="3" required
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"
+                      placeholder="Lista los insumos necesarios para las pruebas..."></textarea>
+        </div>
+        
+        <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 5px; font-size: 0.9rem;">
+            <strong>⚠️ Importante:</strong> Para que tu solicitud sea atendida es necesario adjuntar los insumos requeridos. En caso de no hacerlo, se puede incurrir en retrasos.
+        </div>
+    </div>
+
+    <!-- Sección: Adjuntar Archivos -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📎 Archivos Adjuntos</h3>
+        
+        <!-- Drop Zone para adjuntar archivos -->
+        <div id="dropZone" style="border: 3px dashed #3498db; border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 15px; background-color: white; cursor: pointer; transition: all 0.3s ease;">
+            <div id="dropZoneContent">
+                <div style="font-size: 36px; margin-bottom: 10px;">📎</div>
+                <p style="color: #2c3e50; margin-bottom: 5px;">Arrastra archivos adicionales aquí</p>
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 10px;">o</p>
+                <button type="button" id="browseButton" class="btn btn-secondary btn-sm">Seleccionar archivos</button>
+                <p style="margin-top: 10px; color: #7f8c8d; font-size: 0.8rem;">Formatos: .xlsx, .xls, .pdf, .doc, .docx (Máx: 10MB)</p>
+            </div>
+            <input type="file" name="archivos_adjuntos" id="archivos_adjuntos" multiple style="display: none;" accept=".xlsx,.xls,.pdf,.doc,.docx">
+            <div id="filesList" style="display: none; margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div style="display: flex; gap: 15px; margin-top: 30px;">
+        <button type="submit" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
+            ✅ Generar Solicitud
+        </button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementos del DOM
+    const clienteSelect = document.getElementById('cliente');
+    const proyectoSelect = document.getElementById('proyecto');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('archivos_adjuntos');
+    const browseButton = document.getElementById('browseButton');
+    const dropZoneContent = document.getElementById('dropZoneContent');
+    const filesList = document.getElementById('filesList');
+
+    // Cargar proyectos cuando se selecciona un cliente
+    clienteSelect.addEventListener('change', function() {
+        const clienteId = this.value;
+        
+        // Limpiar y deshabilitar select de proyectos
+        proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
+        proyectoSelect.disabled = true;
+
+        if (!clienteId) {
+            proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
+            proyectoSelect.disabled = true;
+            return;
+        }
+
+        // Fetch para obtener proyectos del cliente
+        fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
+            .then(response => response.json())
+            .then(data => {
+                proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
+                
+                if (data.proyectos && data.proyectos.length > 0) {
+                    data.proyectos.forEach(proyecto => {
+                        const option = document.createElement('option');
+                        option.value = proyecto.id;
+                        option.setAttribute('data-codigo', proyecto.codigo);
+                        option.textContent = `${proyecto.nombre} (${proyecto.codigo})`;
+                        proyectoSelect.appendChild(option);
+                    });
+                    proyectoSelect.disabled = false;
+                } else {
+                    proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
+            });
+    });
+
+    // Drag & Drop para archivos adjuntos
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight() {
+        dropZone.style.backgroundColor = '#e8f4fd';
+        dropZone.style.borderColor = '#2980b9';
+    }
+
+    function unhighlight() {
+        dropZone.style.backgroundColor = 'white';
+        dropZone.style.borderColor = '#3498db';
+    }
+
+    dropZone.addEventListener('drop', handleDrop, false);
+    
+    browseButton.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) {
+            handleFiles(this.files);
+        }
+    });
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        handleFiles(dt.files);
+    }
+
+    function handleFiles(files) {
+        const validTypes = ['.xlsx', '.xls', '.pdf', '.doc', '.docx'];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        let validFiles = [];
+        let errors = [];
+
+        for (let file of files) {
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!validTypes.includes(fileExtension)) {
+                errors.push(`${file.name}: Tipo de archivo no válido`);
+                continue;
+            }
+            
+            if (file.size > maxSize) {
+                errors.push(`${file.name}: Excede los 10MB`);
+                continue;
+            }
+            
+            validFiles.push(file);
+        }
+
+        if (errors.length > 0) {
+            alert('Errores:\n' + errors.join('\n'));
+        }
+
+        if (validFiles.length > 0) {
+            displayFiles(validFiles);
+        }
+    }
+
+    function displayFiles(files) {
+        let html = '<div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 10px;">';
+        html += '<p style="color: #155724; font-weight: bold; margin-bottom: 5px;">✅ Archivos seleccionados:</p>';
+        html += '<ul style="margin-left: 20px; color: #155724;">';
+        
+        for (let file of files) {
+            let size = (file.size / 1024).toFixed(2);
+            let sizeUnit = 'KB';
+            if (size > 1024) {
+                size = (size / 1024).toFixed(2);
+                sizeUnit = 'MB';
+            }
+            html += `<li>${file.name} (${size} ${sizeUnit})</li>`;
+        }
+        
+        html += '</ul>';
+        html += '<button type="button" id="clearFiles" class="btn btn-sm btn-outline-danger" style="margin-top: 5px;">Quitar archivos</button>';
+        html += '</div>';
+        
+        dropZoneContent.style.display = 'none';
+        filesList.innerHTML = html;
+        filesList.style.display = 'block';
+
+        document.getElementById('clearFiles').addEventListener('click', function() {
+            fileInput.value = '';
+            dropZoneContent.style.display = 'block';
+            filesList.style.display = 'none';
+        });
+    }
+});
+</script>
+
+<style>
+#dropZone:hover {
+    background-color: #e8f4fd !important;
+    border-color: #2980b9 !important;
+}
+
+.form-section {
+    margin-bottom: 30px;
+}
+
+.required-field label::after {
+    content: " *";
+    color: #e74c3c;
+}
+
+/* Estilos para mensajes de validación */
+.errorlist {
+    color: #e74c3c;
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0;
+    font-size: 0.9rem;
+}
+
+/* Animación para campos requeridos */
+select:required, input:required, textarea:required {
+    border-left: 3px solid #e74c3c;
+}
+
+select:required:valid, input:required:valid, textarea:required:valid {
+    border-left: 3px solid #27ae60;
+}
+</style>
+
+<!-- Mensajes de Django -->
+{% if messages %}
+<div style="margin-top: 30px;">
+    {% for message in messages %}
+    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-top: 10px; padding: 15px; border-radius: 5px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

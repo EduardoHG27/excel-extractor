@@ -1,6 +1,7 @@
 import os
 import csv
 import traceback
+from django.forms import ValidationError
 import pandas as pd
 import zipfile
 from django.shortcuts import render, redirect, get_object_or_404
@@ -18,11 +19,217 @@ from django.core.paginator import Paginator
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 from django.utils import timezone
+from .models import SolicitudPruebas 
 from io import BytesIO
+import logging
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+from .models import Cliente, Proyecto, TipoServicio, Ticket, ExcelData
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, logout, authenticate
+from django.shortcuts import redirect
 
+
+logger = logging.getLogger(__name__)
+
+# ===== VISTAS PÚBLICAS (NO requieren login) =====
+def login_view(request):
+    """Vista personalizada de login"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            next_url = request.GET.get('next', 'solicitud_list')
+            return redirect(next_url)
+        else:
+            messages.error(request, 'Usuario o contraseña incorrectos')
+    return render(request, 'extractor/login.html')
+
+def logout_view(request):
+    """Vista personalizada de logout"""
+    logout(request)
+    return redirect('login')
+
+@login_required(login_url='login')
+def export_clientes_csv(request):
+    """
+    Exporta clientes a CSV
+    """
+    try:
+        # Obtener datos
+        clientes = Cliente.objects.all()
+        
+        # Crear respuesta CSV
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))  # BOM para Excel
+        
+        # Nombre del archivo
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"clientes_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Crear writer
+        writer = csv.writer(response)
+        
+        # Escribir encabezados
+        writer.writerow(['ID', 'Nombre', 'Nomenclatura', 'Activo', 'Fecha Creación'])
+        
+        # Escribir datos
+        for cliente in clientes:
+            writer.writerow([
+                cliente.id,
+                cliente.nombre,
+                cliente.nomenclatura,
+                'Sí' if cliente.activo else 'No',
+                cliente.fecha_creacion.strftime('%d/%m/%Y %H:%M') if cliente.fecha_creacion else ''
+            ])
+        
+        logger.info(f"Usuario {request.user} exportó clientes - {clientes.count()} registros")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando clientes: {str(e)}", exc_info=True)
+        messages.error(request, "Error al exportar clientes")
+        return redirect('clientes_list')
+
+@login_required(login_url='login')
+def export_proyectos_csv(request):
+    """
+    Exporta proyectos a CSV
+    """
+    try:
+        proyectos = Proyecto.objects.all().select_related('cliente')
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"proyectos_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Cliente', 'Nombre', 'Código', 'Descripción', 'Activo', 'Fecha Inicio', 'Fecha Fin'])
+        
+        for proyecto in proyectos:
+            writer.writerow([
+                proyecto.id,
+                proyecto.cliente.nombre if proyecto.cliente else '',
+                proyecto.nombre,
+                proyecto.codigo,
+                proyecto.descripcion or '',
+                'Sí' if proyecto.activo else 'No',
+                proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else '',
+                proyecto.fecha_fin.strftime('%d/%m/%Y') if proyecto.fecha_fin else ''
+            ])
+        
+        logger.info(f"Usuario {request.user} exportó proyectos - {proyectos.count()} registros")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando proyectos: {str(e)}", exc_info=True)
+        messages.error(request, "Error al exportar proyectos")
+        return redirect('proyectos_list')
+    
+@login_required(login_url='login')
+def export_tipos_servicio_csv(request):
+    """
+    Exporta tipos de servicio a CSV
+    """
+    try:
+        tipos = TipoServicio.objects.all()
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"tipos_servicio_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Nombre', 'Nomenclatura', 'Activo', 'Fecha Creación'])
+        
+        for tipo in tipos:
+            writer.writerow([
+                tipo.id,
+                tipo.nombre,
+                tipo.nomenclatura,
+                'Sí' if tipo.activo else 'No',
+                tipo.fecha_creacion.strftime('%d/%m/%Y %H:%M') if tipo.fecha_creacion else ''
+            ])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando tipos de servicio: {str(e)}", exc_info=True)
+        messages.error(request, "Error al exportar tipos de servicio")
+        return redirect('tipos_servicio_list')
+
+@login_required(login_url='login')
+def export_tickets_csv_view(request):
+    """
+    Exporta tickets a CSV (versión mejorada de export_tickets_excel pero en CSV)
+    """
+    try:
+        # Usar los mismos filtros que en ticket_list
+        tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio', 'excel_data')
+        
+        # Aplicar filtros si vienen en GET
+        estado = request.GET.get('estado')
+        cliente_id = request.GET.get('cliente')
+        proyecto_id = request.GET.get('proyecto')
+        
+        if estado:
+            tickets = tickets.filter(estado=estado)
+        if cliente_id:
+            tickets = tickets.filter(cliente_id=cliente_id)
+        if proyecto_id:
+            tickets = tickets.filter(proyecto_id=proyecto_id)
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"tickets_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'ID', 'Código Ticket', 'Estado', 'Cliente', 'Proyecto', 
+            'Tipo Servicio', 'Responsable', 'Líder Proyecto', 'Versión',
+            'Fecha Creación'
+        ])
+        
+        for ticket in tickets:
+            writer.writerow([
+                ticket.id,
+                ticket.codigo,
+                ticket.get_estado_display(),
+                ticket.cliente.nombre if ticket.cliente else '',
+                ticket.proyecto.nombre if ticket.proyecto else '',
+                ticket.tipo_servicio.nombre if ticket.tipo_servicio else '',
+                ticket.responsable_solicitud or '',
+                ticket.lider_proyecto or '',
+                ticket.numero_version or '',
+                ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M')
+            ])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando tickets: {str(e)}", exc_info=True)
+        messages.error(request, "Error al exportar tickets")
+        return redirect('ticket_list')
+    
 def extract_excel_data(file_path):
     """
     Extrae las celdas específicas según las reglas dadas
+    AHORA SOPORTA NOMBRES DIRECTOS (no solo IDs)
     """
     try:
         # Verificar que la hoja existe
@@ -37,108 +244,82 @@ def extract_excel_data(file_path):
         # Inicializar diccionario para datos
         extracted_data = {}
         
-        # Función auxiliar para limpiar valores numéricos con .0
-        def clean_numeric_value(value):
-            """Convierte valores como '6.0' a '6'"""
+        # Función auxiliar para limpiar valores
+        def clean_value(value):
+            """Limpia el valor extraído"""
             if pd.isna(value):
                 return ""
-            
-            str_value = str(value).strip()
-            
-            # Intentar convertir a número y eliminar .0 si es entero
-            try:
-                float_value = float(str_value)
-                if float_value.is_integer():
-                    return str(int(float_value))
-                else:
-                    return str(float_value)
-            except ValueError:
-                return str_value
+            return str(value).strip()
         
-        # LISTA DE VALIDACIONES OBLIGATORIAS
-        campos_obligatorios = []
-        
-        # Extraer y validar CLIENTE (C5)
+        # Extraer CLIENTE (C5) - AHORA PUEDE SER NOMBRE O ID
         try:
-            cell_value = df.iat[4, 2] if pd.notna(df.iat[4, 2]) else ""
-            cliente_valor = clean_numeric_value(cell_value)
+            cliente_valor = clean_value(df.iat[4, 2])
             extracted_data['cliente'] = cliente_valor
-            
-            if not cliente_valor:
-                campos_obligatorios.append("Cliente (celda C5)")
+            print(f"📌 Cliente extraído: '{cliente_valor}'")
         except:
             extracted_data['cliente'] = ""
-            campos_obligatorios.append("Cliente (celda C5)")
         
-        # Extraer y validar PROYECTO (H5)
+        # Extraer PROYECTO (H5) - AHORA PUEDE SER NOMBRE O ID
         try:
-            cell_value = df.iat[4, 7] if pd.notna(df.iat[4, 7]) else ""
-            proyecto_valor = clean_numeric_value(cell_value)
+            proyecto_valor = clean_value(df.iat[4, 7])
             extracted_data['proyecto'] = proyecto_valor
-            
-            if not proyecto_valor:
-                campos_obligatorios.append("Proyecto (celda H5)")
+            print(f"📌 Proyecto extraído: '{proyecto_valor}'")
         except:
             extracted_data['proyecto'] = ""
-            campos_obligatorios.append("Proyecto (celda H5)")
         
-        # Extraer y validar TIPO DE PRUEBAS (D8)
+        # Extraer TIPO DE PRUEBAS (D8) - AHORA PUEDE SER NOMBRE O ID
         try:
-            cell_value = df.iat[7, 3] if pd.notna(df.iat[7, 3]) else ""
-            tipo_pruebas_valor = clean_numeric_value(cell_value)
+            tipo_pruebas_valor = clean_value(df.iat[7, 3])
             extracted_data['tipo_pruebas'] = tipo_pruebas_valor
-            
-            if not tipo_pruebas_valor:
-                campos_obligatorios.append("Tipo de Pruebas (celda D8)")
+            print(f"📌 Tipo de Pruebas extraído: '{tipo_pruebas_valor}'")
         except:
             extracted_data['tipo_pruebas'] = ""
-            campos_obligatorios.append("Tipo de Pruebas (celda D8)")
         
-        # Extraer responsable_solicitud (opcional)
+        # Extraer responsable_solicitud (D12)
         try:
-            extracted_data['responsable_solicitud'] = str(df.iat[11, 3]) if pd.notna(df.iat[11, 3]) else ""
+            extracted_data['responsable_solicitud'] = clean_value(df.iat[11, 3])
         except:
             extracted_data['responsable_solicitud'] = ""
         
-        # Extraer lider_proyecto (opcional)
+        # Extraer lider_proyecto (J12)
         try:
-            extracted_data['lider_proyecto'] = str(df.iat[11, 9]) if pd.notna(df.iat[11, 9]) else ""
+            extracted_data['lider_proyecto'] = clean_value(df.iat[11, 9])
         except:
             extracted_data['lider_proyecto'] = ""
         
-        # Extraer tipo_aplicacion (opcional)
+        # Extraer tipo_aplicacion (D17)
         try:
-            extracted_data['tipo_aplicacion'] = str(df.iat[16, 3]) if pd.notna(df.iat[16, 3]) else ""
+            extracted_data['tipo_aplicacion'] = clean_value(df.iat[16, 3])
         except:
             extracted_data['tipo_aplicacion'] = ""
         
-        # Extraer numero_version (opcional)
+        # Extraer numero_version (M17)
         try:
-            extracted_data['numero_version'] = str(df.iat[16, 12]) if pd.notna(df.iat[16, 12]) else ""
+            extracted_data['numero_version'] = clean_value(df.iat[16, 12])
         except:
             extracted_data['numero_version'] = ""
         
-        # Extraer funcionalidad_liberacion (opcional)
+        # Extraer funcionalidad_liberacion (D20)
         try:
-            funcionalidad = str(df.iat[19, 3]) if pd.notna(df.iat[19, 3]) else ""
+            funcionalidad = clean_value(df.iat[19, 3])
             if pd.notna(df.iat[20, 3]):
-                funcionalidad += "\n" + str(df.iat[20, 3])
+                funcionalidad += "\n" + clean_value(df.iat[20, 3])
             extracted_data['funcionalidad_liberacion'] = funcionalidad
         except:
             extracted_data['funcionalidad_liberacion'] = ""
         
-        # Extraer detalle_cambios (opcional)
+        # Extraer detalle_cambios (a partir de D22)
         try:
             detalle_cambios = ""
             row = 21
-            while pd.notna(df.iat[row, 3]) and row < 30:
-                detalle_cambios += str(df.iat[row, 3]) + "\n"
+            while row < 30 and pd.notna(df.iat[row, 3]):
+                detalle_cambios += clean_value(df.iat[row, 3]) + "\n"
                 row += 1
             extracted_data['detalle_cambios'] = detalle_cambios.strip()
         except:
             extracted_data['detalle_cambios'] = ""
         
-        # Extraer justificacion_cambio (opcional)
+        # Extraer justificacion_cambio
         try:
             justificacion_row = None
             for row in range(21, 30):
@@ -149,8 +330,8 @@ def extract_excel_data(file_path):
             if justificacion_row is not None:
                 content_row = justificacion_row + 1
                 justificacion = ""
-                while pd.notna(df.iat[content_row, 3]) and content_row < 40:
-                    justificacion += str(df.iat[content_row, 3]) + "\n"
+                while content_row < 40 and pd.notna(df.iat[content_row, 3]):
+                    justificacion += clean_value(df.iat[content_row, 3]) + "\n"
                     content_row += 1
                 extracted_data['justificacion_cambio'] = justificacion.strip()
             else:
@@ -158,31 +339,36 @@ def extract_excel_data(file_path):
         except:
             extracted_data['justificacion_cambio'] = ""
         
-        # VALIDACIÓN FINAL: Si hay campos obligatorios faltantes, lanzar excepción
-        if campos_obligatorios:
-            mensaje_error = "El archivo no contiene los siguientes campos obligatorios:\n"
-            mensaje_error += "\n".join(f"• {campo}" for campo in campos_obligatorios)
-            raise Exception(mensaje_error)
-        
         # DEPURACIÓN: Mostrar valores extraídos
-        print("=== VALORES EXTRAÍDOS ===")
+        print("\n=== VALORES EXTRAÍDOS DEL EXCEL ===")
         for key, value in extracted_data.items():
             print(f"{key}: '{value}'")
-        print("==========================")
+        print("=====================================\n")
         
         return extracted_data
         
     except Exception as e:
-        print(f"Error al extraer datos: {e}")
-        raise  # Re-lanzar la excepción para que la capture la vista
+        print(f"❌ Error al extraer datos: {e}")
+        raise 
 
+@login_required(login_url='login')
 def upload_excel(request):
+    """
+    Procesa la carga de archivos Excel y genera tickets
+    CORREGIDO: Validación de nombre de archivo con SolicitudPruebas
+    """
     if request.method == 'POST':
-            # Obtener el tipo de servicio del formulario
+        # Inicializar variables
+        fs = FileSystemStorage()
+        file_path = None
+        filename = None
+        
+        try:
+            # Obtener datos del formulario
             tipo_servicio_form = request.POST.get('tipo_servicio', '').strip()
             excel_file = request.FILES.get('excel_file')
             
-            # Validar tipo de servicio
+            # ===== VALIDACIONES INICIALES =====
             if not tipo_servicio_form:
                 messages.error(request, 'Por favor selecciona un tipo de servicio')
                 return render(request, 'extractor/upload.html')
@@ -199,185 +385,229 @@ def upload_excel(request):
                 messages.error(request, 'Formato de archivo no válido. Solo se permiten archivos .xlsx y .xls')
                 return render(request, 'extractor/upload.html')
             
-            fs = FileSystemStorage()
-            file_path = None
+            # ===== VALIDAR NOMBRE DE ARCHIVO CON SOLICITUDES =====
+            nombre_archivo_subido = excel_file.name
+            print(f"📁 Nombre de archivo subido: {nombre_archivo_subido}")
             
-            try:
-                # Guardar el archivo temporalmente
-                filename = fs.save(excel_file.name, excel_file)
-                file_path = os.path.join(settings.MEDIA_ROOT, filename)
+            # Buscar solicitud que coincida con el nombre del archivo
+            solicitud = SolicitudPruebas.objects.filter(
+                nombre_archivo=nombre_archivo_subido,
+                tiene_ticket=False  # Solo buscar solicitudes sin ticket
+            ).first()
+            
+            if solicitud:
+                print(f"✅ Solicitud encontrada: ID {solicitud.id}")
+                solicitud_encontrada = True
+                # Guardar referencia de la solicitud para usarla después
+            else:
+                print(f"❌ No se encontró solicitud con nombre: {nombre_archivo_subido}")
+                solicitud_encontrada = False
+                solicitud = None
+            
+            # ===== GUARDAR ARCHIVO TEMPORAL =====
+            filename = fs.save(excel_file.name, excel_file)
+            file_path = os.path.join(settings.MEDIA_ROOT, filename)
+            
+            # Verificar que el archivo se guardó correctamente
+            if not os.path.exists(file_path):
+                raise Exception("No se pudo guardar el archivo temporal")
+            
+            print(f"📁 Archivo temporal guardado: {file_path}")
+            
+            # ===== PROCESAR EL ARCHIVO =====
+            # Extraer datos del Excel
+            extracted_data = extract_excel_data(file_path)
+            
+            # Validar campos obligatorios
+            campos_obligatorios = ['cliente', 'proyecto', 'tipo_pruebas']
+            campos_faltantes = [campo for campo in campos_obligatorios if not extracted_data.get(campo)]
+            
+            if campos_faltantes:
+                mensaje_error = "❌ El archivo no contiene los siguientes campos obligatorios:\n"
+                mensaje_error += "\n".join(f"• {campo}" for campo in campos_faltantes)
+                raise ValidationError(mensaje_error)
+            
+            # Buscar objetos por nombre o ID
+            cliente_obj = find_object_by_name_or_id(Cliente, extracted_data.get('cliente', ''), 'nombre')
+            proyecto_obj = find_object_by_name_or_id(Proyecto, extracted_data.get('proyecto', ''), 'nombre')
+            tipo_prueba_obj = find_object_by_name_or_id(TipoServicio, extracted_data.get('tipo_pruebas', ''), 'nombre')
+            
+            # Validar objetos encontrados
+            objetos_no_encontrados = []
+            if not cliente_obj:
+                objetos_no_encontrados.append(f"Cliente '{extracted_data.get('cliente', '')}'")
+            if not proyecto_obj:
+                objetos_no_encontrados.append(f"Proyecto '{extracted_data.get('proyecto', '')}'")
+            if not tipo_prueba_obj:
+                objetos_no_encontrados.append(f"Tipo de Pruebas '{extracted_data.get('tipo_pruebas', '')}'")
+            
+            if objetos_no_encontrados:
+                mensaje_error = "❌ No se encontraron en el catálogo:\n"
+                mensaje_error += "\n".join(f"• {objeto}" for objeto in objetos_no_encontrados)
+                raise ValidationError(mensaje_error)
+            
+            # Validar que el proyecto pertenezca al cliente
+            if proyecto_obj.cliente_id != cliente_obj.id:
+                raise ValidationError(f'❌ El proyecto "{proyecto_obj.nombre}" no pertenece al cliente "{cliente_obj.nombre}"')
+            
+            # ===== GENERAR TICKET =====
+            # Preparar nomenclaturas
+            nomenclaturas = {
+                'cliente_nomenclatura': cliente_obj.nomenclatura,
+                'proyecto_nomenclatura': proyecto_obj.codigo,
+                'tipo_pruebas_nomenclatura': tipo_prueba_obj.nomenclatura,
+                'tipo_servicio_nomenclatura': tipo_servicio_form
+            }
+            
+            objetos_encontrados = {
+                'cliente_obj': cliente_obj,
+                'proyecto_obj': proyecto_obj,
+                'tipo_servicio_obj': tipo_prueba_obj
+            }
+            
+            # Generar ticket
+            ticket_code, ticket_obj = generate_and_save_ticket(
+                extracted_data=extracted_data,
+                tipo_servicio_form=tipo_servicio_form,
+                nomenclaturas=nomenclaturas,
+                objetos_encontrados=objetos_encontrados
+            )
+            
+            # Guardar en la base de datos ExcelData
+            excel_data = ExcelData.objects.create(
+                cliente=str(cliente_obj.id),
+                proyecto=str(proyecto_obj.id),
+                tipo_pruebas=str(tipo_prueba_obj.id),
+                tipo_servicio=tipo_servicio_form,
+                responsable_solicitud=extracted_data.get('responsable_solicitud', ''),
+                lider_proyecto=extracted_data.get('lider_proyecto', ''),
+                tipo_aplicacion=extracted_data.get('tipo_aplicacion', ''),
+                numero_version=extracted_data.get('numero_version', ''),
+                funcionalidad_liberacion=extracted_data.get('funcionalidad_liberacion', ''),
+                detalle_cambios=extracted_data.get('detalle_cambios', ''),
+                justificacion_cambio=extracted_data.get('justificacion_cambio', ''),
+                ticket_code=ticket_code
+            )
+            
+            # Asociar el ticket con los datos del Excel
+            if ticket_obj:
+                ticket_obj.excel_data = excel_data
+                ticket_obj.save()
+            
+            # ===== SI SE ENCONTRÓ UNA SOLICITUD, ACTUALIZARLA =====
+            if solicitud_encontrada and solicitud:
+                # Asociar el ticket a la solicitud
+                solicitud.ticket = ticket_obj
+                solicitud.tiene_ticket = True
+                solicitud.fecha_asociacion_ticket = timezone.now()
+                solicitud.save()
                 
-                # VALIDACIÓN 1: Intentar extraer datos (esto lanzará excepción si faltan campos)
-                extracted_data = extract_excel_data(file_path)
-                
-                # VALIDACIÓN 2: Verificar que los IDs existan en la base de datos
-                campos_invalidos = []
-                
-                # Validar Cliente
-                cliente_id_str = extracted_data.get('cliente', '').strip()
-                cliente_obj = None
-                if cliente_id_str:
-                    try:
-                        cliente_id = int(cliente_id_str)
-                        cliente_obj = Cliente.objects.filter(id=cliente_id).first()
-                        if not cliente_obj:
-                            campos_invalidos.append(f"Cliente con ID {cliente_id} no existe en el catálogo")
-                    except ValueError:
-                        campos_invalidos.append(f"El valor del Cliente '{cliente_id_str}' no es un ID válido")
-                else:
-                    campos_invalidos.append("El campo Cliente está vacío")
-                
-                # Validar Proyecto
-                proyecto_id_str = extracted_data.get('proyecto', '').strip()
-                proyecto_obj = None
-                if proyecto_id_str:
-                    try:
-                        proyecto_id = int(proyecto_id_str)
-                        proyecto_obj = Proyecto.objects.filter(id=proyecto_id).first()
-                        if not proyecto_obj:
-                            campos_invalidos.append(f"Proyecto con ID {proyecto_id} no existe en el catálogo")
-                    except ValueError:
-                        campos_invalidos.append(f"El valor del Proyecto '{proyecto_id_str}' no es un ID válido")
-                else:
-                    campos_invalidos.append("El campo Proyecto está vacío")
-                
-                # Validar Tipo de Pruebas
-                tipo_pruebas_id_str = extracted_data.get('tipo_pruebas', '').strip()
-                tipo_servicio_obj = None
-                if tipo_pruebas_id_str:
-                    try:
-                        tipo_pruebas_id = int(tipo_pruebas_id_str)
-                        tipo_servicio_obj = TipoServicio.objects.filter(id=tipo_pruebas_id).first()
-                        if not tipo_servicio_obj:
-                            campos_invalidos.append(f"Tipo de Pruebas con ID {tipo_pruebas_id} no existe en el catálogo")
-                    except ValueError:
-                        campos_invalidos.append(f"El valor de Tipo de Pruebas '{tipo_pruebas_id_str}' no es un ID válido")
-                else:
-                    campos_invalidos.append("El campo Tipo de Pruebas está vacío")
-                
-                # Si hay campos inválidos, mostrar error y NO guardar
-                if campos_invalidos:
-                    mensaje_error = "❌ El archivo contiene errores que impiden generar el ticket:\n"
-                    mensaje_error += "\n".join(f"• {campo}" for campo in campos_invalidos)
-                    messages.error(request, mensaje_error)
-                    
-                    # Eliminar archivo temporal
-                    if file_path and os.path.exists(file_path):
-                        os.remove(file_path)
-                        
-                    return render(request, 'extractor/upload.html')
-                
-                # DEPURACIÓN: Mostrar qué se extrajo
-                print("=== DATOS EXTRAÍDOS DEL EXCEL ===")
-                print(f"Cliente ID (C5): '{extracted_data.get('cliente', '')}'")
-                print(f"Proyecto ID (H5): '{extracted_data.get('proyecto', '')}'")
-                print(f"Tipo prueba ID (D8): '{extracted_data.get('tipo_pruebas', '')}'")
-                print(f"Tipo Servicio (formulario): '{tipo_servicio_form}'")
-                print("==================================")
-                
-                # Inicializar nomenclaturas
-                nomenclaturas = {
-                    'cliente_nomenclatura': cliente_obj.nomenclatura if cliente_obj else '',
-                    'proyecto_nomenclatura': proyecto_obj.codigo if proyecto_obj else '',
-                    'tipo_pruebas_nomenclatura': tipo_servicio_obj.nomenclatura if tipo_servicio_obj else '',
-                    'tipo_servicio_nomenclatura': tipo_servicio_form
-                }
-                
-                # Inicializar objetos encontrados
-                objetos_encontrados = {
-                    'cliente_obj': cliente_obj,
-                    'proyecto_obj': proyecto_obj,
-                    'tipo_servicio_obj': tipo_servicio_obj
-                }
-                
-                # Mostrar resumen de búsqueda
-                print("\n=== RESUMEN DE BÚSQUEDA ===")
-                print(f"Nomenclatura Cliente: {nomenclaturas['cliente_nomenclatura']}")
-                print(f"Nomenclatura Proyecto: {nomenclaturas['proyecto_nomenclatura']}")
-                print(f"Nomenclatura Tipo Pruebas: {nomenclaturas['tipo_pruebas_nomenclatura']}")
-                print(f"Nomenclatura Tipo Servicio (formulario): {nomenclaturas['tipo_servicio_nomenclatura']}")
-                print("===========================\n")
-                
-                # Generar ticket
-                ticket_code, ticket_obj = generate_and_save_ticket(
-                    extracted_data=extracted_data,
-                    tipo_servicio_form=tipo_servicio_form,
-                    nomenclaturas=nomenclaturas,
-                    objetos_encontrados=objetos_encontrados
-                )
-                
-                ticket_parts = generate_ticket_parts(ticket_code)
-                
-                # Guardar en la base de datos ExcelData
-                excel_data = ExcelData.objects.create(
-                    cliente=extracted_data.get('cliente', ''),
-                    proyecto=extracted_data.get('proyecto', ''),
-                    tipo_pruebas=extracted_data.get('tipo_pruebas', ''),
-                    tipo_servicio=tipo_servicio_form,
-                    responsable_solicitud=extracted_data.get('responsable_solicitud', ''),
-                    lider_proyecto=extracted_data.get('lider_proyecto', ''),
-                    tipo_aplicacion=extracted_data.get('tipo_aplicacion', ''),
-                    numero_version=extracted_data.get('numero_version', ''),
-                    funcionalidad_liberacion=extracted_data.get('funcionalidad_liberacion', ''),
-                    detalle_cambios=extracted_data.get('detalle_cambios', ''),
-                    justificacion_cambio=extracted_data.get('justificacion_cambio', ''),
-                    ticket_code=ticket_code
-                )
-                
-                # Asociar el ticket con los datos del Excel
-                if ticket_obj:
-                    ticket_obj.excel_data = excel_data
-                    ticket_obj.save()
-                
-                # Mensaje de éxito
+                print(f"✅ Solicitud ID {solicitud.id} actualizada: ticket asociado {ticket_code}")
+            
+            # ===== ÉXITO =====
+            if solicitud_encontrada:
+                messages.success(request, f'✅ Archivo procesado exitosamente. Ticket generado y asociado a solicitud #{solicitud.id}. Ticket: {ticket_code}')
+            else:
                 messages.success(request, f'✅ Archivo procesado exitosamente. Ticket generado: {ticket_code}')
-                
-                # Preparar datos para la plantilla
-                data_for_template = {
-                    'cliente': excel_data.cliente,
-                    'proyecto': excel_data.proyecto,
-                    'tipo_pruebas': excel_data.tipo_pruebas,
-                    'tipo_servicio': excel_data.tipo_servicio,
-                    'responsable_solicitud': excel_data.responsable_solicitud,
-                    'lider_proyecto': excel_data.lider_proyecto,
-                    'tipo_aplicacion': excel_data.tipo_aplicacion,
-                    'numero_version': excel_data.numero_version,
-                    'funcionalidad_liberacion': excel_data.funcionalidad_liberacion,
-                    'detalle_cambios': excel_data.detalle_cambios,
-                    'justificacion_cambio': excel_data.justificacion_cambio,
-                    'extracted_date': excel_data.extracted_date
-                }
-                
-                return render(request, 'extractor/result.html', {
-                    'data': data_for_template,
-                    'excel_data': excel_data,
-                    'nomenclaturas': nomenclaturas,
-                    'objetos_encontrados': objetos_encontrados,
-                    'ticket_code': ticket_code,
-                    'ticket_parts': ticket_parts,
-                    'ticket': ticket_obj,
-                    'tipo_servicio_form': tipo_servicio_form
-                })
-                
-            except Exception as e:
-                print(f"❌ ERROR en procesamiento: {str(e)}")
-                import traceback
-                traceback.print_exc()
-                
-                # Mensaje de error amigable para el usuario
-                error_message = str(e)
-                if "no contiene los siguientes campos obligatorios" in error_message:
-                    messages.error(request, error_message)
-                else:
-                    messages.error(request, f'Error al procesar el archivo: {error_message}')
-                
-                # Eliminar archivo temporal en caso de error
-                if file_path and os.path.exists(file_path):
-                    os.remove(file_path)
-                    
-                return render(request, 'extractor/upload.html')
             
+            # Preparar datos para la plantilla
+            data_for_template = {
+                'cliente': excel_data.cliente,
+                'proyecto': excel_data.proyecto,
+                'tipo_pruebas': excel_data.tipo_pruebas,
+                'tipo_servicio': excel_data.tipo_servicio,
+                'responsable_solicitud': excel_data.responsable_solicitud,
+                'lider_proyecto': excel_data.lider_proyecto,
+                'tipo_aplicacion': excel_data.tipo_aplicacion,
+                'numero_version': excel_data.numero_version,
+                'funcionalidad_liberacion': excel_data.funcionalidad_liberacion,
+                'detalle_cambios': excel_data.detalle_cambios,
+                'justificacion_cambio': excel_data.justificacion_cambio,
+                'extracted_date': excel_data.extracted_date
+            }
+            
+            ticket_parts = generate_ticket_parts(ticket_code)
+            
+            return render(request, 'extractor/result.html', {
+                'data': data_for_template,
+                'excel_data': excel_data,
+                'nomenclaturas': nomenclaturas,
+                'objetos_encontrados': objetos_encontrados,
+                'ticket_code': ticket_code,
+                'ticket_parts': ticket_parts,
+                'ticket': ticket_obj,
+                'tipo_servicio_form': tipo_servicio_form,
+                'solicitud_asociada': solicitud if solicitud_encontrada else None  # Para mostrar en la plantilla
+            })
+            
+        except ValidationError as e:
+            # Errores esperados (validación de usuario)
+            messages.error(request, str(e))
+            return render(request, 'extractor/upload.html')
+            
+        except Exception as e:
+            # Errores inesperados
+            print(f"❌ ERROR en procesamiento: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            messages.error(request, f'Error al procesar el archivo: {str(e)}')
+            return render(request, 'extractor/upload.html')
+            
+        finally:
+            # ===== LIMPIEZA GARANTIZADA =====
+            # Este bloque SIEMPRE se ejecuta, haya o no error
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    print(f"✅ Archivo temporal eliminado: {file_path}")
+                except Exception as e:
+                    print(f"⚠️ Error al eliminar archivo temporal: {e}")
+    
+    # GET request
     return render(request, 'extractor/upload.html')
+
+def find_object_by_name_or_id(model, value, field_name="nombre"):
+    """
+    Busca un objeto por nombre o ID
+    """
+    if not value or value == "":
+        return None
+    
+    value_str = str(value).strip()
+    
+    # Intentar 1: Buscar por ID (si es un número)
+    try:
+        id_value = int(float(value_str))  # Convertir a float primero por si viene "1.0"
+        obj = model.objects.filter(id=id_value).first()
+        if obj:
+            print(f"✅ Encontrado por ID: {model.__name__} ID={id_value} → {obj}")
+            return obj
+    except (ValueError, TypeError):
+        pass  # No es un número, continuar con búsqueda por nombre
+    
+    # Intentar 2: Buscar por nombre exacto
+    obj = model.objects.filter(**{field_name: value_str}).first()
+    if obj:
+        print(f"✅ Encontrado por nombre exacto: {model.__name__} '{value_str}' → {obj}")
+        return obj
+    
+    # Intentar 3: Buscar por nombre que contenga (case insensitive)
+    filter_kwargs = {f"{field_name}__icontains": value_str}
+    obj = model.objects.filter(**filter_kwargs).first()
+    if obj:
+        print(f"✅ Encontrado por nombre que contiene: {model.__name__} '{value_str}' → {obj}")
+        return obj
+    
+    # Intentar 4: Buscar por nomenclatura
+    if hasattr(model, 'nomenclatura'):
+        obj = model.objects.filter(nomenclatura=value_str).first()
+        if obj:
+            print(f"✅ Encontrado por nomenclatura: {model.__name__} '{value_str}' → {obj}")
+            return obj
+    
+    print(f"❌ No encontrado: {model.__name__} con valor '{value_str}'")
+    return None
 
 # Añade esta función para generar el código del ticket
 def generate_ticket_code(extracted_data, tipo_servicio):
@@ -396,10 +626,12 @@ def generate_ticket_code(extracted_data, tipo_servicio):
     
     return f"BID-{tipo_servicio_code}-F&REG-{version}-{cliente_nom}-{proyecto_nom}-{consecutivo}"
 
+@login_required(login_url='login')
 def data_list(request):
     data = ExcelData.objects.all().order_by('-extracted_date')
     return render(request, 'extractor/list.html', {'data_list': data})
 
+@login_required(login_url='login')
 def clientes_list(request):
     try:
         clientes = Cliente.objects.all()
@@ -457,6 +689,7 @@ def clientes_list(request):
             <pre>{dict(request.GET)}</pre>
         """)
 
+@login_required(login_url='login')
 def cliente_create(request):
     """Crear un nuevo cliente"""
     if request.method == 'POST':
@@ -544,7 +777,7 @@ def generate_ticket_parts(ticket_code):
     
     return parts
 
-
+@login_required(login_url='login')
 def cliente_edit(request, id):
     """Editar un cliente existente"""
     cliente = get_object_or_404(Cliente, id=id)
@@ -580,6 +813,7 @@ def cliente_edit(request, id):
     
     return render(request, 'catalogos/cliente_form.html', {'cliente': cliente})
 
+@login_required(login_url='login')
 def cliente_delete(request, id):
     """Eliminar un cliente"""
     cliente = get_object_or_404(Cliente, id=id)
@@ -594,6 +828,7 @@ def cliente_delete(request, id):
     
     return redirect('clientes_list')
 
+@login_required(login_url='login')
 def tipos_servicio_list(request):
     try:
         tipos = TipoServicio.objects.filter(activo=True)
@@ -649,6 +884,7 @@ def tipos_servicio_list(request):
             <pre>{dict(request.GET)}</pre>
         """)
 
+@login_required(login_url='login')
 def tipo_servicio_create(request):
     """Crear un nuevo tipo de servicio"""
     if request.method == 'POST':
@@ -682,6 +918,7 @@ def tipo_servicio_create(request):
     
     return render(request, 'catalogos/tipo_servicio_form.html')
 
+@login_required(login_url='login')
 def tipo_servicio_edit(request, id):
     """Editar un tipo de servicio existente"""
     tipo = get_object_or_404(TipoServicio, id=id)
@@ -717,6 +954,8 @@ def tipo_servicio_edit(request, id):
     
     return render(request, 'catalogos/tipo_servicio_form.html', {'tipo': tipo})
 
+
+@login_required(login_url='login')
 def tipo_servicio_delete(request, id):
     """Eliminar un tipo de servicio"""
     tipo = get_object_or_404(TipoServicio, id=id)
@@ -731,6 +970,7 @@ def tipo_servicio_delete(request, id):
     
     return redirect('tipos_servicio_list')
 
+@login_required(login_url='login')
 def proyectos_list(request):
     """Lista todos los proyectos con filtro por cliente opcional"""
     cliente_id = request.GET.get('cliente', '')
@@ -748,7 +988,7 @@ def proyectos_list(request):
         'clientes': clientes,
         'cliente_filtro': cliente_id
     })
-
+@login_required(login_url='login')
 def proyecto_create(request):
     """Crear un nuevo proyecto"""
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
@@ -796,6 +1036,7 @@ def proyecto_create(request):
     
     return render(request, 'catalogos/proyecto_form.html', {'clientes': clientes})
 
+@login_required(login_url='login')
 def proyecto_edit(request, id):
     """Editar un proyecto existente"""
     proyecto = get_object_or_404(Proyecto, id=id)
@@ -859,6 +1100,7 @@ def proyecto_edit(request, id):
         'clientes': clientes
     })
 
+@login_required(login_url='login')
 def proyecto_delete(request, id):
     """Eliminar un proyecto"""
     proyecto = get_object_or_404(Proyecto, id=id)
@@ -879,12 +1121,20 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
     
     # Obtener valores para los argumentos
     tipo_servicio_code = tipo_servicio_form
-    tipo_pruebas_nom = nomenclaturas.get('tipo_pruebas_nomenclatura', '???')
-    tipo_pruebas_id = extracted_data.get('tipo_pruebas', '??')
+    tipo_pruebas_nom = nomenclaturas.get('tipo_pruebas_nomenclatura', '???')  # ← Esto es la nomenclatura (INT, FUN, etc)
+    tipo_pruebas_id = objetos_encontrados.get('tipo_servicio_obj').id  # ← ID numérico
     cliente_nom = nomenclaturas.get('cliente_nomenclatura', '???')
     proyecto_nom = nomenclaturas.get('proyecto_nomenclatura', '???')
     
-    # 1. Obtener el siguiente consecutivo (PASA LOS ARGUMENTOS)
+    print(f"\n=== GENERANDO TICKET ===")
+    print(f"Tipo Servicio: {tipo_servicio_code}")
+    print(f"Tipo Pruebas NOMENCLATURA: {tipo_pruebas_nom}")
+    print(f"Tipo Pruebas ID: {tipo_pruebas_id}")
+    print(f"Cliente NOM: {cliente_nom}")
+    print(f"Proyecto NOM: {proyecto_nom}")
+    print("=======================\n")
+    
+    # Obtener el siguiente consecutivo
     consecutivo = get_next_consecutivo(
         tipo_servicio_code=tipo_servicio_code,
         tipo_pruebas_nom=tipo_pruebas_nom,
@@ -897,30 +1147,20 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
     consecutivo_num = int(consecutivo)
     consecutivo_str = f"{consecutivo_num:03d}"
     
-    # 2. Generar las partes del código
-    # Estructura: BID-PRU-F&REG-10-TEL-OTR-001
-    
-    # Empresa (fija)
+    # Generar las partes del código
     empresa_code = "BID"
     
-    # 3. Generar el código completo
+    # 🔥 IMPORTANTE: El código ahora usa la NOMENCLATURA en la tercera parte
     ticket_code = f"{empresa_code}-{tipo_servicio_code}-{tipo_pruebas_nom}-{tipo_pruebas_id}-{cliente_nom}-{proyecto_nom}-{consecutivo_str}"
     
     print(f"🎫 Código de ticket generado: {ticket_code}")
     
-    # 4. Buscar los objetos relacionados
+    # Buscar los objetos relacionados
     cliente_obj = objetos_encontrados.get('cliente_obj')
     proyecto_obj = objetos_encontrados.get('proyecto_obj')
     tipo_servicio_obj = objetos_encontrados.get('tipo_servicio_obj')
     
-    # 5. Buscar o crear un TipoServicio basado en el código del formulario
-    if tipo_servicio_code and not tipo_servicio_obj:
-        # Intentar encontrar el TipoServicio por nomenclatura
-        tipo_servicio_obj = TipoServicio.objects.filter(
-            nomenclatura=tipo_servicio_code
-        ).first()
-    
-    # 6. Crear el ticket en la base de datos
+    # Crear el ticket en la base de datos
     try:
         ticket = Ticket.objects.create(
             codigo=ticket_code,
@@ -928,8 +1168,8 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
             # Partes del código
             empresa_code=empresa_code,
             tipo_servicio_code=tipo_servicio_code,
-            funcion_code=tipo_pruebas_nom,
-            version_code=tipo_pruebas_id,
+            funcion_code=tipo_pruebas_nom,  # ← NOMENCLATURA
+            version_code=str(tipo_pruebas_id),  # ← ID
             cliente_code=cliente_nom,
             proyecto_code=proyecto_nom,
             consecutivo=consecutivo_num,
@@ -950,10 +1190,11 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
         
     except Exception as e:
         print(f"❌ Error al guardar ticket: {str(e)}")
-        # Si hay error, devolver solo el código sin ticket guardado
+        import traceback
+        traceback.print_exc()
         return ticket_code, None
 
-
+@login_required(login_url='login')
 def ticket_list(request):
     """Listado de tickets con filtros y paginación"""
     tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio')
@@ -1019,6 +1260,7 @@ def ticket_list(request):
     return render(request, 'catalogos/ticket_list.html', context)
 
 
+@login_required(login_url='login')
 def ticket_delete(request, id):
     """Eliminar un ticket"""
     ticket = get_object_or_404(Ticket, id=id)
@@ -1042,6 +1284,7 @@ def ticket_delete(request, id):
     }
     return render(request, 'catalogos/ticket_confirm_delete.html', context)
 
+@login_required(login_url='login')
 def ticket_detail(request, id):
     """Ver detalle de un ticket"""
     ticket = get_object_or_404(Ticket, id=id)
@@ -1052,6 +1295,7 @@ def ticket_detail(request, id):
     }
     return render(request, 'catalogos/ticket_detail.html', context)
 
+@login_required(login_url='login')
 def ticket_create(request):
     """Crear un nuevo ticket manualmente"""
     if request.method == 'POST':
@@ -1231,6 +1475,7 @@ def ticket_create(request):
     }
     return render(request, 'catalogos/new_ticket_form.html', context)
 
+@login_required(login_url='login')
 def proyectos_por_cliente(request, cliente_id):
     """Obtener proyectos de un cliente específico (para AJAX)"""
     try:
@@ -1251,6 +1496,7 @@ def proyectos_por_cliente(request, cliente_id):
         print(f"Error en proyectos_por_cliente: {e}")
         return JsonResponse({'error': str(e), 'proyectos': []}, status=200)
 
+@login_required(login_url='login')
 def ticket_create_simple(request):
     """VERSIÓN SIMPLIFICADA - Crear un nuevo ticket manualmente"""
     
@@ -1398,6 +1644,7 @@ def ticket_create_simple(request):
             messages.error(request, f'Error al crear ticket: {str(e)}')
             return redirect('ticket_create_simple')
 
+@login_required(login_url='login')
 def generar_excel_dictamen(request, ticket_id):
     """
     Genera el Dictamen de Pruebas usando la plantilla
@@ -1639,6 +1886,7 @@ def generar_excel_resultados(request, ticket_id):
     
     return response
 
+@login_required(login_url='login')
 def export_tickets_excel(request):
     """
     Exporta los tickets filtrados a un archivo Excel
@@ -1739,7 +1987,7 @@ def export_tickets_excel(request):
     
     return response
 
-
+@login_required(login_url='login')
 def export_table_csv(request, table_name):
     """
     Exporta una tabla específica a formato CSV
@@ -1798,7 +2046,112 @@ def export_table_csv(request, table_name):
         traceback.print_exc()
         return HttpResponseServerError(f"Error al exportar: {str(e)}")
 
+@login_required(login_url='login')
+def crear_ticket_manual(request):
+    """Vista para crear solicitud de pruebas manualmente"""
+    from django.utils import timezone
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            cliente_id = request.POST.get('cliente')
+            proyecto_id = request.POST.get('proyecto')
+            tipo_servicio_code = request.POST.get('tipo_servicio_code')  # PRU, EST, G&A
+            tipo_prueba_id = request.POST.get('tipo_prueba')
+            
+            # Validaciones básicas
+            if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id:
+                messages.error(request, 'Todos los campos obligatorios deben estar llenos')
+                return redirect('crear_ticket_manual')
+            
+            # Obtener objetos
+            cliente = Cliente.objects.get(id=cliente_id, activo=True)
+            proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
+            tipo_prueba = TipoServicio.objects.get(id=tipo_prueba_id, activo=True)
+            
+            # Validar que el proyecto pertenezca al cliente
+            if proyecto.cliente_id != cliente.id:
+                messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
+                return redirect('crear_ticket_manual')
+            
+            # Generar consecutivo
+            tickets_existentes = Ticket.objects.filter(
+                empresa_code="BID",
+                tipo_servicio_code=tipo_servicio_code,
+                funcion_code=tipo_prueba.nomenclatura,
+                version_code=str(tipo_prueba.id),
+                cliente_code=cliente.nomenclatura,
+                proyecto_code=proyecto.codigo
+            )
+            
+            if tickets_existentes.exists():
+                max_consecutivo = tickets_existentes.aggregate(models.Max('consecutivo'))['consecutivo__max']
+                consecutivo_num = (max_consecutivo or 0) + 1
+            else:
+                consecutivo_num = 1
+            
+            consecutivo_str = f"{consecutivo_num:03d}"
+            
+            # Generar código del ticket
+            ticket_code = f"BID-{tipo_servicio_code}-{tipo_prueba.nomenclatura}-{tipo_prueba.id}-{cliente.nomenclatura}-{proyecto.codigo}-{consecutivo_str}"
+            
+            # Crear el ticket
+            ticket = Ticket.objects.create(
+                codigo=ticket_code,
+                empresa_code="BID",
+                tipo_servicio_code=tipo_servicio_code,
+                funcion_code=tipo_prueba.nomenclatura,
+                version_code=str(tipo_prueba.id),
+                cliente_code=cliente.nomenclatura,
+                proyecto_code=proyecto.codigo,
+                consecutivo=consecutivo_num,
+                cliente=cliente,
+                proyecto=proyecto,
+                tipo_servicio=tipo_prueba,
+                responsable_solicitud=request.POST.get('responsable_solicitud', '')[:255],
+                lider_proyecto=request.POST.get('lider_proyecto', '')[:255],
+                numero_version=request.POST.get('numero_version', '')[:255],
+                estado='GENERADO'
+            )
+            
+            # Crear ExcelData asociado
+            excel_data = ExcelData.objects.create(
+                cliente=str(cliente.id),
+                proyecto=str(proyecto.id),
+                tipo_pruebas=str(tipo_prueba.id),
+                tipo_servicio=tipo_servicio_code,
+                responsable_solicitud=request.POST.get('responsable_solicitud', ''),
+                lider_proyecto=request.POST.get('lider_proyecto', ''),
+                tipo_aplicacion=request.POST.get('tipo_aplicacion', ''),
+                numero_version=request.POST.get('numero_version', ''),
+                funcionalidad_liberacion=request.POST.get('funcionalidad_liberacion', ''),
+                detalle_cambios=request.POST.get('detalle_cambios', ''),
+                justificacion_cambio=request.POST.get('justificacion_cambio', ''),
+                ticket_code=ticket_code
+            )
+            
+            ticket.excel_data = excel_data
+            ticket.save()
+            
+            messages.success(request, f'✅ Solicitud creada exitosamente. Ticket: {ticket_code}')
+            return redirect('ticket_detail', id=ticket.id)
+            
+        except Exception as e:
+            import traceback
+            print(f"ERROR: {str(e)}")
+            print(traceback.format_exc())
+            messages.error(request, f'Error al crear solicitud: {str(e)}')
+            return redirect('crear_ticket_manual')
+    
+    # GET - Mostrar formulario
+    context = {
+        'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
+        'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
+        'today': timezone.now().date(),
+        'now': timezone.now(),
+    }
+    return render(request, 'extractor/crear_solicitud.html', context)
 
+@login_required(login_url='login')
 def export_all_tables_backup(request):
     """
     Exporta todas las tablas como CSV en un archivo ZIP
@@ -1861,3 +2214,380 @@ def export_all_tables_backup(request):
         import traceback
         traceback.print_exc()
         return HttpResponseServerError(f"Error al crear backup: {str(e)}")
+    
+
+def crear_solicitud(request):
+    """Vista para crear solicitud de pruebas manualmente y guardarla en la tabla SolicitudPruebas"""
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario (código existente)...
+            cliente_id = request.POST.get('cliente')
+            proyecto_id = request.POST.get('proyecto')
+            fecha_solicitud = request.POST.get('fecha_solicitud')
+            hora_solicitud = request.POST.get('hora_solicitud')
+            tipo_servicio_code = request.POST.get('tipo_servicio_code')
+            tipo_prueba_id = request.POST.get('tipo_prueba')
+            area_solicitante = request.POST.get('area_solicitante', '')
+            numero_version = request.POST.get('numero_version', '')
+            responsable_solicitud = request.POST.get('responsable_solicitud', '')
+            lider_proyecto = request.POST.get('lider_proyecto', '')
+            tipo_aplicacion = request.POST.get('tipo_aplicacion', '')
+            funcionalidad_liberacion = request.POST.get('funcionalidad_liberacion', '')
+            detalle_cambios = request.POST.get('detalle_cambios', '')
+            justificacion_cambio = request.POST.get('justificacion_cambio', '')
+            puntos_considerar = request.POST.get('puntos_considerar', '')
+            pendientes = request.POST.get('pendientes', '')
+            insumos = request.POST.get('insumos', '')
+            
+            # Validaciones básicas (código existente)...
+            if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id or not fecha_solicitud:
+                messages.error(request, 'Los campos obligatorios deben estar llenos')
+                return redirect('crear_solicitud')
+            
+            # Obtener objetos (código existente)...
+            cliente = Cliente.objects.get(id=cliente_id, activo=True)
+            proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
+            tipo_prueba = TipoServicio.objects.get(id=tipo_prueba_id, activo=True)
+            
+            # Validar que el proyecto pertenezca al cliente (código existente)...
+            if proyecto.cliente_id != cliente.id:
+                messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
+                return redirect('crear_solicitud')
+            
+            # Validar fecha y hora (código existente)...
+            if not fecha_solicitud:
+                fecha_solicitud = timezone.now().date()
+            if not hora_solicitud:
+                hora_solicitud = timezone.now().time()
+            
+            # 🔥 CREAR LA SOLICITUD
+            solicitud = SolicitudPruebas(
+                cliente=cliente,
+                proyecto=proyecto,
+                fecha_solicitud=fecha_solicitud,
+                hora_solicitud=hora_solicitud,
+                tipo_servicio_code=tipo_servicio_code,
+                tipo_prueba=tipo_prueba,
+                area_solicitante=area_solicitante,
+                numero_version=numero_version,
+                responsable_solicitud=responsable_solicitud,
+                lider_proyecto=lider_proyecto,
+                tipo_aplicacion=tipo_aplicacion,
+                funcionalidad_liberacion=funcionalidad_liberacion,
+                detalle_cambios=detalle_cambios,
+                justificacion_cambio=justificacion_cambio,
+                puntos_considerar=puntos_considerar,
+                pendientes=pendientes,
+                insumos=insumos,
+                creado_por=request.user.username if request.user.is_authenticated else 'Anónimo'
+            )
+            
+            # 🔥 NUEVO: Generar y asignar el nombre del archivo
+            # Guardar primero para tener ID (necesario para el método generar_nombre_archivo)
+            solicitud.save()
+            
+            # Ahora generar el nombre del archivo con el ID ya asignado
+            nombre_archivo = solicitud.generar_nombre_archivo()
+            solicitud.nombre_archivo = nombre_archivo
+            solicitud.save(update_fields=['nombre_archivo'])
+            
+            # Mensaje con el nombre del archivo generado
+            messages.success(request, f'✅ Solicitud de pruebas guardada exitosamente con ID #{solicitud.id}')
+            messages.info(request, f'📁 Nombre del archivo: {nombre_archivo}')
+            
+            # Opcional: Preguntar si quiere generar ticket automáticamente
+            generar_ticket_ahora = request.POST.get('generar_ticket_ahora')
+            
+            if generar_ticket_ahora == 'on':
+                # Generar ticket
+                ticket = solicitud.generar_ticket()
+                messages.success(request, f'✅ Ticket generado exitosamente. Ticket: {ticket.codigo}')
+                return redirect('ticket_detail', id=ticket.id)
+            else:
+                return redirect('solicitud_list')
+            
+        except Exception as e:
+            import traceback
+            print(f"ERROR: {str(e)}")
+            print(traceback.format_exc())
+            messages.error(request, f'Error al crear solicitud: {str(e)}')
+            return redirect('crear_solicitud')
+    
+    # GET - Mostrar formulario (código existente)...
+    context = {
+        'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
+        'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
+        'today': timezone.now().date(),
+        'now': timezone.now(),
+    }
+    return render(request, 'extractor/crear_solicitud.html', context)
+
+def solicitud_list(request):
+    """Listado de solicitudes de pruebas"""
+    solicitudes = SolicitudPruebas.objects.all().select_related('cliente', 'proyecto', 'tipo_prueba', 'ticket')
+    
+    # Filtros
+    cliente_id = request.GET.get('cliente')
+    proyecto_id = request.GET.get('proyecto')
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    con_ticket = request.GET.get('con_ticket')
+    
+    if cliente_id:
+        solicitudes = solicitudes.filter(cliente_id=cliente_id)
+    if proyecto_id:
+        solicitudes = solicitudes.filter(proyecto_id=proyecto_id)
+    if fecha_desde:
+        solicitudes = solicitudes.filter(fecha_solicitud__gte=fecha_desde)
+    if fecha_hasta:
+        solicitudes = solicitudes.filter(fecha_solicitud__lte=fecha_hasta)
+    if con_ticket == 'si':
+        solicitudes = solicitudes.filter(ticket__isnull=False)
+    elif con_ticket == 'no':
+        solicitudes = solicitudes.filter(ticket__isnull=True)
+    
+    # Paginación
+    por_pagina = request.GET.get('por_pagina', 20)
+    try:
+        por_pagina = int(por_pagina)
+    except ValueError:
+        por_pagina = 20
+    
+    paginator = Paginator(solicitudes, por_pagina)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'solicitudes': page_obj,
+        'page_obj': page_obj,
+        'clientes': Cliente.objects.filter(activo=True),
+        'proyectos': Proyecto.objects.filter(activo=True),
+        'total_solicitudes': SolicitudPruebas.objects.count(),
+        'solicitudes_con_ticket': SolicitudPruebas.objects.filter(ticket__isnull=False).count(),
+        'solicitudes_sin_ticket': SolicitudPruebas.objects.filter(ticket__isnull=True).count(),
+        # Filtros actuales
+        'cliente_selected': int(cliente_id) if cliente_id else 0,
+        'proyecto_selected': int(proyecto_id) if proyecto_id else 0,
+        'fecha_desde': fecha_desde or '',
+        'fecha_hasta': fecha_hasta or '',
+        'con_ticket': con_ticket or '',
+        'por_pagina': por_pagina,
+    }
+    return render(request, 'catalogos/solicitud_list.html', context)
+
+
+def solicitud_detail(request, id):
+    """Ver detalle de una solicitud de pruebas"""
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    
+    context = {
+        'solicitud': solicitud,
+    }
+    return render(request, 'catalogos/solicitud_detail.html', context)
+
+
+def solicitud_generar_ticket(request, id):
+    """Generar un ticket a partir de una solicitud existente"""
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    
+    if request.method == 'POST':
+        try:
+            if solicitud.ticket:
+                messages.warning(request, f'Esta solicitud ya tiene un ticket asociado: {solicitud.ticket.codigo}')
+                return redirect('ticket_detail', id=solicitud.ticket.id)
+            
+            ticket = solicitud.generar_ticket()
+            messages.success(request, f'✅ Ticket generado exitosamente: {ticket.codigo}')
+            return redirect('ticket_detail', id=ticket.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error al generar ticket: {str(e)}')
+            return redirect('solicitud_detail', id=solicitud.id)
+    
+    # GET - Mostrar confirmación
+    context = {
+        'solicitud': solicitud,
+    }
+    return render(request, 'catalogos/solicitud_generar_ticket.html', context)
+
+def solicitud_delete(request, id):
+    """Eliminar una solicitud de pruebas"""
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    
+    if request.method == 'POST':
+        try:
+            if solicitud.ticket:
+                messages.error(request, 'No se puede eliminar una solicitud que tiene un ticket asociado')
+                return redirect('solicitud_detail', id=solicitud.id)
+            
+            solicitud.delete()
+            messages.success(request, '✅ Solicitud eliminada exitosamente')
+            return redirect('solicitud_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error al eliminar solicitud: {str(e)}')
+            return redirect('solicitud_detail', id=solicitud.id)
+    
+    # GET - Mostrar confirmación
+    context = {
+        'solicitud': solicitud,
+    }
+    return render(request, 'catalogos/solicitud_confirm_delete.html', context)
+
+def imprimir_solicitud_excel(request, id):
+    """
+    Genera el archivo Excel de solicitud de pruebas usando la plantilla
+    con los datos de una solicitud guardada (sin necesidad de ticket)
+    AHORA USA EL NOMBRE DE ARCHIVO GUARDADO EN LA BASE DE DATOS
+    """
+    import io
+    import os
+    from datetime import datetime
+    from openpyxl import load_workbook
+    from django.conf import settings
+    
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    
+    # Ruta a la plantilla
+    plantilla_path = os.path.join(
+        settings.BASE_DIR,
+        'static',
+        'plantillas',
+        'BID-PMC-FOR-00017_Formato_de_Solicitud_de_Pruebas.xlsx'
+    )
+    
+    # Verificar si existe la plantilla
+    if not os.path.exists(plantilla_path):
+        messages.error(
+            request, 
+            f"No se encontró la plantilla. Por favor, verifica que exista en: {plantilla_path}"
+        )
+        return redirect('solicitud_detail', id=solicitud.id)
+    
+    try:
+        # Cargar la plantilla
+        wb = load_workbook(plantilla_path)
+        
+        # Seleccionar la hoja "Solicitud de Pruebas V4"
+        if 'Solicitud de Pruebas V4' in wb.sheetnames:
+            ws = wb['Solicitud de Pruebas V4']
+        else:
+            ws = wb.active
+        
+        # Función auxiliar para escribir en celdas respetando fusiones
+        def set_cell_value(sheet, coordinate, value):
+            """Escribe un valor en una celda, manejando correctamente celdas fusionadas"""
+            try:
+                for merged_range in sheet.merged_cells.ranges:
+                    if coordinate in merged_range:
+                        top_left = merged_range.start_cell.coordinate
+                        sheet[top_left] = value
+                        return
+                sheet[coordinate] = value
+            except Exception as e:
+                print(f"⚠️ Error en {coordinate}: {e}")
+        
+        # ===== LLENAR DATOS DE LA SOLICITUD EN LA PLANTILLA =====
+        # (Todo el código existente para llenar los datos...)
+        
+        # Cliente (C5)
+        if solicitud.cliente:
+            set_cell_value(ws, 'C5', solicitud.cliente.nombre)
+        
+        # Proyecto (H5)
+        if solicitud.proyecto:
+            set_cell_value(ws, 'H5', solicitud.proyecto.nombre)
+        
+        # Fecha Solicitud (M5)
+        set_cell_value(ws, 'M5', solicitud.fecha_solicitud.strftime('%d/%m/%Y'))
+        
+        # Hora Solicitud (M6)
+        set_cell_value(ws, 'M6', solicitud.hora_solicitud.strftime('%H:%M') + ' hrs')
+        
+        # Tipo de Pruebas (D8)
+        set_cell_value(ws, 'D8', solicitud.tipo_prueba.nombre)
+        
+        # Área Solicitante (K8)
+        set_cell_value(ws, 'K8', solicitud.area_solicitante or '')
+        
+        # Responsable Solicitud (D12)
+        set_cell_value(ws, 'D12', solicitud.responsable_solicitud or '')
+        
+        # Líder de Proyecto (J12)
+        set_cell_value(ws, 'J12', solicitud.lider_proyecto or '')
+        
+        # Tipo de Aplicación (D17)
+        set_cell_value(ws, 'D17', solicitud.tipo_aplicacion or '')
+        
+        # Número de Versión (M17)
+        set_cell_value(ws, 'M17', solicitud.numero_version or '')
+        
+        # Funcionalidad de la liberación (D20)
+        if solicitud.funcionalidad_liberacion:
+            set_cell_value(ws, 'D20', solicitud.funcionalidad_liberacion)
+        
+        # Detalle de los cambios (D22)
+        if solicitud.detalle_cambios:
+            set_cell_value(ws, 'D22', solicitud.detalle_cambios)
+        
+        # Justificación del cambio (D24)
+        if solicitud.justificacion_cambio:
+            set_cell_value(ws, 'D24', solicitud.justificacion_cambio)
+        
+        # Puntos a considerar (D26)
+        if solicitud.puntos_considerar:
+            set_cell_value(ws, 'D26', solicitud.puntos_considerar)
+        
+        # Pendientes (D28)
+        if solicitud.pendientes:
+            set_cell_value(ws, 'D28', solicitud.pendientes)
+        
+        # Insumos requeridos (D30)
+        if solicitud.insumos:
+            set_cell_value(ws, 'D30', solicitud.insumos)
+        
+        # Nombre de servicio (D37)
+        set_cell_value(ws, 'D37', 'Servicio de Pruebas')
+        
+        # Soporte back (J37)
+        set_cell_value(ws, 'J37', solicitud.responsable_solicitud or '')
+        
+        # Detalles del servicio (D39)
+        detalles = f"Cliente: {solicitud.cliente.nombre if solicitud.cliente else ''} - Proyecto: {solicitud.proyecto.nombre if solicitud.proyecto else ''}"
+        set_cell_value(ws, 'D39', detalles)
+        
+        # Guardar en buffer
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        # Crear respuesta
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+        # 🔥 NUEVO: Usar el nombre de archivo guardado en la base de datos
+        if solicitud.nombre_archivo:
+            filename = solicitud.nombre_archivo
+        else:
+            # Fallback por si no tiene nombre guardado
+            if solicitud.ticket:
+                filename = f"{solicitud.ticket.codigo} Solicitud de Pruebas.xlsx"
+            else:
+                filename = f"Solicitud_{solicitud.id}_{solicitud.fecha_solicitud}.xlsx"
+        
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Length'] = len(buffer.getvalue())
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Error al generar solicitud: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        messages.error(request, f"Error al generar el archivo: {str(e)}")
+        return redirect('solicitud_detail', id=solicitud.id)
+

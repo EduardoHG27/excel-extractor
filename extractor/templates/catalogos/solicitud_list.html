@@ -1,0 +1,298 @@
+<!-- templates/catalogos/solicitud_list.html -->
+{% extends 'extractor/base_general.html' %}  
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 Solicitudes de Pruebas</h1>
+    <p>Listado de todas las solicitudes registradas en el sistema</p>
+</div>
+
+<!-- Filtros y búsqueda -->
+<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        <div style="flex: 1; min-width: 200px;">
+            <label for="cliente" style="display: block; margin-bottom: 5px; font-weight: bold;">Cliente:</label>
+            <select name="cliente" id="cliente" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="">Todos los clientes</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}" {% if cliente.id == cliente_selected %}selected{% endif %}>
+                    {{ cliente.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="flex: 1; min-width: 200px;">
+            <label for="proyecto" style="display: block; margin-bottom: 5px; font-weight: bold;">Proyecto:</label>
+            <select name="proyecto" id="proyecto" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="">Todos los proyectos</option>
+                {% for proyecto in proyectos %}
+                <option value="{{ proyecto.id }}" {% if proyecto.id == proyecto_selected %}selected{% endif %}>
+                    {{ proyecto.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Fecha desde:</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+        </div>
+        
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Fecha hasta:</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+        </div>
+        
+        <div style="flex: 1; min-width: 200px;">
+            <label for="con_ticket" style="display: block; margin-bottom: 5px; font-weight: bold;">Ticket:</label>
+            <select name="con_ticket" id="con_ticket" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="">Todas</option>
+                <option value="si" {% if con_ticket == 'si' %}selected{% endif %}>Con ticket</option>
+                <option value="no" {% if con_ticket == 'no' %}selected{% endif %}>Sin ticket</option>
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn" style="padding: 8px 20px;">🔍 Filtrar</button>
+            <a href="{% url 'solicitud_list' %}" class="btn btn-secondary" style="padding: 8px 20px;">🗑️ Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Estadísticas -->
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
+    <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 2rem;">📋</div>
+        <div style="font-size: 1.5rem; font-weight: bold;">{{ total_solicitudes }}</div>
+        <div>Total Solicitudes</div>
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 2rem;">🎫</div>
+        <div style="font-size: 1.5rem; font-weight: bold;">{{ solicitudes_con_ticket }}</div>
+        <div>Con Ticket</div>
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #f39c12, #e67e22); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 2rem;">⏳</div>
+        <div style="font-size: 1.5rem; font-weight: bold;">{{ solicitudes_sin_ticket }}</div>
+        <div>Sin Ticket</div>
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 2rem;">{{ page_obj.paginator.num_pages }}</div>
+        <div style="font-size: 1.5rem; font-weight: bold;">Páginas</div>
+        <div>{{ por_pagina }} por página</div>
+    </div>
+</div>
+
+<!-- Tabla de solicitudes - MODIFICADA PARA OCUPAR TODO EL ANCHO -->
+<div style="width: 100%; overflow-x: auto; margin: 0 -30px; padding: 0 30px; width: calc(100% + 60px);">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed;">
+        <thead>
+            <tr style="background-color: #2c3e50; color: white;">
+                <th style="padding: 12px; text-align: left; width: 5%;">ID</th>
+                <th style="padding: 12px; text-align: left; width: 8%;">Fecha</th>
+                <th style="padding: 12px; text-align: left; width: 10%;">Cliente</th>
+                <th style="padding: 12px; text-align: left; width: 10%;">Proyecto</th>
+                <th style="padding: 12px; text-align: left; width: 8%;">Tipo Servicio</th>
+                <th style="padding: 12px; text-align: left; width: 10%;">Tipo Prueba</th>
+                <th style="padding: 12px; text-align: left; width: 10%;">Responsable</th>
+                <th style="padding: 12px; text-align: center; width: 7%;">Ticket</th>
+                <th style="padding: 12px; text-align: center; width: 15%;">Nombre del Archivo</th>
+                <th style="padding: 12px; text-align: center; width: 17%;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for solicitud in solicitudes %}
+            <tr style="border-bottom: 1px solid #ddd; {% cycle 'background-color: #f9f9f9;' '' %}">
+                <td style="padding: 12px;">{{ solicitud.id }}</td>
+                <td style="padding: 12px;">{{ solicitud.fecha_solicitud|date:"d/m/Y" }}<br><small>{{ solicitud.hora_solicitud|time:"H:i" }}</small></td>
+                <td style="padding: 12px;">
+                    <strong>{{ solicitud.cliente.nombre }}</strong><br>
+                    <small style="color: #7f8c8d;">{{ solicitud.cliente.nomenclatura }}</small>
+                </td>
+                <td style="padding: 12px;">
+                    {{ solicitud.proyecto.nombre }}<br>
+                    <small style="color: #7f8c8d;">{{ solicitud.proyecto.codigo }}</small>
+                </td>
+                <td style="padding: 12px;">
+                    {% if solicitud.tipo_servicio_code == 'PRU' %}
+                        <span class="badge" style="background-color: #3498db;">Pruebas</span>
+                    {% elif solicitud.tipo_servicio_code == 'EST' %}
+                        <span class="badge" style="background-color: #f39c12;">Estimación</span>
+                    {% elif solicitud.tipo_servicio_code == 'G&A' %}
+                        <span class="badge" style="background-color: #9b59b6;">G&A</span>
+                    {% else %}
+                        {{ solicitud.tipo_servicio_code }}
+                    {% endif %}
+                </td>
+                <td style="padding: 12px;">
+                    {{ solicitud.tipo_prueba.nombre }}<br>
+                    <small style="color: #7f8c8d;">{{ solicitud.tipo_prueba.nomenclatura }}</small>
+                </td>
+                <td style="padding: 12px;">
+                    {{ solicitud.responsable_solicitud|default:"-" }}<br>
+                    <small style="color: #7f8c8d;">{{ solicitud.lider_proyecto|default:"" }}</small>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    {% if solicitud.ticket %}
+                        <a href="{% url 'ticket_detail' solicitud.ticket.id %}" style="text-decoration: none;">
+                            <span class="badge" style="background-color: #2ecc71;">✓ {{ solicitud.ticket.codigo }}</span>
+                        </a>
+                    {% else %}
+                        <span class="badge" style="background-color: #e74c3c;">✗ Sin ticket</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    <code style="background-color: #f8f9fa; padding: 3px 6px; border-radius: 3px; font-size: 0.85rem; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;">
+                        {{ solicitud.nombre_archivo|default:"Pendiente" }}
+                    </code>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
+                        <a href="{% url 'solicitud_detail' solicitud.id %}" class="btn btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">👁️ Ver</a>
+                        {% if solicitud.ticket %}
+                        <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-sm" style="background-color: #9b59b6; color: white; padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
+                            📝 BID-PMC
+                        </a>
+                        {% endif %}
+                        {% if not solicitud.ticket %}
+                            <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-success btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
+                                🖨️ Imprimir
+                            </a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" style="padding: 40px; text-align: center; color: #7f8c8d;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">📭</div>
+                    <div style="font-size: 1.2rem;">No hay solicitudes registradas</div>
+                    <div style="margin-top: 20px;">
+                        <a href="{% url 'crear_solicitud' %}" class="btn">➕ Crear primera solicitud</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación -->
+{% if page_obj.has_other_pages %}
+<div style="margin-top: 30px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap;">
+    {% if page_obj.has_previous %}
+        <a href="?page=1&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">⏮️ Primera</a>
+        <a href="?page={{ page_obj.previous_page_number }}&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">◀ Anterior</a>
+    {% endif %}
+    
+    <span style="padding: 8px 15px; background-color: #f8f9fa; border-radius: 4px;">
+        Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+    </span>
+    
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">Siguiente ▶</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">⏭️ Última</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Selector de elementos por página -->
+<div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
+    <label for="por_pagina">Mostrar:</label>
+    <select name="por_pagina" id="por_pagina" onchange="window.location.href=this.value" style="padding: 5px;">
+        <option value="?por_pagina=10&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 10 %}selected{% endif %}>10</option>
+        <option value="?por_pagina=20&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 20 %}selected{% endif %}>20</option>
+        <option value="?por_pagina=50&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 50 %}selected{% endif %}>50</option>
+        <option value="?por_pagina=100&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 100 %}selected{% endif %}>100</option>
+    </select>
+    <span>por página</span>
+</div>
+
+<!-- Botón para nueva solicitud -->
+<div style="margin-top: 30px; text-align: right;">
+    <a href="{% url 'crear_solicitud' %}" class="btn btn-success">➕ Nueva Solicitud</a>
+</div>
+
+<script>
+// Script para cargar proyectos según cliente (opcional, similar al de crear_solicitud)
+document.getElementById('cliente').addEventListener('change', function() {
+    const clienteId = this.value;
+    const proyectoSelect = document.getElementById('proyecto');
+    
+    if (clienteId) {
+        fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
+            .then(response => response.json())
+            .then(data => {
+                proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
+                data.proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = `${proyecto.nombre} (${proyecto.codigo})`;
+                    proyectoSelect.appendChild(option);
+                });
+            });
+    }
+});
+</script>
+
+<style>
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-success {
+    background-color: #2ecc71;
+}
+
+.btn-success:hover {
+    background-color: #27ae60;
+}
+
+table tr:hover {
+    background-color: #f1f9ff !important;
+}
+
+.badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: white;
+}
+
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 1200px) {
+    table {
+        font-size: 0.9rem;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 768px) {
+    table {
+        font-size: 0.8rem;
+    }
+    
+    th, td {
+        padding: 8px !important;
+    }
+}
+</style>
+{% endblock %}
