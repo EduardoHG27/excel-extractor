@@ -350,43 +350,43 @@ class SolicitudPruebas(models.Model):
             return f"Solicitud {self.ticket.codigo} - {self.cliente.nombre}"
         return f"Solicitud #{self.id} - {self.cliente.nombre} ({self.fecha_solicitud})"
    
-def generar_nombre_archivo(self):
-    """
-    Genera nombre de archivo con número aleatorio de 3 cifras,
-    verificando que no exista ya para hoy
-    """
-    from django.utils import timezone
-    import random
-    
-    base = "BID-PMC-FOR-00017"
-    nomenclatura_cliente = self.cliente.nomenclatura if self.cliente else "CLI"
-    fecha_actual = timezone.now().strftime('%Y%m%d')
-    
-    # Prefijo del nombre (sin el número)
-    prefijo = f"{base}-{nomenclatura_cliente}_{fecha_actual}-"
-    
-    # Máximo de intentos para encontrar número único
-    for _ in range(50):  # 50 intentos es más que suficiente
-        numero = random.randint(1, 999)
-        numero_str = f"{numero:03d}"
-        nombre_completo = f"{prefijo}{numero_str}.xlsx"
+    def generar_nombre_archivo(self):
+        """
+        Genera nombre de archivo con número aleatorio de 3 cifras,
+        verificando que no exista ya para hoy
+        """
+        from django.utils import timezone
+        import random
         
-        # Verificar si ya existe
-        if self.pk:  # Si es actualización
-            existe = SolicitudPruebas.objects.filter(
-                nombre_archivo=nombre_completo
-            ).exclude(pk=self.pk).exists()
-        else:  # Si es nuevo
-            existe = SolicitudPruebas.objects.filter(
-                nombre_archivo=nombre_completo
-            ).exists()
+        base = "BID-PMC-FOR-00017"
+        nomenclatura_cliente = self.cliente.nomenclatura if self.cliente else "CLI"
+        fecha_actual = timezone.now().strftime('%Y%m%d')
         
-        if not existe:
-            return nombre_completo
-    
-    # Fallback: usar timestamp (altamente improbable)
-    timestamp = timezone.now().strftime('%f')[-3:]
-    return f"{prefijo}{timestamp}.xlsx"
+        # Prefijo del nombre (sin el número)
+        prefijo = f"{base}-{nomenclatura_cliente}_{fecha_actual}-"
+        
+        # Máximo de intentos para encontrar número único
+        for _ in range(50):  # 50 intentos es más que suficiente
+            numero = random.randint(1, 999)
+            numero_str = f"{numero:03d}"
+            nombre_completo = f"{prefijo}{numero_str}.xlsx"
+            
+            # Verificar si ya existe
+            if self.pk:  # Si es actualización
+                existe = SolicitudPruebas.objects.filter(
+                    nombre_archivo=nombre_completo
+                ).exclude(pk=self.pk).exists()
+            else:  # Si es nuevo
+                existe = SolicitudPruebas.objects.filter(
+                    nombre_archivo=nombre_completo
+                ).exists()
+            
+            if not existe:
+                return nombre_completo
+        
+        # Fallback: usar timestamp (altamente improbable)
+        timestamp = timezone.now().strftime('%f')[-3:]
+        return f"{prefijo}{timestamp}.xlsx"
     
     def get_estado_solicitud(self):
         """Devuelve el estado de la solicitud basado en el ticket asociado"""
