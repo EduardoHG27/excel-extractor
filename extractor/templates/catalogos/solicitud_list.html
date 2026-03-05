@@ -10,6 +10,7 @@
 <!-- Filtros y búsqueda -->
 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
     <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        <input type="hidden" name="por_pagina" value="{{ por_pagina|default:'10' }}">
         <div style="flex: 1; min-width: 200px;">
             <label for="cliente" style="display: block; margin-bottom: 5px; font-weight: bold;">Cliente:</label>
             <select name="cliente" id="cliente" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
@@ -58,6 +59,33 @@
             <a href="{% url 'solicitud_list' %}" class="btn btn-secondary" style="padding: 8px 20px;">🗑️ Limpiar</a>
         </div>
     </form>
+</div>
+
+<div style="margin-bottom: 20px; display: flex; gap: 5px; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap;">
+    <a href="{% url 'solicitud_list' %}" 
+       class="btn {% if not request.GET.fecha_desde and not request.GET.fecha_hasta and not request.GET.sin_ticket %}btn-primary{% else %}btn-secondary{% endif %}" 
+       style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
+        📋 Todas
+    </a>
+    
+    <a href="{% url 'solicitud_list' %}?fecha_desde={{ today|date:'Y-m-d' }}&fecha_hasta={{ today|date:'Y-m-d' }}" 
+       class="btn {% if request.GET.fecha_desde == today|date:'Y-m-d' and request.GET.fecha_hasta == today|date:'Y-m-d' %}btn-primary{% else %}btn-secondary{% endif %}" 
+       style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
+        📅 Hoy
+    </a>
+    
+    <!-- CORREGIDO: ahora envía fecha_desde Y fecha_hasta -->
+    <a href="{% url 'solicitud_list' %}?fecha_desde={{ week_ago|date:'Y-m-d' }}&fecha_hasta={{ today|date:'Y-m-d' }}" 
+       class="btn {% if request.GET.fecha_desde == week_ago|date:'Y-m-d' and request.GET.fecha_hasta == today|date:'Y-m-d' %}btn-primary{% else %}btn-secondary{% endif %}" 
+       style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
+        📊 Última semana
+    </a>
+    
+    <a href="{% url 'solicitud_list' %}?sin_ticket=si" 
+       class="btn {% if request.GET.sin_ticket == 'si' %}btn-primary{% else %}btn-secondary{% endif %}" 
+       style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
+        ⏳ Sin ticket
+    </a>
 </div>
 
 <!-- Estadísticas -->
@@ -185,8 +213,8 @@
 {% if page_obj.has_other_pages %}
 <div style="margin-top: 30px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap;">
     {% if page_obj.has_previous %}
-        <a href="?page=1&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">⏮️ Primera</a>
-        <a href="?page={{ page_obj.previous_page_number }}&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">◀ Anterior</a>
+        <a href="#" onclick="irPagina(1); return false;" class="btn btn-sm">⏮️ Primera</a>
+        <a href="#" onclick="irPagina({{ page_obj.previous_page_number }}); return false;" class="btn btn-sm">◀ Anterior</a>
     {% endif %}
     
     <span style="padding: 8px 15px; background-color: #f8f9fa; border-radius: 4px;">
@@ -194,8 +222,8 @@
     </span>
     
     {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">Siguiente ▶</a>
-        <a href="?page={{ page_obj.paginator.num_pages }}&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" class="btn btn-sm">⏭️ Última</a>
+        <a href="#" onclick="irPagina({{ page_obj.next_page_number }}); return false;" class="btn btn-sm">Siguiente ▶</a>
+        <a href="#" onclick="irPagina({{ page_obj.paginator.num_pages }}); return false;" class="btn btn-sm">⏭️ Última</a>
     {% endif %}
 </div>
 {% endif %}
@@ -203,15 +231,14 @@
 <!-- Selector de elementos por página -->
 <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
     <label for="por_pagina">Mostrar:</label>
-    <select name="por_pagina" id="por_pagina" onchange="window.location.href=this.value" style="padding: 5px;">
-        <option value="?por_pagina=10&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 10 %}selected{% endif %}>10</option>
-        <option value="?por_pagina=20&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 20 %}selected{% endif %}>20</option>
-        <option value="?por_pagina=50&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 50 %}selected{% endif %}>50</option>
-        <option value="?por_pagina=100&cliente={{ cliente_selected }}&proyecto={{ proyecto_selected }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&con_ticket={{ con_ticket }}" {% if por_pagina == 100 %}selected{% endif %}>100</option>
+    <select name="por_pagina" id="por_pagina" onchange="cambiarPorPagina(this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10</option>
+        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20</option>
+        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50</option>
+        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100</option>
     </select>
     <span>por página</span>
 </div>
-
 <!-- Botón para nueva solicitud -->
 <div style="margin-top: 30px; text-align: right;">
     <a href="{% url 'crear_solicitud' %}" class="btn btn-success">➕ Nueva Solicitud</a>
@@ -238,6 +265,48 @@ document.getElementById('cliente').addEventListener('change', function() {
             });
     }
 });
+
+// Script para cargar proyectos según cliente (código existente)
+document.getElementById('cliente').addEventListener('change', function() {
+    const clienteId = this.value;
+    const proyectoSelect = document.getElementById('proyecto');
+    
+    if (clienteId) {
+        fetch(`{% url 'proyectos_por_cliente' 0 %}`.replace('0', clienteId))
+            .then(response => response.json())
+            .then(data => {
+                proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
+                data.proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    option.textContent = `${proyecto.nombre} (${proyecto.codigo})`;
+                    proyectoSelect.appendChild(option);
+                });
+            });
+    }
+});
+
+// NUEVA FUNCIÓN: Cambiar número de elementos por página
+function cambiarPorPagina(valor) {
+    // Obtener la URL actual
+    const url = new URL(window.location.href);
+    
+    // Actualizar el parámetro 'por_pagina'
+    url.searchParams.set('por_pagina', valor);
+    
+    // Resetear a la primera página
+    url.searchParams.set('page', '1');
+    
+    // Redireccionar a la nueva URL
+    window.location.href = url.toString();
+}
+
+// NUEVA FUNCIÓN: Ir a una página específica
+function irPagina(numeroPagina) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', numeroPagina);
+    window.location.href = url.toString();
+}
 </script>
 
 <style>

@@ -7,6 +7,22 @@
     <p>Completa el formulario para generar una nueva solicitud de pruebas</p>
 </div>
 
+<!-- ===== 1. TEMPORIZADOR (si aplica) ===== -->
+{% if tiempo_restante > 0 %}
+<div class="cooldown-timer" style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 10px; padding: 20px; margin-bottom: 30px; text-align: center;">
+    <div style="font-size: 1.2rem; color: #856404; margin-bottom: 10px;">
+        ⏳ Tiempo de espera entre solicitudes
+    </div>
+    <div id="temporizador" style="font-size: 3rem; font-weight: bold; color: #856404; font-family: monospace;">
+        05:00
+    </div>
+    <p style="color: #856404; margin-top: 10px;">
+        Puedes crear una nueva solicitud cuando el temporizador llegue a cero
+    </p>
+</div>
+{% endif %}
+
+<!-- ===== 2. INFORMACIÓN DEL FORMATO ===== -->
 <div class="upload-instructions">
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 15px;">📋 Formato de Solicitud de Pruebas QA</h3>
@@ -15,6 +31,7 @@
     </div>
 </div>
 
+<!-- ===== 3. FORMULARIO PRINCIPAL ===== -->
 <form method="post" enctype="multipart/form-data" style="margin-top: 20px;" id="solicitudForm">
     {% csrf_token %}
     
@@ -23,7 +40,7 @@
         <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📊 Datos de Solicitud</h3>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <!-- Cliente (usando catálogo) -->
+            <!-- Cliente -->
             <div style="margin-bottom: 15px;">
                 <label for="cliente" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                     Cliente: <span style="color: #e74c3c;">*</span>
@@ -39,7 +56,7 @@
                 </select>
             </div>
 
-            <!-- Proyecto (se carga vía AJAX según cliente) -->
+            <!-- Proyecto -->
             <div style="margin-bottom: 15px;">
                 <label for="proyecto" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                     Proyecto: <span style="color: #e74c3c;">*</span>
@@ -75,7 +92,7 @@
     <!-- Sección: Tipo de Pruebas y Área -->
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <!-- Tipo de Servicio (PRU, EST, G&A) -->
+            <!-- Tipo de Servicio -->
             <div style="margin-bottom: 15px;">
                 <label for="tipo_servicio_code" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                     Tipo de Servicio: <span style="color: #e74c3c;">*</span>
@@ -89,7 +106,7 @@
                 </select>
             </div>
 
-            <!-- Tipo de Pruebas (del catálogo TipoServicio) -->
+            <!-- Tipo de Pruebas -->
             <div style="margin-bottom: 15px;">
                 <label for="tipo_prueba" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                     Tipo de Pruebas: <span style="color: #e74c3c;">*</span>
@@ -182,7 +199,6 @@
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📝 Descripción de Cambios</h3>
         
-        <!-- Funcionalidad -->
         <div style="margin-bottom: 20px;">
             <label for="funcionalidad_liberacion" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                 Funcionalidad de la liberación: <span style="color: #e74c3c;">*</span>
@@ -191,7 +207,6 @@
                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
         </div>
 
-        <!-- Detalle de cambios -->
         <div style="margin-bottom: 20px;">
             <label for="detalle_cambios" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                 Detalle de los cambios: <span style="color: #e74c3c;">*</span>
@@ -200,7 +215,6 @@
                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
         </div>
 
-        <!-- Justificación -->
         <div style="margin-bottom: 20px;">
             <label for="justificacion_cambio" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                 Justificación del cambio: <span style="color: #e74c3c;">*</span>
@@ -213,7 +227,6 @@
     <!-- Sección: Puntos a Considerar y Pendientes -->
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <!-- Puntos a Considerar -->
             <div style="margin-bottom: 15px;">
                 <label for="puntos_considerar" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                     Puntos a Considerar: <span style="color: #e74c3c;">*</span>
@@ -222,7 +235,6 @@
                           style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
             </div>
 
-            <!-- Pendientes -->
             <div style="margin-bottom: 15px;">
                 <label for="pendientes" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
                     Pendientes: <span style="color: #e74c3c;">*</span>
@@ -255,7 +267,6 @@
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📎 Archivos Adjuntos</h3>
         
-        <!-- Drop Zone para adjuntar archivos -->
         <div id="dropZone" style="border: 3px dashed #3498db; border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 15px; background-color: white; cursor: pointer; transition: all 0.3s ease;">
             <div id="dropZoneContent">
                 <div style="font-size: 36px; margin-bottom: 10px;">📎</div>
@@ -277,191 +288,244 @@
     </div>
 </form>
 
+<!-- ===== 4. MENSAJES ===== -->
+{% if messages %}
+<div style="margin-top: 30px;">
+    {% for message in messages %}
+    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-top: 10px; padding: 15px; border-radius: 5px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ===== 5. SCRIPTS (TODOS JUNTOS AL FINAL) ===== -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Elementos del DOM
+    // ===== 5.1 TEMPORIZADOR (solo si existe) =====
+    {% if tiempo_restante > 0 %}
+    let tiempoRestante = {{ tiempo_restante }};
+    const temporizadorElement = document.getElementById('temporizador');
+    const botonSubmit = document.querySelector('button[type="submit"]');
+    const contenedorTemporizador = document.querySelector('.cooldown-timer');
+    
+    if (botonSubmit) {
+        botonSubmit.disabled = true;
+        botonSubmit.style.opacity = '0.5';
+        botonSubmit.style.cursor = 'not-allowed';
+    }
+    
+    function actualizarTemporizador() {
+        const minutos = Math.floor(tiempoRestante / 60);
+        const segundos = tiempoRestante % 60;
+        const tiempoFormateado = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+        
+        temporizadorElement.innerHTML = `⏳ ${tiempoFormateado}`;
+        
+        if (tiempoRestante <= 0) {
+            temporizadorElement.innerHTML = '✅ ¡Listo!';
+            temporizadorElement.style.color = '#155724';
+            
+            if (botonSubmit) {
+                botonSubmit.disabled = false;
+                botonSubmit.style.opacity = '1';
+                botonSubmit.style.cursor = 'pointer';
+            }
+            
+            setTimeout(() => {
+                if (contenedorTemporizador) {
+                    contenedorTemporizador.style.display = 'none';
+                }
+            }, 3000);
+        } else {
+            tiempoRestante--;
+            setTimeout(actualizarTemporizador, 1000);
+        }
+    }
+    
+    actualizarTemporizador();
+    {% endif %}
+
+    // ===== 5.2 CARGA DE PROYECTOS =====
     const clienteSelect = document.getElementById('cliente');
     const proyectoSelect = document.getElementById('proyecto');
+    
+    if (clienteSelect) {
+        clienteSelect.addEventListener('change', function() {
+            const clienteId = this.value;
+            
+            proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
+            proyectoSelect.disabled = true;
+
+            if (!clienteId) {
+                proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
+                proyectoSelect.disabled = true;
+                return;
+            }
+
+            const url = `/catalogos/proyectos/por-cliente/${clienteId}/`;
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`Error ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
+                
+                let proyectos = data.proyectos || (Array.isArray(data) ? data : []);
+                
+                if (proyectos.length > 0) {
+                    proyectos.forEach(proyecto => {
+                        const option = document.createElement('option');
+                        option.value = proyecto.id;
+                        const codigo = proyecto.codigo || proyecto.nomenclatura || '';
+                        option.textContent = codigo ? `${proyecto.nombre} (${codigo})` : proyecto.nombre;
+                        proyectoSelect.appendChild(option);
+                    });
+                    proyectoSelect.disabled = false;
+                } else {
+                    proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
+            });
+        });
+    }
+
+    // ===== 5.3 DRAG & DROP PARA ARCHIVOS =====
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('archivos_adjuntos');
     const browseButton = document.getElementById('browseButton');
     const dropZoneContent = document.getElementById('dropZoneContent');
     const filesList = document.getElementById('filesList');
 
-    // Cargar proyectos cuando se selecciona un cliente
-clienteSelect.addEventListener('change', function() {
-    const clienteId = this.value;
-    
-    // Resetear el select de proyectos
-    proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
-    proyectoSelect.disabled = true;
-
-    if (!clienteId) {
-        proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
-        proyectoSelect.disabled = true;
-        return;
-    }
-
-    // URL CORRECTA según tu urls.py
-    const url = `/catalogos/proyectos/por-cliente/${clienteId}/`;
-    
-    console.log('Cargando proyectos para:', clienteId, 'URL:', url);
-
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Datos recibidos:', data);
-        
-        // Limpiar el select
-        proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
-        
-        // Verificar el formato de la respuesta
-        let proyectos = [];
-        if (data.proyectos) {
-            proyectos = data.proyectos;  // Formato {proyectos: [...]}
-        } else if (Array.isArray(data)) {
-            proyectos = data;  // Formato [...] directo
-        }
-        
-        if (proyectos.length > 0) {
-            proyectos.forEach(proyecto => {
-                const option = document.createElement('option');
-                option.value = proyecto.id;
-                const codigo = proyecto.codigo || proyecto.nomenclatura || '';
-                option.textContent = codigo ? `${proyecto.nombre} (${codigo})` : proyecto.nombre;
-                proyectoSelect.appendChild(option);
-            });
-            proyectoSelect.disabled = false;
-        } else {
-            proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
-    });
-});
-
-    // Drag & Drop para archivos adjuntos
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-
-    function highlight() {
-        dropZone.style.backgroundColor = '#e8f4fd';
-        dropZone.style.borderColor = '#2980b9';
-    }
-
-    function unhighlight() {
-        dropZone.style.backgroundColor = 'white';
-        dropZone.style.borderColor = '#3498db';
-    }
-
-    dropZone.addEventListener('drop', handleDrop, false);
-    
-    browseButton.addEventListener('click', () => {
-        fileInput.click();
-    });
-
-    fileInput.addEventListener('change', function() {
-        if (this.files.length) {
-            handleFiles(this.files);
-        }
-    });
-
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        handleFiles(dt.files);
-    }
-
-    function handleFiles(files) {
-        const validTypes = ['.xlsx', '.xls', '.pdf', '.doc', '.docx'];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        let validFiles = [];
-        let errors = [];
-
-        for (let file of files) {
-            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-            
-            if (!validTypes.includes(fileExtension)) {
-                errors.push(`${file.name}: Tipo de archivo no válido`);
-                continue;
-            }
-            
-            if (file.size > maxSize) {
-                errors.push(`${file.name}: Excede los 10MB`);
-                continue;
-            }
-            
-            validFiles.push(file);
-        }
-
-        if (errors.length > 0) {
-            alert('Errores:\n' + errors.join('\n'));
-        }
-
-        if (validFiles.length > 0) {
-            displayFiles(validFiles);
-        }
-    }
-
-    function displayFiles(files) {
-        let html = '<div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 10px;">';
-        html += '<p style="color: #155724; font-weight: bold; margin-bottom: 5px;">✅ Archivos seleccionados:</p>';
-        html += '<ul style="margin-left: 20px; color: #155724;">';
-        
-        for (let file of files) {
-            let size = (file.size / 1024).toFixed(2);
-            let sizeUnit = 'KB';
-            if (size > 1024) {
-                size = (size / 1024).toFixed(2);
-                sizeUnit = 'MB';
-            }
-            html += `<li>${file.name} (${size} ${sizeUnit})</li>`;
-        }
-        
-        html += '</ul>';
-        html += '<button type="button" id="clearFiles" class="btn btn-sm btn-outline-danger" style="margin-top: 5px;">Quitar archivos</button>';
-        html += '</div>';
-        
-        dropZoneContent.style.display = 'none';
-        filesList.innerHTML = html;
-        filesList.style.display = 'block';
-
-        document.getElementById('clearFiles').addEventListener('click', function() {
-            fileInput.value = '';
-            dropZoneContent.style.display = 'block';
-            filesList.style.display = 'none';
+    if (dropZone) {
+        // Prevenir comportamientos por defecto
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
         });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropZone.style.backgroundColor = '#e8f4fd';
+            dropZone.style.borderColor = '#2980b9';
+        }
+
+        function unhighlight() {
+            dropZone.style.backgroundColor = 'white';
+            dropZone.style.borderColor = '#3498db';
+        }
+
+        // Drop
+        dropZone.addEventListener('drop', handleDrop, false);
+        
+        if (browseButton) {
+            browseButton.addEventListener('click', () => {
+                fileInput.click();
+            });
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files.length) {
+                    handleFiles(this.files);
+                }
+            });
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            handleFiles(dt.files);
+        }
+
+        function handleFiles(files) {
+            const validTypes = ['.xlsx', '.xls', '.pdf', '.doc', '.docx'];
+            const maxSize = 10 * 1024 * 1024;
+            
+            let validFiles = [];
+            let errors = [];
+
+            for (let file of files) {
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                
+                if (!validTypes.includes(fileExtension)) {
+                    errors.push(`${file.name}: Tipo de archivo no válido`);
+                    continue;
+                }
+                
+                if (file.size > maxSize) {
+                    errors.push(`${file.name}: Excede los 10MB`);
+                    continue;
+                }
+                
+                validFiles.push(file);
+            }
+
+            if (errors.length > 0) {
+                alert('Errores:\n' + errors.join('\n'));
+            }
+
+            if (validFiles.length > 0) {
+                displayFiles(validFiles);
+            }
+        }
+
+        function displayFiles(files) {
+            let html = '<div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 10px;">';
+            html += '<p style="color: #155724; font-weight: bold; margin-bottom: 5px;">✅ Archivos seleccionados:</p>';
+            html += '<ul style="margin-left: 20px; color: #155724;">';
+            
+            for (let file of files) {
+                let size = (file.size / 1024).toFixed(2);
+                let sizeUnit = 'KB';
+                if (size > 1024) {
+                    size = (size / 1024).toFixed(2);
+                    sizeUnit = 'MB';
+                }
+                html += `<li>${file.name} (${size} ${sizeUnit})</li>`;
+            }
+            
+            html += '</ul>';
+            html += '<button type="button" id="clearFiles" class="btn btn-sm btn-outline-danger" style="margin-top: 5px;">Quitar archivos</button>';
+            html += '</div>';
+            
+            dropZoneContent.style.display = 'none';
+            filesList.innerHTML = html;
+            filesList.style.display = 'block';
+
+            document.getElementById('clearFiles').addEventListener('click', function() {
+                fileInput.value = '';
+                dropZoneContent.style.display = 'block';
+                filesList.style.display = 'none';
+            });
+        }
     }
 });
 </script>
 
+<!-- ===== 6. ESTILOS (TODOS JUNTOS AL FINAL) ===== -->
 <style>
 #dropZone:hover {
     background-color: #e8f4fd !important;
@@ -477,7 +541,6 @@ clienteSelect.addEventListener('change', function() {
     color: #e74c3c;
 }
 
-/* Estilos para mensajes de validación */
 .errorlist {
     color: #e74c3c;
     list-style: none;
@@ -486,7 +549,6 @@ clienteSelect.addEventListener('change', function() {
     font-size: 0.9rem;
 }
 
-/* Animación para campos requeridos */
 select:required, input:required, textarea:required {
     border-left: 3px solid #e74c3c;
 }
@@ -495,16 +557,5 @@ select:required:valid, input:required:valid, textarea:required:valid {
     border-left: 3px solid #27ae60;
 }
 </style>
-
-<!-- Mensajes de Django -->
-{% if messages %}
-<div style="margin-top: 30px;">
-    {% for message in messages %}
-    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-top: 10px; padding: 15px; border-radius: 5px;">
-        {{ message }}
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
 
 {% endblock %}

@@ -28,6 +28,7 @@ from .models import Cliente, Proyecto, TipoServicio, Ticket, ExcelData
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
 from django.shortcuts import redirect
+from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
@@ -1998,6 +1999,7 @@ def export_table_csv(request, table_name):
             'tiposervicio': TipoServicio,
             'ticket': Ticket,
             'exceldata': ExcelData,
+            'solicitudpruebas': SolicitudPruebas,
         }
         
         if table_name.lower() not in models_map:
@@ -2165,6 +2167,7 @@ def export_all_tables_backup(request):
                 'tipos_servicio': TipoServicio,
                 'tickets': Ticket,
                 'datos_excel': ExcelData,
+                'solicitudes_pruebas': SolicitudPruebas,
             }
             
             for filename, model in models_to_export.items():
@@ -2215,8 +2218,44 @@ def export_all_tables_backup(request):
     
 
 def crear_solicitud(request):
-    """Vista para crear solicitud de pruebas manualmente"""
+    """
+    Vista para crear solicitud de pruebas manualmente
+    Con sistema de cooldown de 5 minutos entre solicitudes
+    """
+    from django.conf import settings
     
+    # ===== VERIFICAR COOLDOWN =====
+    ultima_solicitud = request.session.get('ultima_solicitud_timestamp')
+    cooldown_segundos = settings.SOLICITUD_COOLDOWN_SEGUNDOS
+    
+    tiempo_restante = 0
+    if ultima_solicitud:
+        tiempo_actual = timezone.now().timestamp()
+        tiempo_transcurrido = tiempo_actual - ultima_solicitud
+        
+        if tiempo_transcurrido < cooldown_segundos:
+            tiempo_restante = cooldown_segundos - tiempo_transcurrido
+            
+            # Para GET, solo mostrar mensaje informativo
+            if request.method == 'GET':
+                minutos = int(tiempo_restante // 60)
+                segundos = int(tiempo_restante % 60)
+                messages.info(
+                    request,
+                    f'⏳ Puedes crear una nueva solicitud en {minutos} minutos y {segundos} segundos.'
+                )
+            
+            # Para POST, bloquear si está en cooldown
+            if request.method == 'POST':
+                minutos = int(tiempo_restante // 60)
+                segundos = int(tiempo_restante % 60)
+                messages.warning(
+                    request, 
+                    f'⏳ Debes esperar {minutos} minutos y {segundos} segundos antes de crear otra solicitud.'
+                )
+                return redirect('solicitud_list')
+    
+    # PROCESAR FORMULARIO (solo si no está en cooldown o es la primera solicitud)
     if request.method == 'POST':
         try:
             # ===== VALIDACIONES =====
@@ -2262,13 +2301,17 @@ def crear_solicitud(request):
                 creado_por=request.user.username if request.user.is_authenticated else 'Anónimo'
             )
             
-            # 🔥 GENERAR NOMBRE ANTES DE GUARDAR (¡YA NO NECESITA ID!)
+            # Generar nombre antes de guardar
             solicitud.nombre_archivo = solicitud.generar_nombre_archivo()
             
-            # 🔥 GUARDAR DE UNA SOLA VEZ
+            # Guardar solicitud
             solicitud.save()
             
-            # Mensaje de éxito
+            # ===== GUARDAR TIMESTAMP EN SESIÓN PARA COOLDOWN =====
+            request.session['ultima_solicitud_timestamp'] = timezone.now().timestamp()
+            request.session['ultima_solicitud_id'] = solicitud.id
+            
+            # Mensajes de éxito
             messages.success(request, f'✅ Solicitud de pruebas guardada exitosamente con ID #{solicitud.id}')
             messages.info(request, f'📁 Nombre del archivo: {solicitud.nombre_archivo}')
             
@@ -2287,7 +2330,6 @@ def crear_solicitud(request):
         except TipoServicio.DoesNotExist:
             messages.error(request, 'El tipo de prueba seleccionado no existe')
         except Exception as e:
-            # Registrar el error pero no mostrar detalles técnicos al usuario
             import traceback
             print(f"❌ Error al crear solicitud: {str(e)}")
             print(traceback.format_exc())
@@ -2301,19 +2343,27 @@ def crear_solicitud(request):
         'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
         'today': timezone.now().date(),
         'now': timezone.now(),
+        'tiempo_restante': int(tiempo_restante),  # Para el temporizador
     }
     return render(request, 'extractor/crear_solicitud.html', context)
 
+
 def solicitud_list(request):
     """Listado de solicitudes de pruebas"""
+    from django.utils import timezone
+    from datetime import timedelta
+
+    today = timezone.now().date()
+    week_ago = today - timedelta(days=7)
+
     solicitudes = SolicitudPruebas.objects.all().select_related('cliente', 'proyecto', 'tipo_prueba', 'ticket')
-    
     # Filtros
     cliente_id = request.GET.get('cliente')
     proyecto_id = request.GET.get('proyecto')
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
     con_ticket = request.GET.get('con_ticket')
+    sin_ticket = request.GET.get('sin_ticket')  
     
     if cliente_id:
         solicitudes = solicitudes.filter(cliente_id=cliente_id)
@@ -2327,9 +2377,12 @@ def solicitud_list(request):
         solicitudes = solicitudes.filter(ticket__isnull=False)
     elif con_ticket == 'no':
         solicitudes = solicitudes.filter(ticket__isnull=True)
+
+    if sin_ticket == 'si':
+        solicitudes = solicitudes.filter(ticket__isnull=True)
     
     # Paginación
-    por_pagina = request.GET.get('por_pagina', 20)
+    por_pagina = request.GET.get('por_pagina', 10)
     try:
         por_pagina = int(por_pagina)
     except ValueError:
@@ -2354,6 +2407,8 @@ def solicitud_list(request):
         'fecha_hasta': fecha_hasta or '',
         'con_ticket': con_ticket or '',
         'por_pagina': por_pagina,
+        'today': today,
+        'week_ago': week_ago,
     }
     return render(request, 'catalogos/solicitud_list.html', context)
 
