@@ -1,4 +1,5 @@
 from django.db import models
+import random  
 
 class Cliente(models.Model):
     nombre = models.CharField(max_length=255, verbose_name="Nombre del Cliente")
@@ -349,56 +350,43 @@ class SolicitudPruebas(models.Model):
             return f"Solicitud {self.ticket.codigo} - {self.cliente.nombre}"
         return f"Solicitud #{self.id} - {self.cliente.nombre} ({self.fecha_solicitud})"
    
-    def generar_nombre_archivo(self):
-        """
-        Genera el nombre del archivo según el formato:
-        BID-PMC-FOR-00017-nomenclatura_AAAAMMDD-XXX.xlsx
-        """
-        from django.utils import timezone
+def generar_nombre_archivo(self):
+    """
+    Genera nombre de archivo con número aleatorio de 3 cifras,
+    verificando que no exista ya para hoy
+    """
+    from django.utils import timezone
+    import random
+    
+    base = "BID-PMC-FOR-00017"
+    nomenclatura_cliente = self.cliente.nomenclatura if self.cliente else "CLI"
+    fecha_actual = timezone.now().strftime('%Y%m%d')
+    
+    # Prefijo del nombre (sin el número)
+    prefijo = f"{base}-{nomenclatura_cliente}_{fecha_actual}-"
+    
+    # Máximo de intentos para encontrar número único
+    for _ in range(50):  # 50 intentos es más que suficiente
+        numero = random.randint(1, 999)
+        numero_str = f"{numero:03d}"
+        nombre_completo = f"{prefijo}{numero_str}.xlsx"
         
-        # 1. Base fija
-        base = "BID-PMC-FOR-00017"
+        # Verificar si ya existe
+        if self.pk:  # Si es actualización
+            existe = SolicitudPruebas.objects.filter(
+                nombre_archivo=nombre_completo
+            ).exclude(pk=self.pk).exists()
+        else:  # Si es nuevo
+            existe = SolicitudPruebas.objects.filter(
+                nombre_archivo=nombre_completo
+            ).exists()
         
-        # 2. Nomenclatura del cliente (o usar 'CLI' si no hay)
-        nomenclatura_cliente = self.cliente.nomenclatura if self.cliente else "CLI"
-        
-        # 3. Fecha actual en formato AAAAMMDD
-        fecha_actual = timezone.now().strftime('%Y%m%d')
-        
-        # 4. Número consecutivo (buscar el último para hoy)
-        # Buscar solicitudes de hoy para obtener el consecutivo
-        hoy = timezone.now().date()
-        solicitudes_hoy = SolicitudPruebas.objects.filter(
-            fecha_creacion__date=hoy
-        ).exclude(id=self.id)  # Excluir la actual si ya tiene ID
-        
-        # Obtener el último consecutivo usado hoy
-        ultimo_consecutivo = 0
-        for solicitud in solicitudes_hoy:
-            if solicitud.nombre_archivo:
-                # Extraer el consecutivo del nombre (los últimos 3 dígitos antes de .xlsx)
-                import re
-                match = re.search(r'-(\d{3})\.xlsx$', solicitud.nombre_archivo)
-                if match:
-                    consecutivo = int(match.group(1))
-                    if consecutivo > ultimo_consecutivo:
-                        ultimo_consecutivo = consecutivo
-        
-        # Si es una solicitud existente y ya tiene nombre, mantener su consecutivo
-        if self.id and self.nombre_archivo:
-            import re
-            match = re.search(r'-(\d{3})\.xlsx$', self.nombre_archivo)
-            if match:
-                return self.nombre_archivo
-        
-        # Generar nuevo consecutivo
-        consecutivo = ultimo_consecutivo + 1
-        consecutivo_str = f"{consecutivo:03d}"
-        
-        # 5. Armar nombre completo
-        nombre_completo = f"{base}-{nomenclatura_cliente}_{fecha_actual}-{consecutivo_str}.xlsx"
-        
-        return nombre_completo
+        if not existe:
+            return nombre_completo
+    
+    # Fallback: usar timestamp (altamente improbable)
+    timestamp = timezone.now().strftime('%f')[-3:]
+    return f"{prefijo}{timestamp}.xlsx"
     
     def get_estado_solicitud(self):
         """Devuelve el estado de la solicitud basado en el ticket asociado"""

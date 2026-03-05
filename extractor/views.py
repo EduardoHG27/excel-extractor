@@ -2215,104 +2215,87 @@ def export_all_tables_backup(request):
     
 
 def crear_solicitud(request):
-    """Vista para crear solicitud de pruebas manualmente y guardarla en la tabla SolicitudPruebas"""
+    """Vista para crear solicitud de pruebas manualmente"""
     
     if request.method == 'POST':
         try:
-            # Obtener datos del formulario (código existente)...
+            # ===== VALIDACIONES =====
             cliente_id = request.POST.get('cliente')
             proyecto_id = request.POST.get('proyecto')
-            fecha_solicitud = request.POST.get('fecha_solicitud')
-            hora_solicitud = request.POST.get('hora_solicitud')
             tipo_servicio_code = request.POST.get('tipo_servicio_code')
             tipo_prueba_id = request.POST.get('tipo_prueba')
-            area_solicitante = request.POST.get('area_solicitante', '')
-            numero_version = request.POST.get('numero_version', '')
-            responsable_solicitud = request.POST.get('responsable_solicitud', '')
-            lider_proyecto = request.POST.get('lider_proyecto', '')
-            tipo_aplicacion = request.POST.get('tipo_aplicacion', '')
-            funcionalidad_liberacion = request.POST.get('funcionalidad_liberacion', '')
-            detalle_cambios = request.POST.get('detalle_cambios', '')
-            justificacion_cambio = request.POST.get('justificacion_cambio', '')
-            puntos_considerar = request.POST.get('puntos_considerar', '')
-            pendientes = request.POST.get('pendientes', '')
-            insumos = request.POST.get('insumos', '')
             
-            # Validaciones básicas (código existente)...
-            if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id or not fecha_solicitud:
+            # Validaciones básicas
+            if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id:
                 messages.error(request, 'Los campos obligatorios deben estar llenos')
                 return redirect('crear_solicitud')
             
-            # Obtener objetos (código existente)...
+            # Obtener objetos
             cliente = Cliente.objects.get(id=cliente_id, activo=True)
             proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
             tipo_prueba = TipoServicio.objects.get(id=tipo_prueba_id, activo=True)
             
-            # Validar que el proyecto pertenezca al cliente (código existente)...
+            # Validar que el proyecto pertenezca al cliente
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
                 return redirect('crear_solicitud')
             
-            # Validar fecha y hora (código existente)...
-            if not fecha_solicitud:
-                fecha_solicitud = timezone.now().date()
-            if not hora_solicitud:
-                hora_solicitud = timezone.now().time()
-            
-            # 🔥 CREAR LA SOLICITUD
+            # ===== CREAR SOLICITUD =====
             solicitud = SolicitudPruebas(
                 cliente=cliente,
                 proyecto=proyecto,
-                fecha_solicitud=fecha_solicitud,
-                hora_solicitud=hora_solicitud,
+                fecha_solicitud=request.POST.get('fecha_solicitud') or timezone.now().date(),
+                hora_solicitud=request.POST.get('hora_solicitud') or timezone.now().time(),
                 tipo_servicio_code=tipo_servicio_code,
                 tipo_prueba=tipo_prueba,
-                area_solicitante=area_solicitante,
-                numero_version=numero_version,
-                responsable_solicitud=responsable_solicitud,
-                lider_proyecto=lider_proyecto,
-                tipo_aplicacion=tipo_aplicacion,
-                funcionalidad_liberacion=funcionalidad_liberacion,
-                detalle_cambios=detalle_cambios,
-                justificacion_cambio=justificacion_cambio,
-                puntos_considerar=puntos_considerar,
-                pendientes=pendientes,
-                insumos=insumos,
+                area_solicitante=request.POST.get('area_solicitante', ''),
+                numero_version=request.POST.get('numero_version', ''),
+                responsable_solicitud=request.POST.get('responsable_solicitud', ''),
+                lider_proyecto=request.POST.get('lider_proyecto', ''),
+                tipo_aplicacion=request.POST.get('tipo_aplicacion', ''),
+                funcionalidad_liberacion=request.POST.get('funcionalidad_liberacion', ''),
+                detalle_cambios=request.POST.get('detalle_cambios', ''),
+                justificacion_cambio=request.POST.get('justificacion_cambio', ''),
+                puntos_considerar=request.POST.get('puntos_considerar', ''),
+                pendientes=request.POST.get('pendientes', ''),
+                insumos=request.POST.get('insumos', ''),
                 creado_por=request.user.username if request.user.is_authenticated else 'Anónimo'
             )
             
-            # 🔥 NUEVO: Generar y asignar el nombre del archivo
-            # Guardar primero para tener ID (necesario para el método generar_nombre_archivo)
+            # 🔥 GENERAR NOMBRE ANTES DE GUARDAR (¡YA NO NECESITA ID!)
+            solicitud.nombre_archivo = solicitud.generar_nombre_archivo()
+            
+            # 🔥 GUARDAR DE UNA SOLA VEZ
             solicitud.save()
             
-            # Ahora generar el nombre del archivo con el ID ya asignado
-            nombre_archivo = solicitud.generar_nombre_archivo()
-            solicitud.nombre_archivo = nombre_archivo
-            solicitud.save(update_fields=['nombre_archivo'])
-            
-            # Mensaje con el nombre del archivo generado
+            # Mensaje de éxito
             messages.success(request, f'✅ Solicitud de pruebas guardada exitosamente con ID #{solicitud.id}')
-            messages.info(request, f'📁 Nombre del archivo: {nombre_archivo}')
+            messages.info(request, f'📁 Nombre del archivo: {solicitud.nombre_archivo}')
             
-            # Opcional: Preguntar si quiere generar ticket automáticamente
-            generar_ticket_ahora = request.POST.get('generar_ticket_ahora')
-            
-            if generar_ticket_ahora == 'on':
-                # Generar ticket
+            # Generar ticket si se solicitó
+            if request.POST.get('generar_ticket_ahora') == 'on':
                 ticket = solicitud.generar_ticket()
-                messages.success(request, f'✅ Ticket generado exitosamente. Ticket: {ticket.codigo}')
+                messages.success(request, f'✅ Ticket generado exitosamente: {ticket.codigo}')
                 return redirect('ticket_detail', id=ticket.id)
-            else:
-                return redirect('solicitud_list')
             
+            return redirect('solicitud_list')
+            
+        except Cliente.DoesNotExist:
+            messages.error(request, 'El cliente seleccionado no existe')
+        except Proyecto.DoesNotExist:
+            messages.error(request, 'El proyecto seleccionado no existe')
+        except TipoServicio.DoesNotExist:
+            messages.error(request, 'El tipo de prueba seleccionado no existe')
         except Exception as e:
+            # Registrar el error pero no mostrar detalles técnicos al usuario
             import traceback
-            print(f"ERROR: {str(e)}")
+            print(f"❌ Error al crear solicitud: {str(e)}")
             print(traceback.format_exc())
-            messages.error(request, f'Error al crear solicitud: {str(e)}')
-            return redirect('crear_solicitud')
+            messages.error(request, 'Error al crear solicitud. Por favor intenta de nuevo.')
+        
+        return redirect('crear_solicitud')
     
-    # GET - Mostrar formulario (código existente)...
+    # GET - Mostrar formulario
     context = {
         'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
         'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
