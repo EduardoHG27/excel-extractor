@@ -2419,8 +2419,6 @@ def solicitud_delete(request, id):
 def imprimir_solicitud_excel(request, id):
     """
     Genera el archivo Excel de solicitud de pruebas usando la plantilla
-    con los datos de una solicitud guardada (sin necesidad de ticket)
-    AHORA USA EL NOMBRE DE ARCHIVO GUARDADO EN LA BASE DE DATOS
     """
     import io
     import os
@@ -2438,25 +2436,18 @@ def imprimir_solicitud_excel(request, id):
         'BID-PMC-FOR-00017_Formato_de_Solicitud_de_Pruebas.xlsx'
     )
     
-    # Verificar si existe la plantilla
     if not os.path.exists(plantilla_path):
-        messages.error(
-            request, 
-            f"No se encontró la plantilla. Por favor, verifica que exista en: {plantilla_path}"
-        )
+        messages.error(request, f"No se encontró la plantilla en: {plantilla_path}")
         return redirect('solicitud_detail', id=solicitud.id)
     
     try:
-        # Cargar la plantilla
         wb = load_workbook(plantilla_path)
         
-        # Seleccionar la hoja "Solicitud de Pruebas V4"
         if 'Solicitud de Pruebas V4' in wb.sheetnames:
             ws = wb['Solicitud de Pruebas V4']
         else:
             ws = wb.active
         
-        # Función auxiliar para escribir en celdas respetando fusiones
         def set_cell_value(sheet, coordinate, value):
             """Escribe un valor en una celda, manejando correctamente celdas fusionadas"""
             try:
@@ -2469,8 +2460,7 @@ def imprimir_solicitud_excel(request, id):
             except Exception as e:
                 print(f"⚠️ Error en {coordinate}: {e}")
         
-        # ===== LLENAR DATOS DE LA SOLICITUD EN LA PLANTILLA =====
-        # (Todo el código existente para llenar los datos...)
+        # ===== LLENAR DATOS DE LA SOLICITUD =====
         
         # Cliente (C5)
         if solicitud.cliente:
@@ -2480,14 +2470,37 @@ def imprimir_solicitud_excel(request, id):
         if solicitud.proyecto:
             set_cell_value(ws, 'H5', solicitud.proyecto.nombre)
         
-        # Fecha Solicitud (M5)
-        set_cell_value(ws, 'M5', solicitud.fecha_solicitud.strftime('%d/%m/%Y'))
+        # Fecha Solicitud (M5) - CORREGIDO
+        if solicitud.fecha_solicitud:
+            if hasattr(solicitud.fecha_solicitud, 'strftime'):
+                fecha_str = solicitud.fecha_solicitud.strftime('%d/%m/%Y')
+            else:
+                try:
+                    fecha_obj = datetime.strptime(str(solicitud.fecha_solicitud), '%Y-%m-%d')
+                    fecha_str = fecha_obj.strftime('%d/%m/%Y')
+                except:
+                    fecha_str = str(solicitud.fecha_solicitud)
+            set_cell_value(ws, 'M5', fecha_str)
         
-        # Hora Solicitud (M6)
-        set_cell_value(ws, 'M6', solicitud.hora_solicitud.strftime('%H:%M') + ' hrs')
+        # Hora Solicitud (M6) - CORREGIDO
+        if solicitud.hora_solicitud:
+            if hasattr(solicitud.hora_solicitud, 'strftime'):
+                hora_str = solicitud.hora_solicitud.strftime('%H:%M') + ' hrs'
+            else:
+                try:
+                    hora_obj = datetime.strptime(str(solicitud.hora_solicitud), '%H:%M:%S')
+                    hora_str = hora_obj.strftime('%H:%M') + ' hrs'
+                except:
+                    try:
+                        hora_obj = datetime.strptime(str(solicitud.hora_solicitud), '%H:%M')
+                        hora_str = hora_obj.strftime('%H:%M') + ' hrs'
+                    except:
+                        hora_str = str(solicitud.hora_solicitud) + ' hrs'
+            set_cell_value(ws, 'M6', hora_str)
         
         # Tipo de Pruebas (D8)
-        set_cell_value(ws, 'D8', solicitud.tipo_prueba.nombre)
+        if solicitud.tipo_prueba:
+            set_cell_value(ws, 'D8', solicitud.tipo_prueba.nombre)
         
         # Área Solicitante (K8)
         set_cell_value(ws, 'K8', solicitud.area_solicitante or '')
@@ -2549,11 +2562,10 @@ def imprimir_solicitud_excel(request, id):
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         
-        # 🔥 NUEVO: Usar el nombre de archivo guardado en la base de datos
+        # Nombre del archivo
         if solicitud.nombre_archivo:
             filename = solicitud.nombre_archivo
         else:
-            # Fallback por si no tiene nombre guardado
             if solicitud.ticket:
                 filename = f"{solicitud.ticket.codigo} Solicitud de Pruebas.xlsx"
             else:
