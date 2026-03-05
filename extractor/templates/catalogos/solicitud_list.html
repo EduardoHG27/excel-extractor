@@ -224,7 +224,8 @@ document.getElementById('cliente').addEventListener('change', function() {
     const proyectoSelect = document.getElementById('proyecto');
     
     if (clienteId) {
-        fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
+        // Usar la URL inversa de Django
+        fetch(`{% url 'proyectos_por_cliente' 0 %}`.replace('0', clienteId))
             .then(response => response.json())
             .then(data => {
                 proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
