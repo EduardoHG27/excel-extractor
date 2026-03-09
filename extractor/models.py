@@ -469,3 +469,8 @@ class SolicitudPruebas(models.Model):
         self.save()
         
         return ticket
+    
+    def save(self, *args, **kwargs):
+        if self.numero_version is not None:
+            self.numero_version = str(self.numero_version)
+        super().save(*args, **kwargs)
