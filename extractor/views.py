@@ -546,17 +546,7 @@ def upload_excel(request):
             
             ticket_parts = generate_ticket_parts(ticket_code)
             
-            return render(request, 'extractor/result.html', {
-                'data': data_for_template,
-                'excel_data': excel_data,
-                'nomenclaturas': nomenclaturas,
-                'objetos_encontrados': objetos_encontrados,
-                'ticket_code': ticket_code,
-                'ticket_parts': ticket_parts,
-                'ticket': ticket_obj,
-                'tipo_servicio_form': tipo_servicio_form,
-                'solicitud_asociada': solicitud if solicitud_encontrada else None  # Para mostrar en la plantilla
-            })
+            return redirect('ticket_detail', id=ticket_obj.id)
             
         except ValidationError as e:
             # Errores esperados (validación de usuario)
