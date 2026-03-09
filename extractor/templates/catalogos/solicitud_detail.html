@@ -27,7 +27,7 @@
     
     <div>
         {% if not solicitud.ticket %}
-            <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-success">🖨️ Imprimir Solicitud</a>
+            <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
         {% else %}
             <a href="{% url 'ticket_detail' solicitud.ticket.id %}" class="btn">👁️ Ver Ticket Asociado</a>
         {% endif %}
@@ -220,14 +220,14 @@
 <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
 
     {% if solicitud.ticket %}
-    <a href="{% url 'generar_excel_solicitud' solicitud.ticket.id %}" class="btn" style="background-color: #9b59b6; color: white; font-size: 1.1rem; padding: 12px 30px;">
+    <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn" style="background-color: #9b59b6; color: white; font-size: 1.1rem; padding: 12px 30px;">
         📝 Generar Solicitud BID-PMC
     </a>
     {% endif %}
 
     {% if not solicitud.ticket %}
     <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
-        🖨️ Imprimir Solicitud
+        🖨️ Descargar Solicitud
     </a>
     {% endif %}
     <a href="{% url 'solicitud_list' %}" class="btn" style="font-size: 1.1rem; padding: 12px 30px;">

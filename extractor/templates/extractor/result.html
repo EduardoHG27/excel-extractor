@@ -1,357 +1,663 @@
 {% extends 'extractor/base_general.html' %}
 
 {% block content %}
-<div class="page-header">
-    <h1>✅ Datos Extraídos Correctamente</h1>
-    <p>Los datos han sido guardados en la base de datos</p>
-</div>
+<div class="container mt-4 mb-5">
+    <!-- Hero Section - Estilo ticket_detail pero con colores de éxito -->
+    <div class="ticket-hero" style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="ticket-code" style="font-size: 2rem;">
+                    <i class="bi bi-check-circle-fill me-3"></i>
+                    Datos Extraídos Correctamente
+                </div>
+                <div class="d-flex gap-3 mt-3">
+                    <span class="badge-modern">
+                        <i class="bi bi-calendar3 me-2"></i>{{ data.extracted_date|date:"d/m/Y H:i" }}
+                    </span>
+                    <span class="badge-modern">
+                        <i class="bi bi-database me-2"></i>  Éxito
+                    </span>
+                </div>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <span class="badge estado-badge bg-success p-3 px-4 rounded-pill">
+                    <i class="bi bi-check-circle me-2"></i>
+                  
+                </span>
+            </div>
+        </div>
+    </div>
 
-<div class="alert success" style="margin-bottom: 30px;">
-    <strong>¡Éxito!</strong> El archivo Excel ha sido procesado correctamente y los datos han sido guardados.
-</div>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-info-circle me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
 
-<!-- Sección de Ticket Generado -->
-<div style="background-color: #e8f5e8; padding: 25px; border-radius: 5px; margin-bottom: 30px; border: 2px solid #27ae60;">
-    <h2 style="color: #27ae60; margin-bottom: 20px; border-bottom: 2px solid #27ae60; padding-bottom: 10px;">
-        🎫 Ticket Generado
-    </h2>
-    
-    <div style="background-color: white; padding: 20px; border-radius: 5px; border: 1px solid #ddd;">
-        <!-- Código del Ticket - Destacado -->
-        <div style="text-align: center; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px;">
-            <h3 style="color: white; margin-bottom: 10px; font-size: 1.1rem;">CÓDIGO DEL TICKET</h3>
-            <div id="ticket-code" style="font-family: 'Courier New', monospace; font-size: 1.8rem; font-weight: bold; color: white; letter-spacing: 2px; padding: 15px; background-color: rgba(0,0,0,0.2); border-radius: 5px; margin: 10px 0;">
-                {{ ticket_code|default:"BID-PRU-F&REG-10-TEL-OTR-001" }}
-            </div>
-            <button onclick="copiarTicketCode()" style="background-color: white; color: #764ba2; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;">
-                📋 Copiar Código
-            </button>
+            
+    <!-- Ticket Generado - Mismo estilo que ticket_detail pero adaptado -->
+    <div class="modern-card mb-4">
+        <div class="card-header-modern">
+            <h5><i class="bi bi-ticket-perforated" style="color: #764ba2;"></i> Ticket Generado</h5>
         </div>
-        
-        <!-- Información del Ticket -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
-            <div class="ticket-field">
-                <strong>Tipo de Servicio:</strong>
-                <span>{{ data.tipo_servicio|default:"No especificado" }}</span>
-            </div>
-            
-            <div class="ticket-field">
-                <strong>Cliente:</strong>
-                <span>{{ data.cliente|default:"No especificado" }}</span>
-            </div>
-            
-            <div class="ticket-field">
-                <strong>Proyecto:</strong>
-                <span>{{ data.proyecto|default:"No especificado" }}</span>
-            </div>
-            
-            <div class="ticket-field">
-                <strong>Fecha de Creación:</strong>
-                <span>{{ data.extracted_date|date:"d/m/Y H:i"|default:"No especificado" }}</span>
-            </div>
-            
-            <div class="ticket-field">
-                <strong>Solicitante:</strong>
-                <span>{{ data.responsable_solicitud|default:"No especificado" }}</span>
-            </div>
-            
-            <div class="ticket-field">
-                <strong>Líder del Proyecto:</strong>
-                <span>{{ data.lider_proyecto|default:"No especificado" }}</span>
-            </div>
-        </div>
-        
-        <!-- Desglose del Código del Ticket -->
-        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border-left: 4px solid #3498db;">
-            <h4 style="color: #2c3e50; margin-bottom: 10px;">🔍 Desglose del Código del Ticket</h4>
-            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
-                <div style="text-align: center;">
-                    <div style="background-color: #e74c3c; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">BID</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">Empresa</div>
-                </div>
-                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
-                <div style="text-align: center;">
-                    <div style="background-color: #3498db; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.1|default:"PRU" }}</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">Tipo Servicio</div>
-                </div>
-                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
-                <div style="text-align: center;">
-                    <div style="background-color: #2ecc71; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.2|default:"F&REG" }}</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">TIpo de pruebas</div>
-                </div>
-                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
-                <div style="text-align: center;">
-                    <div style="background-color: #f39c12; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.3|default:"10" }}</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">No. Prueba</div>
-                </div>
-                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
-                <div style="text-align: center;">
-                    <div style="background-color: #9b59b6; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.4|default:"TEL" }}</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">Cliente</div>
-                </div>
-                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
-                <div style="text-align: center;">
-                    <div style="background-color: #1abc9c; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.5|default:"OTR" }}</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">Proyecto</div>
-                </div>
-                <div style="font-size: 1.2rem; color: #7f8c8d;">-</div>
-                <div style="text-align: center;">
-                    <div style="background-color: #34495e; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{{ ticket_parts.6|default:"001" }}</div>
-                    <div style="font-size: 0.8rem; margin-top: 3px;">Consecutivo</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Información de Referencia -->
-        <div style="margin-top: 20px; padding: 15px; background-color: #fff8e1; border-radius: 5px; border: 1px dashed #ffb300;">
-            <h4 style="color: #f57c00; margin-bottom: 10px;">📝 Información de Referencia</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                    <strong>Código Completo:</strong>
-                    <div style="font-family: monospace; background-color: #fff; padding: 8px; border-radius: 3px; margin-top: 5px;">
-                        {{ ticket_code|default:"BID-PRU-F&REG-10-TEL-OTR-001" }}
+        <div class="card-body p-4">
+            <!-- Código del Ticket - Igual al hero de ticket_detail pero más compacto -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem;">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                            CÓDIGO DEL TICKET
+                        </div>
+                        <div style="font-family: 'Fira Code', monospace; font-size: 2rem; font-weight: 700; color: white; letter-spacing: 2px;">
+                            {{ ticket_code|default:"BID-PRU-F&REG-10-TEL-OTR-001" }}
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <strong>Para uso interno:</strong>
-                    <div style="background-color: #fff; padding: 8px; border-radius: 3px; margin-top: 5px;">
-                        Proyecto: {{ data.proyecto|default:"N/A" }}<br>
-                        Fecha: {{ data.extracted_date|date:"Y-m-d"|default:"N/A" }}
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <button onclick="copiarTicketCode()" class="copy-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 12px; padding: 0.75rem 1.5rem; backdrop-filter: blur(5px);">
+                            <i class="bi bi-clipboard me-2"></i>Copiar
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-        
-       <div style="margin-top: 25px; text-align: center; display: flex; gap: 10px; justify-content: center;">
-            {% if ticket and ticket.id %}
-            <a href="{% url 'generar_dictamen' ticket.id %}" class="btn" style="background-color: #27ae60; color: white; padding: 10px 20px; text-decoration: none;">
-                📊 Descargar Dictamen
-            </a>
-            <a href="{% url 'generar_resultados' ticket.id %}" class="btn" style="background-color: #e67e22; color: white; padding: 10px 20px; text-decoration: none;">
-                📋 Descargar Resultados
-            </a>
-            {% else %}
-            <div style="color: #e74c3c; padding: 10px; background-color: #fde8e8; border-radius: 4px;">
-                No se pudo generar el ticket. No hay archivos para descargar.
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
 
-<!-- Sección original de Datos Extraídos (mantenida) -->
-<div style="background-color: #f8f9fa; padding: 25px; border-radius: 5px; margin-bottom: 30px;">
-    <h2 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-        📋 Datos Extraídos Completos
-    </h2>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-    <div class="data-field">
-            <strong>Cliente (ID: {{ data.cliente|default:"N/A" }}):</strong>
-            <p>
-                {% if objetos_encontrados.cliente_obj %}
-                    {{ objetos_encontrados.cliente_obj.nombre|default:"No especificado" }}
+            <div class="quick-actions mt-4">
+                {% if ticket and ticket.id %}
+                <a href="{% url 'generar_dictamen' ticket.id %}" class="quick-action-item">
+                    <i class="fa fa-file-pdf text-danger"></i>
+                    <span>Descargar Dictamen</span>
+                </a>
+                <a href="{% url 'generar_resultados' ticket.id %}" class="quick-action-item">
+                    <i class="fa fa-file-excel text-success"></i>
+                    <span>Resultados Pruebas</span>
+                </a>
                 {% else %}
-                    ID {{ data.cliente|default:"N/A" }} no encontrado en catálogo
+                <div class="alert alert-warning mb-0 w-100">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    No se pudo generar el ticket. No hay archivos para descargar.
+                </div>
                 {% endif %}
-            </p>
-            {% if nomenclaturas.cliente_nomenclatura %}
-            <div style="margin-top: 8px; padding: 5px 10px; background-color: #e3f2fd; border-radius: 4px; border-left: 3px solid #2196f3; font-size: 0.9rem;">
-                <strong>Nomenclatura:</strong> 
-                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #1565c0;">
-                    {{ nomenclaturas.cliente_nomenclatura }}
-                </span>
             </div>
-            {% endif %}
-        </div>
-        
-        <!-- Proyecto con ID y Nomenclatura -->
-        <div class="data-field">
-            <strong>Proyecto (ID: {{ data.proyecto|default:"N/A" }}):</strong>
-            <p>
-                {% if objetos_encontrados.proyecto_obj %}
-                    {{ objetos_encontrados.proyecto_obj.nombre|default:"No especificado" }}
-                {% else %}
-                    ID {{ data.proyecto|default:"N/A" }} no encontrado en catálogo
-                {% endif %}
-            </p>
-            {% if nomenclaturas.proyecto_nomenclatura %}
-            <div style="margin-top: 8px; padding: 5px 10px; background-color: #e8f5e8; border-radius: 4px; border-left: 3px solid #4caf50; font-size: 0.9rem;">
-                <strong>Nomenclatura:</strong> 
-                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #2e7d32;">
-                    {{ nomenclaturas.proyecto_nomenclatura }}
-                </span>
+                <!-- Acciones principales (similar a quick-actions) -->
+            <div class="quick-actions mt-4">
+                <a href="{% url 'upload_excel' %}" class="quick-action-item">
+                    <i class="bi bi-upload text-primary"></i>
+                    <span>Subir otro archivo</span>
+                </a>
+                <a href="{% url 'ticket_list' %}" class="quick-action-item">
+                    <i class="bi bi-tickets text-warning"></i>
+                    <span>Ver tickets</span>
+                </a>
             </div>
-            {% endif %}
-        </div>
-        
-        <!-- Tipo de Pruebas con ID y Nomenclatura -->
-        <div class="data-field">
-            <strong>Tipo de Pruebas (ID: {{ data.tipo_pruebas|default:"N/A" }}):</strong>
-            <p>
-                {% if objetos_encontrados.tipo_servicio_obj %}
-                    {{ objetos_encontrados.tipo_servicio_obj.nombre|default:"No especificado" }}
-                {% else %}
-                    ID {{ data.tipo_pruebas|default:"N/A" }} no encontrado en catálogo
-                {% endif %}
-            </p>
-            {% if nomenclaturas.tipo_pruebas_nomenclatura %}
-            <div style="margin-top: 8px; padding: 5px 10px; background-color: #fff3e0; border-radius: 4px; border-left: 3px solid #ff9800; font-size: 0.9rem;">
-                <strong>Nomenclatura:</strong> 
-                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #ef6c00;">
-                    {{ nomenclaturas.tipo_pruebas_nomenclatura }}
-                </span>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="data-field">
-            <strong>Responsable de Solicitud:</strong>
-            <p>{{ data.responsable_solicitud|default:"No especificado" }}</p>
-        </div>
-        
-        <div class="data-field">
-            <strong>Líder del Proyecto:</strong>
-            <p>{{ data.lider_proyecto|default:"No especificado" }}</p>
-        </div>
-        
-        <!-- Tipo de Servicio (actualizado desde "Tipo de Aplicación") -->
-        <div class="data-field">
-            <strong>Tipo de Servicio:</strong>
-            <p>
-                {% if data.tipo_servicio %}
-                    {% if data.tipo_servicio == "PRU" %}
-                        Pruebas
-                    {% elif data.tipo_servicio == "EST" %}
-                        Estimación
-                    {% elif data.tipo_servicio == "G&A" %}
-                        Gestión y administración
-                    {% else %}
-                        {{ data.tipo_servicio|default:"No especificado" }}
-                    {% endif %}
-                {% else %}
-                    No especificado
-                {% endif %}
-            </p>
-            {% if data.tipo_servicio %}
-            <div style="margin-top: 8px; padding: 5px 10px; background-color: #f0f4ff; border-radius: 4px; border-left: 3px solid #4a6bff; font-size: 0.9rem;">
-                <strong>Nomenclatura:</strong> 
-                <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #2d3a8c;">
-                    {{ data.tipo_servicio }}
-                </span>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="data-field">
-            <strong>Número de Versión:</strong>
-            <p>{{ data.numero_version|default:"No especificado" }}</p>
-        </div>
-        
-        {% if data.funcionalidad_liberacion %}
-        <div class="data-field" style="grid-column: 1 / -1;">
-            <strong>Funcionalidad de la Liberación:</strong>
-            <div style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #3498db; margin-top: 5px;">
-                {{ data.funcionalidad_liberacion|linebreaks }}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if data.detalle_cambios %}
-        <div class="data-field" style="grid-column: 1 / -1;">
-            <strong>Detalle de los Cambios:</strong>
-            <div style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #2ecc71; margin-top: 5px;">
-                {{ data.detalle_cambios|linebreaks }}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if data.justificacion_cambio %}
-        <div class="data-field" style="grid-column: 1 / -1;">
-            <strong>Justificación del Cambio:</strong>
-            <div style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #e74c3c; margin-top: 5px;">
-                {{ data.justificacion_cambio|linebreaks }}
-            </div>
-        </div>
-        {% endif %}
-    </div>
-    
-    <div style="margin-top: 25px; color: #7f8c8d; font-size: 0.9rem;">
-        <p><strong>Fecha de extracción:</strong> {{ data.extracted_date|date:"d/m/Y H:i" }}</p>
-    </div>
-</div>
 
-<div style="margin-top: 30px; display: flex; gap: 15px; flex-wrap: wrap;">
-    <a href="{% url 'upload_excel' %}" class="btn">📤 Subir otro archivo</a>
-    <a href="{% url 'data_list' %}" class="btn btn-secondary">📋 Ver todos los datos</a>
+            <!-- Componentes del código - Chips (igual que ticket_detail) -->
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                {% with partes=ticket_parts %}
+                <div class="component-chip">
+                    <span class="chip-label">Empresa</span>
+                    <span class="chip-value">{{ partes.0|default:"BID" }}</span>
+                </div>
+                <div class="component-chip">
+                    <span class="chip-label">Tipo Servicio</span>
+                    <span class="chip-value">{{ partes.1|default:"PRU" }}</span>
+                </div>
+                <div class="component-chip">
+                    <span class="chip-label">Pruebas</span>
+                    <span class="chip-value">{{ partes.2|default:"F&REG" }}</span>
+                </div>
+                <div class="component-chip">
+                    <span class="chip-label">No. Pruebas</span>
+                    <span class="chip-value">{{ partes.3|default:"10" }}</span>
+                </div>
+                <div class="component-chip">
+                    <span class="chip-label">Cliente</span>
+                    <span class="chip-value">{{ partes.4|default:"TEL" }}</span>
+                </div>
+                <div class="component-chip">
+                    <span class="chip-label">Proyecto</span>
+                    <span class="chip-value">{{ partes.5|default:"OTR" }}</span>
+                </div>
+                <div class="component-chip">
+                    <span class="chip-label">Consecutivo</span>
+                    <span class="chip-value">{{ partes.6|default:"001" }}</span>
+                </div>
+                {% endwith %}
+            </div>
+
+            <!-- Información del Ticket en tabla (igual que ticket_detail) -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>Tipo de Servicio:</td>
+                            <td>{{ data.tipo_servicio|default:"No especificado" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Cliente:</td>
+                            <td>
+                                <strong>{{ data.cliente|default:"No especificado" }}</strong>
+                                {% if nomenclaturas.cliente_nomenclatura %}
+                                <span class="badge bg-light text-dark ms-2">{{ nomenclaturas.cliente_nomenclatura }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Proyecto:</td>
+                            <td>
+                                <strong>{{ data.proyecto|default:"No especificado" }}</strong>
+                                {% if nomenclaturas.proyecto_nomenclatura %}
+                                <span class="badge bg-light text-dark ms-2">{{ nomenclaturas.proyecto_nomenclatura }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>Solicitante:</td>
+                            <td>{{ data.responsable_solicitud|default:"No especificado" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Líder del Proyecto:</td>
+                            <td>{{ data.lider_proyecto|default:"No especificado" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Versión:</td>
+                            <td>
+                                {% if data.numero_version %}
+                                <span class="badge bg-primary">v{{ data.numero_version }}</span>
+                                {% else %}
+                                No especificado
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Actions - Barra de acciones rápidas (igual que ticket_detail) -->
+        
+        </div>
+    </div>
+
+    <!-- Datos del Excel Asociado (igual que la sección de ticket_detail) -->
+    <div class="modern-card mb-4">
+        <div class="card-header-modern">
+            <h5><i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos Extraídos</h5>
+        </div>
+        <div class="card-body p-4">
+            <!-- Grid de información en dos columnas -->
+            <div class="row">
+                <!-- Columna 1: IDs y referencias -->
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>ID Cliente:</td>
+                            <td>
+                                <code>{{ data.cliente|default:"N/A" }}</code>
+                                {% if objetos_encontrados.cliente_obj %}
+                                <span class="badge bg-success ms-2">Encontrado</span>
+                                {% else %}
+                                <span class="badge bg-warning ms-2">No encontrado</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>ID Proyecto:</td>
+                            <td>
+                                <code>{{ data.proyecto|default:"N/A" }}</code>
+                                {% if objetos_encontrados.proyecto_obj %}
+                                <span class="badge bg-success ms-2">Encontrado</span>
+                                {% else %}
+                                <span class="badge bg-warning ms-2">No encontrado</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>ID Tipo Pruebas:</td>
+                            <td>
+                                <code>{{ data.tipo_pruebas|default:"N/A" }}</code>
+                                {% if objetos_encontrados.tipo_servicio_obj %}
+                                <span class="badge bg-success ms-2">Encontrado</span>
+                                {% else %}
+                                <span class="badge bg-warning ms-2">No encontrado</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Número Versión:</td>
+                            <td>
+                                {% if data.numero_version %}
+                                <span class="badge bg-primary">{{ data.numero_version }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Columna 2: Nombres y valores -->
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>Cliente:</td>
+                            <td>
+                                {% if objetos_encontrados.cliente_obj %}
+                                <strong>{{ objetos_encontrados.cliente_obj.nombre }}</strong>
+                                {% else %}
+                                <span class="text-muted">No encontrado en catálogo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Proyecto:</td>
+                            <td>
+                                {% if objetos_encontrados.proyecto_obj %}
+                                <strong>{{ objetos_encontrados.proyecto_obj.nombre }}</strong>
+                                {% else %}
+                                <span class="text-muted">No encontrado en catálogo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Tipo Pruebas:</td>
+                            <td>
+                                {% if objetos_encontrados.tipo_servicio_obj %}
+                                <strong>{{ objetos_encontrados.tipo_servicio_obj.nombre }}</strong>
+                                {% else %}
+                                <span class="text-muted">No encontrado en catálogo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Tipo Servicio:</td>
+                            <td>
+                                {% if data.tipo_servicio %}
+                                <span class="badge bg-info">{{ data.tipo_servicio }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Responsables en fila adicional -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>Responsable Solicitud:</td>
+                            <td>{{ data.responsable_solicitud|default:"-" }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>Líder Proyecto:</td>
+                            <td>{{ data.lider_proyecto|default:"-" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Descripciones largas (igual que en ticket_detail) -->
+            {% if data.funcionalidad_liberacion %}
+            <div class="mt-4">
+                <div class="fw-bold mb-2">Funcionalidad de la Liberación:</div>
+                <div class="preview-box" style="background: #f8fafc;">
+                    {{ data.funcionalidad_liberacion|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if data.detalle_cambios %}
+            <div class="mt-4">
+                <div class="fw-bold mb-2">Detalle de los Cambios:</div>
+                <div class="preview-box" style="background: #f8fafc;">
+                    {{ data.detalle_cambios|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if data.justificacion_cambio %}
+            <div class="mt-4">
+                <div class="fw-bold mb-2">Justificación del Cambio:</div>
+                <div class="preview-box" style="background: #f8fafc;">
+                    {{ data.justificacion_cambio|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Información del Sistema - Igual que ticket_detail -->
+    <div class="modern-card">
+        <div class="card-header-modern">
+            <h5><i class="bi bi-info-circle"></i> Información del Sistema</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>ID Extracción:</td>
+                            <td><code>{{ data.id|default:"N/A" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td>Fecha Extracción:</td>
+                            <td>{{ data.extracted_date|date:"d/m/Y H:i:s"|default:"-" }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="info-table">
+                        <tr>
+                            <td>Estado:</td>
+                            <td>
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>Completado
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Ticket Asociado:</td>
+                            <td>
+                                {% if ticket and ticket.id %}
+                                <a href="{% url 'ticket_detail' ticket.id %}" class="text-decoration-none">
+                                    {{ ticket.codigo }} <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 </div>
 
 <style>
-    .data-field, .ticket-field {
-        margin-bottom: 15px;
+    /* Estilos exactamente iguales a ticket_detail.html */
+    :root {
+        --primary-color: #4361ee;
+        --success-color: #06d6a0;
+        --warning-color: #ffb703;
+        --danger-color: #ef476f;
+        --dark-bg: #212529;
+        --card-border: none;
+        --border-radius: 16px;
     }
-    
-    .data-field strong, .ticket-field strong {
-        display: block;
-        color: #2c3e50;
-        margin-bottom: 5px;
-        font-size: 0.95rem;
+
+    body {
+        background-color: #f8fafc;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
-    
-    .data-field p {
-        background-color: white;
-        padding: 12px;
-        border-radius: 4px;
-        border: 1px solid #eee;
-        margin: 0;
-        min-height: 45px;
-    }
-    
-    .ticket-field span {
-        display: block;
-        background-color: white;
-        padding: 8px 12px;
-        border-radius: 4px;
-        border: 1px solid #eee;
-        margin-top: 5px;
-    }
-    
-    .btn {
-        padding: 8px 16px;
+
+    .modern-card {
         border: none;
-        border-radius: 4px;
-        cursor: pointer;
+        border-radius: var(--border-radius);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        background: white;
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+    }
+
+    .modern-card:hover {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+    }
+
+    .card-header-modern {
+        background: white;
+        border-bottom: 1px solid rgba(0,0,0,0.03);
+        padding: 1.25rem 1.5rem;
+        border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+    }
+
+    .card-header-modern h5 {
+        margin: 0;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-header-modern i {
+        color: var(--primary-color);
+        font-size: 1.25rem;
+    }
+
+    /* Hero section del ticket */
+    .ticket-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 24px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ticket-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .ticket-code {
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        font-family: 'Fira Code', monospace;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .badge-modern {
+        padding: 0.5rem 1.25rem;
+        border-radius: 100px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+    }
+
+    /* Chips para componentes */
+    .component-chip {
+        display: inline-flex;
+        flex-direction: column;
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 16px;
+        padding: 0.75rem 1.5rem;
+        margin: 0.25rem;
+        min-width: 100px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.2s;
+    }
+
+    .component-chip:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.1);
+    }
+
+    .chip-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.5px;
+    }
+
+    .chip-value {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #1e293b;
+        margin-top: 0.25rem;
+    }
+
+    /* Tabla de información */
+    .info-table {
+        width: 100%;
+    }
+
+    .info-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .info-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .info-table td:first-child {
+        font-weight: 600;
+        color: #475569;
+        width: 140px;
+        background-color: #f8fafc;
+        border-radius: 8px 0 0 8px;
+    }
+
+    .info-table td:last-child {
+        color: #1e293b;
+        font-weight: 500;
+        border-radius: 0 8px 8px 0;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+    }
+
+    .quick-action-item {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 14px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.2s;
+        color: #475569;
         text-decoration: none;
-        display: inline-block;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .quick-action-item:hover {
+        background: #f8fafc;
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        transform: translateY(-2px);
+    }
+
+    .quick-action-item i {
+        font-size: 1.5rem;
+    }
+
+    .quick-action-item span {
+        font-weight: 500;
+    }
+
+    .preview-box {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid #e9ecef;
+        font-family: 'Inter', monospace;
+        white-space: pre-wrap;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: #334155;
+        margin-top: 1rem;
+        position: relative;
+    }
+
+    .btn-modern {
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .btn-modern.btn-outline {
+        background: white;
+        border: 1px solid #e9ecef;
+        color: #475569;
+        text-decoration: none;
+    }
+
+    .btn-modern.btn-outline:hover {
+        background: #f8fafc;
+        border-color: var(--primary-color);
+    }
+
+    .copy-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        backdrop-filter: blur(5px);
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: rgba(255,255,255,0.3);
+    }
+
+    @media (max-width: 768px) {
+        .ticket-code {
+            font-size: 1.5rem;
+        }
     }
 </style>
 
 <script>
     function copiarTicketCode() {
-        const ticketCode = document.getElementById('ticket-code').textContent.trim();
+        const ticketCode = document.querySelector('[style*="font-family: \'Fira Code\'"]').textContent.trim();
         
         navigator.clipboard.writeText(ticketCode)
             .then(() => {
-                alert('Código del ticket copiado al portapapeles:\n' + ticketCode);
+                const btn = event.currentTarget;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Copiado!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
             })
             .catch(err => {
                 console.error('Error al copiar: ', err);
                 alert('Error al copiar el código del ticket');
             });
     }
-    
-    function imprimirTicket() {
-        // Aquí puedes implementar la lógica de impresión del ticket
-        alert('Función de impresión del ticket. Se imprimirá: ' + document.getElementById('ticket-code').textContent);
-    }
-    
-    function descargarPDF() {
-        alert('Función de descarga de PDF. Implementa la lógica necesaria aquí.');
-    }
-    
-    function enviarPorEmail() {
-        alert('Función de envío por email. Implementa la lógica necesaria aquí.');
-    }
 </script>
 {% endblock %}
-[file content end]

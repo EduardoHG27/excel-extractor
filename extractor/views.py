@@ -29,6 +29,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
 from django.shortcuts import redirect
 from django.conf import settings
+from django.core.cache import cache
 
 
 logger = logging.getLogger(__name__)
@@ -227,6 +228,7 @@ def export_tickets_csv_view(request):
         messages.error(request, "Error al exportar tickets")
         return redirect('ticket_list')
     
+
 def extract_excel_data(file_path):
     """
     Extrae las celdas específicas según las reglas dadas
@@ -312,32 +314,47 @@ def extract_excel_data(file_path):
         # Extraer detalle_cambios (a partir de D22)
         try:
             detalle_cambios = ""
-            row = 21
+            row = 21  # Fila 22 (0-indexed)
             while row < 30 and pd.notna(df.iat[row, 3]):
-                detalle_cambios += clean_value(df.iat[row, 3]) + "\n"
+                cell_value = clean_value(df.iat[row, 3])
+                # Ignorar si es el texto de encabezado repetido
+                if "📝 Descripción de Cambios" not in cell_value and "Funcionalidad de la liberación:" not in cell_value:
+                    detalle_cambios += cell_value + "\n"
                 row += 1
             extracted_data['detalle_cambios'] = detalle_cambios.strip()
         except:
             extracted_data['detalle_cambios'] = ""
         
-        # Extraer justificacion_cambio
+        # 🔧 CORRECCIÓN: Extraer justificacion_cambio (fila 24)
         try:
-            justificacion_row = None
-            for row in range(21, 30):
-                if pd.notna(df.iat[row, 2]) and "Justificación" in str(df.iat[row, 2]):
-                    justificacion_row = row
-                    break
+            justificacion = ""
             
-            if justificacion_row is not None:
-                content_row = justificacion_row + 1
-                justificacion = ""
-                while content_row < 40 and pd.notna(df.iat[content_row, 3]):
-                    justificacion += clean_value(df.iat[content_row, 3]) + "\n"
-                    content_row += 1
-                extracted_data['justificacion_cambio'] = justificacion.strip()
-            else:
-                extracted_data['justificacion_cambio'] = ""
-        except:
+            # Buscar la fila de justificación - en tu Excel está en fila 23 (0-indexed)
+            # Observando tu archivo, la justificación está en D24 (row=23)
+            if pd.notna(df.iat[23, 3]):  # D24
+                cell_value = clean_value(df.iat[23, 3])
+                # Ignorar si es el texto de encabezado
+                if "📝 Descripción de Cambios" not in cell_value and "Funcionalidad de la liberación:" not in cell_value:
+                    justificacion = cell_value
+            
+            # Si no hay texto en D24, intentar buscar por el encabezado "Justificación"
+            if not justificacion:
+                justificacion_row = None
+                for row in range(21, 30):
+                    if pd.notna(df.iat[row, 2]) and "Justificación" in str(df.iat[row, 2]):
+                        justificacion_row = row
+                        break
+                
+                if justificacion_row is not None:
+                    content_row = justificacion_row + 1
+                    while content_row < 40 and pd.notna(df.iat[content_row, 3]):
+                        justificacion += clean_value(df.iat[content_row, 3]) + "\n"
+                        content_row += 1
+            
+            extracted_data['justificacion_cambio'] = justificacion.strip()
+            
+        except Exception as e:
+            print(f"⚠️ Error extrayendo justificación: {e}")
             extracted_data['justificacion_cambio'] = ""
         
         # DEPURACIÓN: Mostrar valores extraídos
@@ -350,7 +367,7 @@ def extract_excel_data(file_path):
         
     except Exception as e:
         print(f"❌ Error al extraer datos: {e}")
-        raise 
+        raise
 
 @login_required(login_url='login')
 def upload_excel(request):
@@ -2220,13 +2237,13 @@ def export_all_tables_backup(request):
 def crear_solicitud(request):
     """
     Vista para crear solicitud de pruebas manualmente
-    Con sistema de cooldown de 5 minutos entre solicitudes
+    Con protecciones anti-bots (Cooldown + Honeypot + Rate Limiting)
     """
     from django.conf import settings
     
-    # ===== VERIFICAR COOLDOWN =====
+    # ===== CAPA 1: COOLDOWN DE 5 MINUTOS =====
     ultima_solicitud = request.session.get('ultima_solicitud_timestamp')
-    cooldown_segundos = settings.SOLICITUD_COOLDOWN_SEGUNDOS
+    cooldown_segundos = getattr(settings, 'SOLICITUD_COOLDOWN_SEGUNDOS', 300)  # 5 minutos por defecto
     
     tiempo_restante = 0
     if ultima_solicitud:
@@ -2236,7 +2253,6 @@ def crear_solicitud(request):
         if tiempo_transcurrido < cooldown_segundos:
             tiempo_restante = cooldown_segundos - tiempo_transcurrido
             
-            # Para GET, solo mostrar mensaje informativo
             if request.method == 'GET':
                 minutos = int(tiempo_restante // 60)
                 segundos = int(tiempo_restante % 60)
@@ -2245,7 +2261,6 @@ def crear_solicitud(request):
                     f'⏳ Puedes crear una nueva solicitud en {minutos} minutos y {segundos} segundos.'
                 )
             
-            # Para POST, bloquear si está en cooldown
             if request.method == 'POST':
                 minutos = int(tiempo_restante // 60)
                 segundos = int(tiempo_restante % 60)
@@ -2255,7 +2270,28 @@ def crear_solicitud(request):
                 )
                 return redirect('solicitud_list')
     
-    # PROCESAR FORMULARIO (solo si no está en cooldown o es la primera solicitud)
+    # ===== CAPA 2: HONEYPOT (solo en POST) =====
+    if request.method == 'POST':
+        # Verificar campos honeypot (deben estar vacíos)
+        if request.POST.get('web_contacto', ''):  # Si el campo oculto tiene contenido
+            messages.error(request, 'Actividad sospechosa detectada. Si eres humano, no llenes campos ocultos.')
+            logger.warning(f"Intento de bot detectado - IP: {request.META.get('REMOTE_ADDR')} - Usuario: {request.user}")
+            return redirect('crear_solicitud')
+        
+        if request.POST.get('confirmar_email', ''):  # Segundo campo honeypot
+            messages.error(request, 'Actividad sospechosa detectada.')
+            logger.warning(f"Intento de bot detectado (campo2) - IP: {request.META.get('REMOTE_ADDR')}")
+            return redirect('crear_solicitud')
+    
+    # ===== CAPA 3: RATE LIMITING POR IP (solo en POST) =====
+    if request.method == 'POST':
+        permitido, mensaje = check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600)
+        if not permitido:
+            messages.error(request, mensaje)
+            logger.info(f"Rate limit excedido - IP: {request.META.get('REMOTE_ADDR')}")
+            return redirect('solicitud_list')
+    
+    # ===== PROCESAR FORMULARIO (solo si pasa todas las capas) =====
     if request.method == 'POST':
         try:
             # ===== VALIDACIONES =====
@@ -2311,17 +2347,27 @@ def crear_solicitud(request):
             request.session['ultima_solicitud_timestamp'] = timezone.now().timestamp()
             request.session['ultima_solicitud_id'] = solicitud.id
             
-            # Mensajes de éxito
-            messages.success(request, f'✅ Solicitud de pruebas guardada exitosamente con ID #{solicitud.id}')
-            messages.info(request, f'📁 Nombre del archivo: {solicitud.nombre_archivo}')
+            # <<< MODIFICACIÓN: En lugar de redirigir, mostrar panel de éxito >>>
+            # Preparar el contexto para mostrar el panel de éxito
+            context_exito = {
+                'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
+                'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
+                'today': timezone.now().date(),
+                'now': timezone.now(),
+                'tiempo_restante': int(tiempo_restante) if 'tiempo_restante' in locals() else 0,
+                'solicitud_creada': solicitud,  # Pasamos la solicitud creada
+                'mostrar_resumen': True,  # Bandera para la plantilla
+            }
             
-            # Generar ticket si se solicitó
+            # Si se solicitó generar ticket ahora, lo generamos y lo añadimos al contexto
             if request.POST.get('generar_ticket_ahora') == 'on':
                 ticket = solicitud.generar_ticket()
-                messages.success(request, f'✅ Ticket generado exitosamente: {ticket.codigo}')
-                return redirect('ticket_detail', id=ticket.id)
+                context_exito['ticket_generado'] = ticket
+                # Nota: ya no redirigimos a ticket_detail, solo pasamos el ticket al contexto
             
-            return redirect('solicitud_list')
+            # Renderizar la misma plantilla con el panel de éxito
+            return render(request, 'extractor/crear_solicitud.html', context_exito)
+            # >>> FIN MODIFICACIÓN
             
         except Cliente.DoesNotExist:
             messages.error(request, 'El cliente seleccionado no existe')
@@ -2347,7 +2393,7 @@ def crear_solicitud(request):
     }
     return render(request, 'extractor/crear_solicitud.html', context)
 
-
+@login_required(login_url='login')
 def solicitud_list(request):
     """Listado de solicitudes de pruebas"""
     from django.utils import timezone
@@ -2638,4 +2684,39 @@ def imprimir_solicitud_excel(request, id):
         
         messages.error(request, f"Error al generar el archivo: {str(e)}")
         return redirect('solicitud_detail', id=solicitud.id)
+    
+def check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600):
+    """
+    Limita las solicitudes por IP
+    - limite: 5 solicitudes máximo
+    - tiempo_ventana: 1 hora (3600 segundos)
+    """
+    # Obtener IP del cliente
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    
+    # Clave única para esta IP
+    cache_key = f'rate_limit_ip_{ip}'
+    
+    # Obtener solicitudes actuales
+    solicitudes = cache.get(cache_key, [])
+    
+    # Limpiar solicitudes fuera de la ventana
+    tiempo_actual = timezone.now().timestamp()
+    solicitudes = [s for s in solicitudes if tiempo_actual - s < tiempo_ventana]
+    
+    # Verificar límite
+    if len(solicitudes) >= limite:
+        tiempo_restante = int(tiempo_ventana - (tiempo_actual - solicitudes[0]))
+        minutos = tiempo_restante // 60
+        return False, f"Has alcanzado el límite de 5 solicitudes por hora. Espera {minutos} minutos."
+    
+    # Agregar nueva solicitud
+    solicitudes.append(tiempo_actual)
+    cache.set(cache_key, solicitudes, timeout=tiempo_ventana)
+    
+    return True, ""
 

@@ -6,255 +6,472 @@
     <title>Ticket {{ ticket.codigo }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        .codigo-box {
-            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
-            border-radius: 15px;
-            padding: 2rem;
-            border-left: 8px solid;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        :root {
+            --primary-color: #4361ee;
+            --success-color: #06d6a0;
+            --warning-color: #ffb703;
+            --danger-color: #ef476f;
+            --dark-bg: #212529;
+            --card-border: none;
+            --border-radius: 16px;
         }
-        .codigo-ticket {
-            font-family: monospace;
-            font-size: 2rem;
-            font-weight: 700;
-            letter-spacing: 2px;
+
+        body {
+            background-color: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         }
-        .estado-badge {
-            font-size: 1.2rem;
-            padding: 0.75rem 2rem;
-            border-radius: 50px;
-        }
-        .info-card {
-            border-radius: 12px;
+
+        .modern-card {
             border: none;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.03);
-            transition: all 0.2s;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            background: white;
+            transition: transform 0.2s, box-shadow 0.2s;
             height: 100%;
         }
-        .info-card:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+
+        .modern-card:hover {
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
         }
-        .parte-codigo {
-            display: inline-block;
-            padding: 0.5rem 1.2rem;
+
+        .card-header-modern {
             background: white;
-            border-radius: 30px;
-            margin: 0.25rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-            border: 1px solid #dee2e6;
-            font-size: 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.03);
+            padding: 1.25rem 1.5rem;
+            border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
         }
-        .parte-titulo {
+
+        .card-header-modern h5 {
+            margin: 0;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header-modern i {
+            color: var(--primary-color);
+            font-size: 1.25rem;
+        }
+
+        /* Hero section del ticket */
+        .ticket-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 2rem;
+            color: white;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ticket-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .ticket-code {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            font-family: 'Fira Code', monospace;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .ticket-code .copy-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            border-radius: 12px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+        }
+
+        .ticket-code .copy-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .badge-modern {
+            padding: 0.5rem 1.25rem;
+            border-radius: 100px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        /* Chips para componentes */
+        .component-chip {
+            display: inline-flex;
+            flex-direction: column;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 16px;
+            padding: 0.75rem 1.5rem;
+            margin: 0.25rem;
+            min-width: 100px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+
+        .component-chip:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.1);
+        }
+
+        .chip-label {
             font-size: 0.75rem;
             text-transform: uppercase;
-            color: #6c757d;
-            letter-spacing: 1px;
+            color: #64748b;
+            letter-spacing: 0.5px;
         }
-        .parte-valor {
+
+        .chip-value {
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 1rem;
+            color: #1e293b;
+            margin-top: 0.25rem;
         }
-        .table-detail td {
-            padding: 0.75rem 0.5rem;
-            border-bottom: 1px solid #f1f3f5;
+
+        /* Tabla de información */
+        .info-table {
+            width: 100%;
         }
-        .table-detail tr:last-child td {
+
+        .info-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .info-table tr:last-child td {
             border-bottom: none;
         }
-        .table-detail th {
-            width: 160px;
-            color: #495057;
+
+        .info-table td:first-child {
             font-weight: 600;
-            background-color: #f8f9fa;
-            padding: 0.75rem 1rem;
+            color: #475569;
+            width: 140px;
+            background-color: #f8fafc;
+            border-radius: 8px 0 0 8px;
+        }
+
+        .info-table td:last-child {
+            color: #1e293b;
+            font-weight: 500;
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Sección de correos */
+        .email-section {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 24px;
+            padding: 1.5rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .template-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            background: white;
+            border: 2px solid transparent;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .template-pill:hover {
+            border-color: var(--primary-color);
+            background: #f8fafc;
+        }
+
+        .template-pill.selected {
+            border-color: var(--primary-color);
+            background: #eef2ff;
+        }
+
+        .template-pill i {
+            font-size: 1.5rem;
+        }
+
+        .preview-box {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid #e9ecef;
+            font-family: 'Inter', monospace;
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #334155;
+            margin-top: 1rem;
+            position: relative;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-modern {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-modern.btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-modern.btn-outline {
+            background: white;
+            border: 1px solid #e9ecef;
+            color: #475569;
+        }
+
+        .btn-modern.btn-outline:hover {
+            background: #f8fafc;
+            border-color: var(--primary-color);
+        }
+
+        .btn-modern.btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        /* Grid de acciones rápidas */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .quick-action-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 14px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.2s;
+            color: #475569;
+            text-decoration: none;
+        }
+
+        .quick-action-item:hover {
+            background: #f8fafc;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .quick-action-item i {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        /* Estado del ticket */
+        .estado-progress {
+            margin-top: 1rem;
+            background: rgba(255,255,255,0.2);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        .estado-progress-bar {
+            background: white;
+            border-radius: 3px;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <!-- Encabezado -->
+    <div class="container mt-4 mb-5">
+        <!-- Breadcrumb simplificado -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}">Inicio</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'ticket_list' %}">Tickets</a></li>
-                        <li class="breadcrumb-item active">Detalle del Ticket</li>
-                    </ol>
-                </nav>
-                <h1 class="display-6">
-                    <i class="bi bi-ticket-detailed text-primary"></i> Detalle del Ticket
-                </h1>
-            </div>
-            <div>
-                <a href="{% url 'ticket_list' %}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Volver al listado
-                </a>
-            </div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb bg-transparent p-0 m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}" class="text-decoration-none">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'ticket_list' %}" class="text-decoration-none">Tickets</a></li>
+                    <li class="breadcrumb-item active">Ticket {{ ticket.codigo }}</li>
+                </ol>
+            </nav>
+            <a href="{% url 'ticket_list' %}" class="btn btn-modern btn-outline">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
         </div>
 
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    <i class="bi bi-info-circle"></i> {{ message }}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             {% endfor %}
         {% endif %}
 
-        <!-- Código del ticket y estado -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="codigo-box border-{% if ticket.estado == 'GENERADO' %}info
-                                                  {% elif ticket.estado == 'EN_PROCESO' %}warning
-                                                  {% elif ticket.estado == 'COMPLETADO' %}success
-                                                  {% else %}danger{% endif %}">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <small class="text-muted text-uppercase fw-bold">Código de Ticket</small>
-                            <div class="codigo-ticket">
-                                {{ ticket.codigo }}
-
-                              <button class="btn btn-outline-secondary btn-sm ms-3" 
-                                onclick="navigator.clipboard.writeText('{{ ticket.codigo }}')"
-                                title="Copiar código">
-                            <i class="bi bi-clipboard"></i>
-                            </div>
-
+        <!-- Hero Section - Información principal del ticket -->
+        <div class="ticket-hero">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="ticket-code">
+                        {{ ticket.codigo }}
+                        <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ ticket.codigo }}')" title="Copiar código">
+                            <i class="bi bi-clipboard"></i> Copiar
                         </button>
-                            <div class="mt-2">
-                                <span class="badge bg-light text-dark me-2">
-                                    <i class="bi bi-calendar3"></i> Creado: {{ ticket.fecha_creacion|date:"d/m/Y H:i" }}
-                                </span>
-                                <span class="badge bg-light text-dark">
-                                    <i class="bi bi-arrow-repeat"></i> Actualizado: {{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                            <span class="badge estado-badge bg-{% if ticket.estado == 'GENERADO' %}info
-                                                             {% elif ticket.estado == 'EN_PROCESO' %}warning
-                                                             {% elif ticket.estado == 'COMPLETADO' %}success
-                                                             {% else %}danger{% endif %}">
-                                {{ ticket.get_estado_display }}
-                            </span>
-                        </div>
-                          <div class="card-body">
-                            <div class="btn-group">
-                                <a href="{% url 'generar_dictamen' ticket.id %}" class="btn btn-success">
-                                    <i class="bi bi-file-excel"></i> Descargar Dictamen
-                                </a>
-                                <a href="{% url 'generar_resultados' ticket.id %}" class="btn btn-warning">
-                                    <i class="bi bi-file-excel"></i> Descargar Resultados
-                                </a>
-                            </div>
-                        </div>
-                                                <!-- Acciones rápidas -->
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                <div class="btn-group w-100" role="group">
-                                    <a href="{% url 'ticket_create' %}" class="btn btn-outline-primary">
-                                        <i class="bi bi-plus-circle"></i> Nuevo Ticket Manual
-                                    </a>
-                                    <a href="{% url 'upload_excel' %}" class="btn btn-outline-success">
-                                        <i class="bi bi-upload"></i> Subir Excel
-                                    </a>
-                                    <a href="{% url 'ticket_list' %}" class="btn btn-outline-secondary">
-                                        <i class="bi bi-list-ul"></i> Listado de Tickets
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
                     </div>
+                    <div class="d-flex gap-3 mt-3">
+                        <span class="badge-modern">
+                            <i class="bi bi-calendar3 me-2"></i>Creado: {{ ticket.fecha_creacion|date:"d/m/Y H:i" }}
+                        </span>
+                        <span class="badge-modern">
+                            <i class="bi bi-arrow-repeat me-2"></i>Actualizado: {{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <span class="badge estado-badge bg-{% if ticket.estado == 'GENERADO' %}info
+                                                     {% elif ticket.estado == 'EN_PROCESO' %}warning
+                                                     {% elif ticket.estado == 'COMPLETADO' %}success
+                                                     {% else %}danger{% endif %} p-3 px-4 rounded-pill">
+                        <i class="bi bi-{% if ticket.estado == 'GENERADO' %}hourglass-split
+                                     {% elif ticket.estado == 'EN_PROCESO' %}gear
+                                     {% elif ticket.estado == 'COMPLETADO' %}check-circle
+                                     {% else %}exclamation-circle{% endif %} me-2"></i>
+                        {{ ticket.get_estado_display }}
+                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Componentes del código -->
-        <div class="card info-card mb-4">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0">
-                    <i class="bi bi-upc-scan text-primary"></i> Componentes del Ticket
-                </h5>
+        <!-- Componentes del código - Chips mejorados -->
+        <div class="modern-card mb-4">
+            <div class="card-header-modern">
+                <h5><i class="bi bi-upc-scan"></i> Componentes del Ticket</h5>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-12">
-                        {% with partes=ticket.get_detalle_partes %}
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Empresa</span>
-                                <span class="parte-valor">{{ partes.empresa }}</span>
-                            </span>
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Tipo Servicio</span>
-                                <span class="parte-valor">{{ partes.tipo_servicio }}</span>
-                            </span>
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Tipo de pruebas</span>
-                                <span class="parte-valor">{{ partes.funcion }}</span>
-                            </span>
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">No. Pruebas</span>
-                                <span class="parte-valor">{{ partes.version }}</span>
-                            </span>
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Cliente</span>
-                                <span class="parte-valor">{{ partes.cliente }}</span>
-                            </span>
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Proyecto</span>
-                                <span class="parte-valor">{{ partes.proyecto }}</span>
-                            </span>
-                            <span class="parte-codigo">
-                                <span class="parte-titulo d-block">Consecutivo</span>
-                                <span class="parte-valor">{{ partes.consecutivo }}</span>
-                            </span>
-                        {% endwith %}
+            <div class="card-body p-4">
+                {% with partes=ticket.get_detalle_partes %}
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="component-chip">
+                            <span class="chip-label">Empresa</span>
+                            <span class="chip-value">{{ partes.empresa }}</span>
+                        </div>
+                        <div class="component-chip">
+                            <span class="chip-label">Tipo Servicio</span>
+                            <span class="chip-value">{{ partes.tipo_servicio }}</span>
+                        </div>
+                        <div class="component-chip">
+                            <span class="chip-label">Pruebas</span>
+                            <span class="chip-value">{{ partes.funcion }}</span>
+                        </div>
+                        <div class="component-chip">
+                            <span class="chip-label">No. Pruebas</span>
+                            <span class="chip-value">{{ partes.version }}</span>
+                        </div>
+                        <div class="component-chip">
+                            <span class="chip-label">Cliente</span>
+                            <span class="chip-value">{{ partes.cliente }}</span>
+                        </div>
+                        <div class="component-chip">
+                            <span class="chip-label">Proyecto</span>
+                            <span class="chip-value">{{ partes.proyecto }}</span>
+                        </div>
+                        <div class="component-chip">
+                            <span class="chip-label">Consecutivo</span>
+                            <span class="chip-value">{{ partes.consecutivo }}</span>
+                        </div>
                     </div>
-                </div>
+                {% endwith %}
             </div>
         </div>
 
-        <div class="row">
+        <!-- Quick Actions - Barra de acciones rápidas -->
+        <div class="quick-actions">
+            <a href="{% url 'generar_dictamen' ticket.id %}" class="quick-action-item">
+                <i class="fa fa-file-pdf text-danger"></i>
+                <span>Descargar Dictamen</span>
+            </a>
+            <a href="{% url 'generar_resultados' ticket.id %}" class="quick-action-item">
+                <i class="fa fa-file-excel text-success"></i>
+                <span>Resultados Pruebas</span>
+            </a>
+            <a href="{% url 'ticket_create' %}" class="quick-action-item">
+                <i class="bi bi-plus-circle text-primary"></i>
+                <span>Nuevo Ticket</span>
+            </a>
+            <a href="{% url 'upload_excel' %}" class="quick-action-item">
+                <i class="bi bi-upload text-success"></i>
+                <span>Subir Excel</span>
+            </a>
+        </div>
+
+        <!-- Grid de información principal -->
+        <div class="row g-4 mb-4">
             <!-- Cliente y Proyecto -->
-            <div class="col-md-6 mb-4">
-                <div class="card info-card">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0">
-                            <i class="bi bi-building text-primary"></i> Cliente y Proyecto
-                        </h5>
+            <div class="col-md-6">
+                <div class="modern-card h-100">
+                    <div class="card-header-modern">
+                        <h5><i class="bi bi-building"></i> Cliente y Proyecto</h5>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-detail mb-0">
+                    <div class="card-body p-4">
+                        <table class="info-table">
                             <tr>
-                                <th>Cliente:</th>
+                                <td>Cliente:</td>
                                 <td>
                                     {% if ticket.cliente %}
                                         <strong>{{ ticket.cliente.nombre }}</strong>
-                                        <span class="badge bg-secondary ms-2">{{ ticket.cliente.nomenclatura }}</span>
+                                        <span class="badge bg-light text-dark ms-2">{{ ticket.cliente.nomenclatura }}</span>
                                     {% else %}
-                                        <span class="text-muted">No asignado ({{ ticket.cliente_code }})</span>
+                                        <span class="text-muted">{{ ticket.cliente_code }}</span>
                                     {% endif %}
                                 </td>
                             </tr>
                             <tr>
-                                <th>Proyecto:</th>
+                                <td>Proyecto:</td>
                                 <td>
                                     {% if ticket.proyecto %}
                                         <strong>{{ ticket.proyecto.nombre }}</strong>
-                                        <span class="badge bg-secondary ms-2">{{ ticket.proyecto.codigo }}</span>
+                                        <span class="badge bg-light text-dark ms-2">{{ ticket.proyecto.codigo }}</span>
                                     {% else %}
-                                        <span class="text-muted">No asignado ({{ ticket.proyecto_code }})</span>
+                                        <span class="text-muted">{{ ticket.proyecto_code }}</span>
                                     {% endif %}
                                 </td>
                             </tr>
                             <tr>
-                                <th>Tipo de pruebas:</th>
+                                <td>Tipo pruebas:</td>
                                 <td>
                                     {% if ticket.tipo_servicio %}
                                         <strong>{{ ticket.tipo_servicio.nombre }}</strong>
-                                        <span class="badge bg-secondary ms-2">{{ ticket.tipo_servicio.nomenclatura }}</span>
+                                        <span class="badge bg-light text-dark ms-2">{{ ticket.tipo_servicio.nomenclatura }}</span>
                                     {% else %}
                                         <span class="text-muted">{{ ticket.tipo_servicio_code }}</span>
                                     {% endif %}
@@ -264,19 +481,17 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Responsables y Versión -->
-            <div class="col-md-6 mb-4">
-                <div class="card info-card">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0">
-                            <i class="bi bi-people text-primary"></i> Responsables
-                        </h5>
+
+            <!-- Responsables -->
+            <div class="col-md-6">
+                <div class="modern-card h-100">
+                    <div class="card-header-modern">
+                        <h5><i class="bi bi-people"></i> Responsables</h5>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-detail mb-0">
+                    <div class="card-body p-4">
+                        <table class="info-table">
                             <tr>
-                                <th>Responsable Solicitud:</th>
+                                <td>Responsable:</td>
                                 <td>
                                     {% if ticket.responsable_solicitud %}
                                         <strong>{{ ticket.responsable_solicitud }}</strong>
@@ -286,7 +501,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Líder del Proyecto:</th>
+                                <td>Líder:</td>
                                 <td>
                                     {% if ticket.lider_proyecto %}
                                         <strong>{{ ticket.lider_proyecto }}</strong>
@@ -296,10 +511,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Número de Versión:</th>
+                                <td>Versión:</td>
                                 <td>
                                     {% if ticket.numero_version %}
-                                        <strong>v{{ ticket.numero_version }}</strong>
+                                        <span class="badge bg-primary">v{{ ticket.numero_version }}</span>
                                     {% else %}
                                         <span class="text-muted">No especificado</span>
                                     {% endif %}
@@ -311,49 +526,132 @@
             </div>
         </div>
 
-        <!-- Datos del Excel asociado -->
-        {% if ticket.excel_data %}
-        <div class="card info-card mb-4">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0">
-                    <i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos del Excel Asociado
+        <!-- Sección de Respuestas Predeterminadas por Correo - Rediseñada -->
+        <div class="email-section mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0 fw-bold">
+                    <i class="bi bi-envelope-paper text-primary me-2"></i>
+                    Respuestas por Correo
                 </h5>
+                <button class="btn btn-modern btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#emailTemplates">
+                    <i class="bi bi-envelope-plus"></i> Nueva Respuesta
+                </button>
             </div>
-            <div class="card-body">
+
+            <div class="collapse" id="emailTemplates">
+                <!-- Plantillas -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="template-pill" onclick="seleccionarPlantilla('generico')">
+                            <i class="bi bi-envelope fs-2 text-primary"></i>
+                            <div>
+                                <div class="fw-bold">Respuesta Genérica</div>
+                                <small class="text-muted">Seguimiento de solicitud</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="template-pill" onclick="seleccionarPlantilla('funcionalidad')">
+                            <i class="bi bi-gear fs-2 text-success"></i>
+                            <div>
+                                <div class="fw-bold">{{ ticket.tipo_servicio.nombre }}</div>
+                                <small class="text-muted">Pruebas específicas</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="template-pill" onclick="seleccionarPlantilla('completado')">
+                            <i class="bi bi-check-circle fs-2 text-success"></i>
+                            <div>
+                                <div class="fw-bold">Ticket Completado</div>
+                                <small class="text-muted">Notificación de finalización</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista previa -->
+                <div class="mb-4">
+                    <label class="fw-bold mb-2">Vista Previa:</label>
+                    <div class="preview-box" id="emailPreview">
+Buena tarde estimados:
+
+Por medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}
+
+Quedamos atentos a cualquier duda o comentario al respecto.
+
+Saludos.
+                    </div>
+                </div>
+
+                <!-- Campos de correo -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="fw-bold mb-2">Destinatario(s):</label>
+                        <input type="email" class="form-control form-control-lg rounded-3" id="emailDestinatario" placeholder="correo@ejemplo.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="fw-bold mb-2">Asunto:</label>
+                        <input type="text" class="form-control form-control-lg rounded-3" id="emailAsunto" value="Seguimiento de Ticket {{ ticket.codigo }}">
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="d-flex gap-2">
+                    <button class="btn btn-modern btn-success" onclick="enviarCorreo()">
+                        <i class="bi bi-send"></i> Enviar Correo
+                    </button>
+                    <button class="btn btn-modern btn-outline" onclick="copiarAlPortapapeles('emailPreview')">
+                        <i class="bi bi-clipboard"></i> Copiar
+                    </button>
+                    <button class="btn btn-modern btn-outline" onclick="limpiarSeleccion()">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos del Excel asociado (si existe) -->
+        {% if ticket.excel_data %}
+        <div class="modern-card mb-4">
+            <div class="card-header-modern">
+                <h5><i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos del Excel Asociado</h5>
+            </div>
+            <div class="card-body p-4">
                 <div class="row">
                     <div class="col-md-6">
-                        <table class="table table-detail mb-0">
+                        <table class="info-table">
                             <tr>
-                                <th>ID del Excel:</th>
+                                <td>ID Excel:</td>
                                 <td>{{ ticket.excel_data.id }}</td>
                             </tr>
                             <tr>
-                                <th>Tipo de Pruebas:</th>
+                                <td>Tipo Pruebas:</td>
                                 <td>{{ ticket.excel_data.tipo_pruebas|default:"-" }}</td>
                             </tr>
                             <tr>
-                                <th>Tipo de Aplicación:</th>
+                                <td>Tipo Aplicación:</td>
                                 <td>{{ ticket.excel_data.tipo_aplicacion|default:"-" }}</td>
                             </tr>
                             <tr>
-                                <th>Fecha de Extracción:</th>
+                                <td>Extracción:</td>
                                 <td>{{ ticket.excel_data.extracted_date|date:"d/m/Y H:i:s" }}</td>
                             </tr>
                         </table>
                     </div>
                     <div class="col-md-6">
-                        <table class="table table-detail mb-0">
+                        <table class="info-table">
                             <tr>
-                                <th>Funcionalidad:</th>
+                                <td>Funcionalidad:</td>
                                 <td>{{ ticket.excel_data.funcionalidad_liberacion|truncatewords:30|default:"-" }}</td>
                             </tr>
                             <tr>
-                                <th>Detalle de Cambios:</th>
+                                <td>Detalle Cambios:</td>
                                 <td>{{ ticket.excel_data.detalle_cambios|truncatewords:20|default:"-" }}</td>
                             </tr>
                             <tr>
-                                <th>Justificación:</th>
-                                <td>{{ ticket.excel_data.justificacion_cambio|truncatewords:20|default:"-" }}</td>
+                                <td>Justificación:</td>
+                                <td>{{ ticket.justificacion_cambio|truncatewords:20|default:"-" }}</td>
                             </tr>
                         </table>
                     </div>
@@ -361,36 +659,34 @@
             </div>
         </div>
         {% endif %}
-        
-        <!-- Información adicional -->
-        <div class="card info-card">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0">
-                    <i class="bi bi-info-circle text-primary"></i> Información del Sistema
-                </h5>
+
+        <!-- Información del Sistema - Compacta -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <h5><i class="bi bi-info-circle"></i> Información del Sistema</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body p-4">
                 <div class="row">
                     <div class="col-md-6">
-                        <table class="table table-detail mb-0">
+                        <table class="info-table">
                             <tr>
-                                <th>ID del Ticket:</th>
-                                <td>{{ ticket.id }}</td>
+                                <td>ID Ticket:</td>
+                                <td><code>{{ ticket.id }}</code></td>
                             </tr>
                             <tr>
-                                <th>Fecha de Creación:</th>
+                                <td>Creado:</td>
                                 <td>{{ ticket.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
                             </tr>
                         </table>
                     </div>
                     <div class="col-md-6">
-                        <table class="table table-detail mb-0">
+                        <table class="info-table">
                             <tr>
-                                <th>Última Actualización:</th>
+                                <td>Actualizado:</td>
                                 <td>{{ ticket.fecha_actualizacion|date:"d/m/Y H:i:s" }}</td>
                             </tr>
                             <tr>
-                                <th>Estado Actual:</th>
+                                <td>Estado:</td>
                                 <td>
                                     <span class="badge bg-{% if ticket.estado == 'GENERADO' %}info
                                                        {% elif ticket.estado == 'EN_PROCESO' %}warning
@@ -408,5 +704,69 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let plantillaActual = 'generico';
+
+function seleccionarPlantilla(tipo) {
+    plantillaActual = tipo;
+    
+    document.querySelectorAll('.template-pill').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    const plantillas = {
+        generico: `Buena tarde estimados:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
+        
+        funcionalidad: `Buena tarde estimados:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nDetalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
+        
+        completado: `Buena tarde estimados:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.`
+    };
+    
+    const preview = document.getElementById('emailPreview');
+    preview.textContent = plantillas[tipo].replace(/{{ ticket.codigo }}/g, '{{ ticket.codigo|escapejs }}');
+}
+
+        function copiarAlPortapapeles(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.currentTarget;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Copiado!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            });
+        }
+
+        function enviarCorreo() {
+            const destinatario = document.getElementById('emailDestinatario').value;
+                const asunto = document.getElementById('emailAsunto').value;
+                const contenido = document.getElementById('emailPreview').textContent;
+                
+                if (!destinatario) {
+                    alert('Por favor ingrese al menos un destinatario');
+                    return;
+                }
+                
+                const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(contenido)}`;
+                window.location.href = mailtoLink;
+                
+                // Opcional: cerrar el panel
+                bootstrap.Collapse.getInstance(document.getElementById('emailTemplates')).hide();
+            }
+
+        function limpiarSeleccion() {
+            document.querySelectorAll('.template-pill').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.getElementById('emailDestinatario').value = '';
+            document.getElementById('emailAsunto').value = 'Seguimiento de Ticket {{ ticket.codigo }}';
+            seleccionarPlantilla('generico');
+        }
+    </script>
 </body>
 </html>

@@ -584,7 +584,6 @@
                     {% else %}
                         <!-- Menú para usuarios no autenticados (base_solicitudes.html) -->
                         <li><a href="{% url 'crear_solicitud' %}" class="{% if request.resolver_match.url_name == 'crear_solicitud' %}active{% endif %}">📝 Nueva Solicitud</a></li>
-                        <li><a href="{% url 'solicitud_list' %}" class="{% if request.resolver_match.url_name == 'solicitud_list' %}active{% endif %}">📋 Ver Solicitudes</a></li>
                         <li><a href="{% url 'login' %}?next={{ request.path }}">🔐 Iniciar Sesión</a></li>
                     {% endif %}
                 </ul>

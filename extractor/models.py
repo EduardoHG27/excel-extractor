@@ -259,7 +259,7 @@ class SolicitudPruebas(models.Model):
         verbose_name="Tipo de Pruebas"
     )
     area_solicitante = models.CharField(
-        max_length=50,
+        max_length=100,
         blank=True,
         verbose_name="Área Solicitante"
     )

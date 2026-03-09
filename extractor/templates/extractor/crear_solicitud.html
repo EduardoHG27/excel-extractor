@@ -2,12 +2,82 @@
 {% extends 'extractor/base_general.html' %}
 
 {% block content %}
+
+
+{% if mostrar_resumen and solicitud_creada %}
+<div class="success-panel" style="background-color: #d4edda; border: 2px solid #c3e6cb; border-radius: 10px; padding: 30px; margin-bottom: 30px; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">✅</div>
+    <h2 style="color: #155724; margin-bottom: 15px;">¡Solicitud Creada Exitosamente!</h2>
+    <p style="color: #155724; font-size: 1.2rem; margin-bottom: 10px;">Se ha generado la solicitud de pruebas con el ID: <strong>#{{ solicitud_creada.id }}</strong></p>
+    <p style="color: #155724; font-size: 1.1rem; margin-bottom: 30px;">Nombre del archivo: <strong>{{ solicitud_creada.nombre_archivo }}</strong></p>
+
+    <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;">
+        <!-- Botón para descargar la solicitud -->
+        <a href="{% url 'imprimir_solicitud' solicitud_creada.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
+            ⬇️ Descargar Solicitud de Pruebas (Excel)
+        </a>
+
+        <!-- Botón para ver detalle de la solicitud -->
+        <a href="{% url 'solicitud_detail' solicitud_creada.id %}" class="btn btn-info" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
+            👁️ Ver Detalle de Solicitud
+        </a>
+    </div>
+
+    <!-- Mensaje si se generó ticket automáticamente -->
+    {% if ticket_generado %}
+    <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 8px; margin-top: 20px;">
+        <p style="font-size: 1.1rem; margin-bottom: 10px;">🎉 Se generó el ticket automáticamente:</p>
+        <p style="font-size: 1.3rem; font-weight: bold; margin-bottom: 15px;">{{ ticket_generado.codigo }}</p>
+        <a href="{% url 'ticket_detail' ticket_generado.id %}" class="btn btn-primary btn-sm">Ver Detalle del Ticket</a>
+    </div>
+    {% endif %}
+
+    <hr style="margin: 30px 0; border-color: #c3e6cb;">
+
+    <!-- Resumen de la solicitud -->
+    <div style="text-align: left; background-color: white; padding: 20px; border-radius: 8px;">
+        <h4 style="color: #155724; margin-bottom: 15px;">📋 Resumen de la Solicitud</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold; width: 200px;">Cliente:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.cliente.nombre }} ({{ solicitud_creada.cliente.nomenclatura }})</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold;">Proyecto:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.proyecto.nombre }} ({{ solicitud_creada.proyecto.codigo }})</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold;">Fecha / Hora:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.fecha_solicitud|date:'d/m/Y' }} {{ solicitud_creada.hora_solicitud|time:'H:i' }} hrs</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold;">Tipo de Servicio / Prueba:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.get_tipo_servicio_code_display }} / {{ solicitud_creada.tipo_prueba.nombre }}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold;">Responsable / Líder:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.responsable_solicitud }} / {{ solicitud_creada.lider_proyecto }}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold;">Versión:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.numero_version }}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 8px; font-weight: bold;">Funcionalidad:</td>
+                <td style="padding: 8px;">{{ solicitud_creada.funcionalidad_liberacion|truncatechars:100 }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+
 <div class="page-header">
     <h1>📝 Nueva Solicitud de Pruebas</h1>
     <p>Completa el formulario para generar una nueva solicitud de pruebas</p>
 </div>
 
-<!-- ===== 1. TEMPORIZADOR (si aplica) ===== -->
+
 {% if tiempo_restante > 0 %}
 <div class="cooldown-timer" style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 10px; padding: 20px; margin-bottom: 30px; text-align: center;">
     <div style="font-size: 1.2rem; color: #856404; margin-bottom: 10px;">
@@ -22,7 +92,7 @@
 </div>
 {% endif %}
 
-<!-- ===== 2. INFORMACIÓN DEL FORMATO ===== -->
+
 <div class="upload-instructions">
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 15px;">📋 Formato de Solicitud de Pruebas QA</h3>
@@ -31,10 +101,19 @@
     </div>
 </div>
 
-<!-- ===== 3. FORMULARIO PRINCIPAL ===== -->
+
 <form method="post" enctype="multipart/form-data" style="margin-top: 20px;" id="solicitudForm">
     {% csrf_token %}
+    <div style="position: absolute; left: -9999px; top: -9999px; opacity: 0; pointer-events: none; height: 0; width: 0; overflow: hidden;" aria-hidden="true">
+    <label for="web_contacto">Email (solo para bots):</label>
+    <input type="text" name="web_contacto" id="web_contacto" value="" tabindex="-1" autocomplete="off">
     
+    <label for="confirmar_email">Confirmar email:</label>
+    <input type="text" name="confirmar_email" id="confirmar_email" value="" tabindex="-1" autocomplete="off">
+    
+    <label for="telefono_contacto">Teléfono de contacto:</label>
+    <input type="text" name="telefono_contacto" id="telefono_contacto" value="" tabindex="-1" autocomplete="off">
+    </div>
     <!-- Sección: Datos de Solicitud -->
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📊 Datos de Solicitud</h3>
@@ -288,7 +367,6 @@
     </div>
 </form>
 
-<!-- ===== 4. MENSAJES ===== -->
 {% if messages %}
 <div style="margin-top: 30px;">
     {% for message in messages %}
@@ -299,10 +377,9 @@
 </div>
 {% endif %}
 
-<!-- ===== 5. SCRIPTS (TODOS JUNTOS AL FINAL) ===== -->
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ===== 5.1 TEMPORIZADOR (solo si existe) =====
     {% if tiempo_restante > 0 %}
     let tiempoRestante = {{ tiempo_restante }};
     const temporizadorElement = document.getElementById('temporizador');
@@ -523,9 +600,54 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+const versionInput = document.getElementById('numero_version');
+
+versionInput.addEventListener('input', function(e) {
+    // Permitir números y puntos, eliminar cualquier otro carácter
+    this.value = this.value.replace(/[^0-9.]/g, '');
+    
+    // Evitar múltiples puntos seguidos
+    this.value = this.value.replace(/\.{2,}/g, '.');
+    
+    // Evitar punto al inicio
+    if (this.value.startsWith('.')) {
+        this.value = this.value.substring(1);
+    }
+});
+
+// Validación al enviar el formulario
+document.getElementById('solicitudForm').addEventListener('submit', function(e) {
+    const version = versionInput.value.trim();
+    
+    if (version === '') {
+        e.preventDefault();
+        alert('❌ El número de versión es obligatorio');
+        versionInput.focus();
+        return;
+    }
+    
+    // Validar formato: números separados por puntos (ej: 4.12.2, 1.0, 2.1.3)
+    const formatoValido = /^\d+(\.\d+)*$/.test(version);
+    
+    if (!formatoValido) {
+        e.preventDefault();
+        alert('❌ Formato de versión inválido.\nDebe ser números separados por puntos (ej: 4.12.2, 1.0, 2.1.3)');
+        versionInput.focus();
+    }
+});
+
+// Bonus: Sugerir formato mientras escribe
+versionInput.addEventListener('blur', function() {
+    const version = this.value.trim();
+    if (version && !/^\d+(\.\d+)*$/.test(version)) {
+        alert('💡 Formato sugerido: números separados por puntos (ej: 4.12.2)');
+    }
+});
+
 </script>
 
-<!-- ===== 6. ESTILOS (TODOS JUNTOS AL FINAL) ===== -->
+
 <style>
 #dropZone:hover {
     background-color: #e8f4fd !important;
