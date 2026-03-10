@@ -717,13 +717,13 @@ function seleccionarPlantilla(tipo) {
     event.currentTarget.classList.add('selected');
     
     const plantillas = {
-        generico: `Buena tarde estimados:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
+        generico: `Buena día estimados:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
         
-        funcionalidad: `Buena tarde estimados:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nDetalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
+        funcionalidad: `Buena día estimados:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nDetalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
         
-        completado: `Buena tarde estimados:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.`
+        completado: `Buena día estimados:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.`
     };
-    
+    //en negritas el numero del ticket
     const preview = document.getElementById('emailPreview');
     preview.textContent = plantillas[tipo].replace(/{{ ticket.codigo }}/g, '{{ ticket.codigo|escapejs }}');
 }
