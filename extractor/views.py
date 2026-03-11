@@ -491,6 +491,56 @@ def upload_excel(request):
                 objetos_encontrados=objetos_encontrados
             )
             
+            # ===== NUEVO: CREAR INCIDENCIA EN JIRA =====
+            if ticket_obj:
+                try:
+                    from .jira_helper import JiraClient
+                    from django.utils import timezone
+                    
+                    # Preparar datos para Jira
+                    jira_data = {
+                        'codigo': ticket_code,
+                        'cliente': cliente_obj.nombre,
+                        'proyecto': proyecto_obj.nombre,
+                        'tipo_servicio': tipo_servicio_form,
+                        'responsable_solicitud': extracted_data.get('responsable_solicitud', ''),
+                        'lider_proyecto': extracted_data.get('lider_proyecto', ''),
+                        'numero_version': extracted_data.get('numero_version', ''),
+                        'funcionalidad_liberacion': extracted_data.get('funcionalidad_liberacion', ''),
+                        'detalle_cambios': extracted_data.get('detalle_cambios', ''),
+                        'justificacion_cambio': extracted_data.get('justificacion_cambio', ''),
+                        'fecha': timezone.now().strftime('%d/%m/%Y %H:%M'),
+                        'usuario': request.user.username if request.user.is_authenticated else 'Sistema',
+                    }
+                    
+                    # Inicializar cliente Jira
+                    jira_client = JiraClient()
+                    
+                    # Crear incidencia
+                    jira_issue = jira_client.create_issue(jira_data)
+                    
+                    if jira_issue:
+                        # Guardar la información de Jira en el ticket
+                        ticket_obj.jira_issue_key = jira_issue.key
+                        ticket_obj.jira_issue_url = jira_issue.permalink()
+                        ticket_obj.fecha_sincronizacion_jira = timezone.now()
+                        ticket_obj.save()
+                        
+                        # Mensaje para el usuario
+                        messages.info(
+                            request, 
+                            f'📋 Incidencia creada en Jira: {jira_issue.key}'
+                        )
+                        
+                        print(f"✅ Ticket vinculado a Jira issue: {jira_issue.key}")
+                    else:
+                        print("⚠️ No se pudo crear incidencia en Jira")
+                        
+                except Exception as jira_error:
+                    print(f"⚠️ Error en integración Jira: {jira_error}")
+                    # No interrumpimos el flujo principal
+                    pass
+            
             # Guardar en la base de datos ExcelData
             excel_data = ExcelData.objects.create(
                 cliente=str(cliente_obj.id),

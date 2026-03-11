@@ -2,6 +2,17 @@
 {% extends 'extractor/base_general.html' %}  
 
 {% block content %}
+
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background-color: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 250px;">
+        <!-- Spinner animado -->
+        <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+        <h3 style="color: #2c3e50; margin: 0;">Creando ticket...</h3>
+        <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.9rem;">Por favor espera</p>
+    </div>
+</div>
+
+
 <div class="page-header">
     <h1>📤 Cargar Archivo Excel</h1>
     <p>Sube un archivo Excel para extraer automáticamente los datos</p>
@@ -79,6 +90,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Obtener todos los elementos
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('excel_file');
     const browseButton = document.getElementById('browseButton');
@@ -88,7 +100,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileSize = document.getElementById('fileSize');
     const changeFileButton = document.getElementById('changeFileButton');
     const uploadForm = document.getElementById('uploadForm');
+    const loadingOverlay = document.getElementById('loadingOverlay'); // ✅ AHORA SÍ DEFINIDA
 
+    // ===== 1. CÓDIGO DEL LOADING =====
+    uploadForm.addEventListener('submit', function(e) {
+        // Verificar si hay archivo seleccionado
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            alert('Por favor, selecciona un archivo para subir.');
+            return;
+        }
+        
+        // Mostrar el overlay de carga
+        loadingOverlay.style.display = 'flex';
+        
+        // Opcional: deshabilitar el botón para evitar doble clic
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+    });
+
+    // ===== 2. DRAG & DROP (tu código existente) =====
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
@@ -125,16 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.click();
     });
 
-    // Prevent form submission if no file is selected
-    uploadForm.addEventListener('submit', function(e) {
-        if (!fileInput.files.length) {
-            e.preventDefault();
-            alert('Por favor, selecciona un archivo para subir.');
-            highlight(dropZone);
-            setTimeout(() => unhighlight(dropZone), 1000);
-        }
-    });
-
+    // ===== 3. FUNCIONES AUXILIARES =====
     function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -216,6 +240,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+ @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 #dropZone:hover {
     background-color: #e8f4fd !important;
     border-color: #2980b9 !important;
@@ -236,6 +264,10 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: #d4edda;
     border: 1px solid #c3e6cb;
     color: #155724;
+}
+
+#loadingOverlay {
+    cursor: wait;
 }
 
 .alert-error {

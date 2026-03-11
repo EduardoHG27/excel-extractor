@@ -143,6 +143,26 @@ class Ticket(models.Model):
         null=True,
         blank=True
     )
+
+    jira_issue_key = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True,
+        verbose_name="Clave de incidencia Jira",
+        help_text="Ej: QA01-123"
+    )
+    
+    jira_issue_url = models.URLField(
+        blank=True, 
+        null=True,
+        verbose_name="URL de incidencia Jira"
+    )
+    
+    fecha_sincronizacion_jira = models.DateTimeField(
+        null=True, 
+        blank=True,
+        verbose_name="Fecha de sincronización con Jira"
+    )
     
     # Partes del código del ticket (para búsqueda y filtrado)
     empresa_code = models.CharField(max_length=10, default="BID", verbose_name="Código Empresa")

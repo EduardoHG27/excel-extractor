@@ -8,9 +8,12 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from dotenv import load_dotenv
+load_dotenv()  
+
 # ============ VARIABLES DE ENTORNO ============
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7_&y#o%h#g#_c!b6z^w8m)0+7o8xr5i@%$k!*&p)q+@v#h$4s@9')
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'False'
 #DEBUG = os.environ.get('DEBUG', 'True') == 'True'#
 
 # ============ HOSTS Y CSRF CONFIG ============
@@ -149,6 +152,20 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+JIRA_CONFIG = {
+    'URL': 'https://buroidentidaddigital.atlassian.net',
+    'PROJECT_KEY': 'QA01',  # El proyecto de tu URL
+    'EMAIL': os.environ.get('JIRA_EMAIL', ''),
+    'API_TOKEN': os.environ.get('JIRA_API_TOKEN', ''),
+    'ISSUE_TYPE': 'Task',  # Puedes cambiarlo según necesites
+}
+
+print("=== VERIFICANDO VARIABLES JIRA ===")
+print(f"JIRA_EMAIL: {os.environ.get('JIRA_EMAIL', 'NO CONFIGURADO')}")
+print(f"JIRA_API_TOKEN: {'CONFIGURADO' if os.environ.get('JIRA_API_TOKEN') else 'NO CONFIGURADO'}")
+print(f"JIRA_URL: {os.environ.get('JIRA_URL', 'NO CONFIGURADO')}")
+print("================================")
 
 SOLICITUD_COOLDOWN_MINUTOS = 5  
 SOLICITUD_COOLDOWN_SEGUNDOS = SOLICITUD_COOLDOWN_MINUTOS * 60
