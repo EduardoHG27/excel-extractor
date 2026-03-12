@@ -611,54 +611,97 @@ Saludos.
             </div>
         </div>
 
-        <!-- Datos del Excel asociado (si existe) -->
-        {% if ticket.excel_data %}
-        <div class="modern-card mb-4">
-            <div class="card-header-modern">
-                <h5><i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos del Excel Asociado</h5>
+        <!-- Datos del Excel asociado-->
+     {% if ticket.excel_data %}
+<div class="modern-card mb-4">
+    <div class="card-header-modern">
+        <h5><i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos del Excel Asociado</h5>
+    </div>
+    <div class="card-body p-4">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="info-table">
+                    <tr>
+                        <td>ID Excel:</td>
+                        <td>{{ ticket.excel_data.id }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tipo Pruebas:</td>
+                        <td>{{ ticket.excel_data.tipo_pruebas|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tipo Aplicación:</td>
+                        <td>{{ ticket.excel_data.tipo_aplicacion|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Extracción:</td>
+                        <td>{{ ticket.excel_data.extracted_date|date:"d/m/Y H:i:s" }}</td>
+                    </tr>
+                </table>
             </div>
-            <div class="card-body p-4">
-                <div class="row">
-                    <div class="col-md-6">
-                        <table class="info-table">
-                            <tr>
-                                <td>ID Excel:</td>
-                                <td>{{ ticket.excel_data.id }}</td>
-                            </tr>
-                            <tr>
-                                <td>Tipo Pruebas:</td>
-                                <td>{{ ticket.excel_data.tipo_pruebas|default:"-" }}</td>
-                            </tr>
-                            <tr>
-                                <td>Tipo Aplicación:</td>
-                                <td>{{ ticket.excel_data.tipo_aplicacion|default:"-" }}</td>
-                            </tr>
-                            <tr>
-                                <td>Extracción:</td>
-                                <td>{{ ticket.excel_data.extracted_date|date:"d/m/Y H:i:s" }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div class="col-md-6">
-                        <table class="info-table">
-                            <tr>
-                                <td>Funcionalidad:</td>
-                                <td>{{ ticket.excel_data.funcionalidad_liberacion|truncatewords:30|default:"-" }}</td>
-                            </tr>
-                            <tr>
-                                <td>Detalle Cambios:</td>
-                                <td>{{ ticket.excel_data.detalle_cambios|truncatewords:20|default:"-" }}</td>
-                            </tr>
-                            <tr>
-                                <td>Justificación:</td>
-                                <td>{{ ticket.excel_data.justificacion_cambio|truncatewords:20|default:"-" }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
+            <div class="col-md-6">
+                <table class="info-table">
+                    <tr>
+                           <td>Funcionalidad:</td>
+    <td>
+        <div class="expandable-text" id="funcionalidad-container">
+                            <div class="text-content">
+                                <span class="text-preview">{{ ticket.excel_data.funcionalidad_liberacion|truncatewords:20|default:"-" }}</span>
+                                <div class="text-full-wrapper">
+                                    <div class="text-full">{{ ticket.excel_data.funcionalidad_liberacion|default:"-" }}</div>
+                                </div>
+                            </div>
+                            {% if ticket.excel_data.funcionalidad_liberacion|wordcount > 20 %}
+                            <a href="javascript:void(0)" class="text-primary toggle-text" style="font-size: 0.85rem;" onclick="toggleText(this, 'funcionalidad')">
+                                <i class="bi bi-chevron-down"></i> <span class="toggle-label">ver más</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Detalle Cambios:</td>
+                    <td>
+                        <div class="expandable-text" id="detalle-container">
+                            <div class="text-content">
+                                <span class="text-preview">{{ ticket.excel_data.detalle_cambios|truncatewords:20|default:"-" }}</span>
+                                <div class="text-full-wrapper">
+                                    <div class="text-full">{{ ticket.excel_data.detalle_cambios|default:"-" }}</div>
+                                </div>
+                            </div>
+                            {% if ticket.excel_data.detalle_cambios|wordcount > 20 %}
+                            <a href="javascript:void(0)" class="text-primary toggle-text" style="font-size: 0.85rem;" onclick="toggleText(this, 'detalle')">
+                                <i class="bi bi-chevron-down"></i> <span class="toggle-label">ver más</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Justificación:</td>
+                    <td>
+                        <div class="expandable-text" id="justificacion-container">
+                            <div class="text-content">
+                                <span class="text-preview">{{ ticket.excel_data.justificacion_cambio|truncatewords:20|default:"-" }}</span>
+                                <div class="text-full-wrapper">
+                                    <div class="text-full">{{ ticket.excel_data.justificacion_cambio|default:"-" }}</div>
+                                </div>
+                            </div>
+                            {% if ticket.excel_data.justificacion_cambio|wordcount > 20 %}
+                            <a href="javascript:void(0)" class="text-primary toggle-text" style="font-size: 0.85rem;" onclick="toggleText(this, 'justificacion')">
+                                <i class="bi bi-chevron-down"></i> <span class="toggle-label">ver más</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                       
+                    </tr>
+                </table>
             </div>
         </div>
-        {% endif %}
+    </div>
+</div>
+{% endif %}
 
         <!-- Información del Sistema - Compacta -->
         <div class="modern-card">
@@ -767,6 +810,131 @@ function seleccionarPlantilla(tipo) {
             document.getElementById('emailAsunto').value = 'Seguimiento de Ticket {{ ticket.codigo }}';
             seleccionarPlantilla('generico');
         }
+
+    function toggleText(element, type) {
+        const container = document.getElementById(`${type}-container`);
+        const wrapper = container.querySelector('.text-full-wrapper');
+        const preview = container.querySelector('.text-preview');
+        const icon = element.querySelector('i');
+        const label = element.querySelector('.toggle-label');
+        
+        if (!wrapper.classList.contains('expanded')) {
+            // Expandir
+            wrapper.classList.add('expanded');
+            icon.classList.add('rotated');
+            label.textContent = 'ver menos';
+            
+            // Ocultar preview con fade
+            preview.style.transition = 'opacity 0.2s ease';
+            preview.style.opacity = '0.5';
+            
+            // Scroll suave hacia el contenido expandido
+            setTimeout(() => {
+                container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 150);
+        } else {
+            // Contraer
+            wrapper.classList.remove('expanded');
+            icon.classList.remove('rotated');
+            label.textContent = 'ver más';
+            
+            // Restaurar preview
+            preview.style.opacity = '1';
+        }
+    }
+
     </script>
+
+    <style>
+        /* Estilos para texto expandible */
+.expandable-text {
+    position: relative;
+    width: 100%;
+}
+
+.text-content {
+    display: inline-block;
+    width: 100%;
+}
+
+.text-preview {
+    display: inline;
+    line-height: 1.5;
+    color: #1e293b;
+}
+
+.text-full-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out;
+    margin-top: 0;
+    opacity: 0;
+    transition: all 0.3s ease-out;
+}
+
+.text-full-wrapper.expanded {
+    grid-template-rows: 1fr;
+    margin-top: 0.75rem;
+    opacity: 1;
+}
+
+.text-full {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border-left: 4px solid var(--primary-color);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #1e293b;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    transform-origin: top;
+}
+
+.text-full::-webkit-scrollbar {
+    width: 6px;
+}
+
+.text-full::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.text-full::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
+}
+
+.toggle-text {
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    transition: color 0.2s ease;
+}
+
+.toggle-text:hover {
+    text-decoration: underline;
+    color: #2563eb !important;
+}
+
+.toggle-text i {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.toggle-text i.rotated {
+    transform: rotate(180deg);
+}
+    </style>
 </body>
 </html>
