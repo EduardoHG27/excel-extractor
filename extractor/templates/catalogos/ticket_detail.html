@@ -326,7 +326,7 @@
                 </ol>
             </nav>
             <a href="{% url 'ticket_list' %}" class="btn btn-modern btn-outline">
-                <i class="bi bi-arrow-left"></i> Volver
+                <i class="bi bi-arrow-left"></i> Listado Tickets
             </a>
         </div>
 
@@ -424,14 +424,15 @@
                 <i class="fa fa-file-excel text-success"></i>
                 <span>Resultados Pruebas</span>
             </a>
-            <a href="{% url 'ticket_create' %}" class="quick-action-item">
-                <i class="bi bi-plus-circle text-primary"></i>
-                <span>Nuevo Ticket</span>
-            </a>
             <a href="{% url 'upload_excel' %}" class="quick-action-item">
                 <i class="bi bi-upload text-success"></i>
-                <span>Subir Excel</span>
+                <span>Crear Ticket</span>
             </a>
+            <a href="{% url 'ticket_create' %}" class="quick-action-item">
+                <i class="bi bi-plus-circle text-primary"></i>
+                <span>Crear Ticket manual</span>
+            </a>
+          
         </div>
 
         <!-- Grid de información principal -->
