@@ -1866,14 +1866,11 @@ def verificar_plantilla(request):
 
 
 def generar_excel_resultados(request, ticket_id):
-    """
-    Genera el archivo Excel de Documentación de Resultados de Pruebas con la información del ticket
-    """
     import io
     import os
     from datetime import datetime
     from openpyxl import Workbook, load_workbook
-    from openpyxl.styles import Font, PatternFill, Border, Side
+    from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
     from django.conf import settings
     
     ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -1899,12 +1896,12 @@ def generar_excel_resultados(request, ticket_id):
         ws.title = "Resultados Pruebas"
         
         # Configurar anchos de columna básicos
-        ws.column_dimensions['A'].width = 8
+        ws.column_dimensions['A'].width = 50  # Ancho para el detalle de cambios
         ws.column_dimensions['B'].width = 30
         ws.column_dimensions['L'].width = 15
         ws.column_dimensions['M'].width = 30
     
-    # Definir estilos (solo si creamos el documento desde cero, si usamos plantilla se mantienen los estilos)
+    # Definir estilos (solo si creamos el documento desde cero)
     if not os.path.exists(plantilla_resultados_path):
         header_font = Font(bold=True)
         ticket_font = Font(bold=True, size=14, color="2563EB")
@@ -1913,7 +1910,7 @@ def generar_excel_resultados(request, ticket_id):
         ws.cell(row=2, column=1, value="TICKET:")
         ws.cell(row=2, column=1).font = header_font
     
-    # AGREGAR EL TICKET EN C2 (esto funciona tanto en plantilla como en documento nuevo)
+    # AGREGAR EL TICKET EN C2
     ws['C2'] = ticket.codigo
     
     # Si es documento nuevo, aplicar estilo al ticket
@@ -1923,6 +1920,36 @@ def generar_excel_resultados(request, ticket_id):
     # Versión (si no existe en la plantilla)
     if ws['M3'].value is None or "Versión" not in str(ws['M3'].value):
         ws['M3'] = f"VERSIÓN: Versión {ticket.numero_version or '1.0.0'}"
+    
+    # ===== NUEVO: COPIAR DETALLE DE CAMBIOS EN A8 =====
+    if ticket.excel_data and ticket.excel_data.detalle_cambios:
+        # Obtener el detalle de cambios
+        detalle_cambios = ticket.excel_data.detalle_cambios
+        
+        # Limpiar y preparar el texto
+        detalle_cambios = detalle_cambios.strip()
+        
+        # Escribir en A8
+        ws['A8'] = detalle_cambios
+        
+        # Aplicar formato para mejor legibilidad
+        ws['A8'].alignment = Alignment(
+            wrap_text=True,
+            vertical='top',
+            horizontal='left'
+        )
+        
+        # Ajustar altura de fila según contenido (aproximado)
+        lineas = detalle_cambios.count('\n') + 1
+        altura_estimada = min(lineas * 15, 300)  # Máximo 300 puntos
+        ws.row_dimensions[8].height = altura_estimada
+        
+        print(f"✅ Detalle de cambios copiado a A8: {len(detalle_cambios)} caracteres, {lineas} líneas")
+    else:
+        print("⚠️ No hay detalle de cambios para copiar")
+        
+        # Si no hay detalle de cambios, poner un placeholder
+        ws['A8'] = "No se especificaron detalles de cambios."
     
     # Guardar en buffer
     buffer = io.BytesIO()
@@ -1935,7 +1962,6 @@ def generar_excel_resultados(request, ticket_id):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     
-    # ✅ RENOMBRAR EL ARCHIVO con el código del ticket
     filename = f"{ticket.codigo} Documentación de Resultados.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     response['Content-Length'] = len(buffer.getvalue())
