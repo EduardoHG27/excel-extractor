@@ -599,46 +599,50 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+    
+    // ===== NUEVA VALIDACIÓN PARA NÚMERO DE VERSIÓN =====
+    const versionInput = document.getElementById('numero_version');
+    
+    if (versionInput) {
+        // Limitar longitud mientras escribe
+        versionInput.addEventListener('input', function(e) {
+            if (this.value.length > 50) {
+                this.value = this.value.slice(0, 50);
+            }
+        });
+    }
 });
 
-const versionInput = document.getElementById('numero_version');
-
-// Limpiar la entrada mientras escribe (opcional, puedes borrar esto si quieres)
-versionInput.addEventListener('input', function(e) {
-    // Solo eliminar caracteres que NO sean números o puntos
-    this.value = this.value.replace(/[^0-9.]/g, '');
-});
-
-// Validación al enviar el formulario
+// ===== VALIDACIÓN AL ENVIAR EL FORMULARIO =====
 document.getElementById('solicitudForm').addEventListener('submit', function(e) {
-    const version = versionInput.value.trim();
+    const versionInput = document.getElementById('numero_version');
+    const version = versionInput ? versionInput.value.trim() : '';
     
     if (version === '') {
         e.preventDefault();
         alert('❌ El número de versión es obligatorio');
-        versionInput.focus();
+        if (versionInput) versionInput.focus();
         return;
     }
     
-    // ✅ NUEVA VALIDACIÓN: acepta cualquier combinación de números y puntos
-    // Esto permite: 3.3.33, 1.0, 2.1.3.4, etc.
+    // Validar longitud máxima
     if (version.length > 50) {
         e.preventDefault();
         alert('❌ El número de versión es demasiado largo (máx. 50 caracteres)');
-        versionInput.focus();
+        if (versionInput) versionInput.focus();
         return;
     }
     
-    // Solo verificar que no tenga caracteres extraños
-    const soloCaracteresValidos = /^[0-9.]+$/.test(version);
-    if (!soloCaracteresValidos) {
+    // Verificar caracteres no permitidos en nombres de archivo
+    const caracteresInvalidos = /[<>:"/\\|?*]/g;
+    if (caracteresInvalidos.test(version)) {
         e.preventDefault();
-        alert('❌ El número de versión solo puede contener números y puntos');
-        versionInput.focus();
+        alert('❌ El número de versión no puede contener los caracteres: < > : " / \\ | ? *');
+        if (versionInput) versionInput.focus();
+        return;
     }
 });
 </script>
-
 
 <style>
 #dropZone:hover {
