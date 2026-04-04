@@ -1,6 +1,33 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import User
+from django.conf import settings
 import random  
 
+
+class Usuario(AbstractUser):
+    """Modelo extendido de usuario"""
+    telefono = models.CharField(max_length=20, blank=True, verbose_name="Teléfono")
+    puesto = models.CharField(max_length=100, blank=True, verbose_name="Puesto")
+    cliente_asociado = models.ForeignKey(
+        'Cliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Cliente asociado"
+    )
+    
+    # Permisos personalizados
+    puede_generar_tickets = models.BooleanField(default=True)
+    puede_ver_todos_tickets = models.BooleanField(default=False)
+    
+    class Meta:
+        verbose_name = "Usuario"
+        verbose_name_plural = "Usuarios"
+    
+    def __str__(self):
+        return f"{self.get_full_name() or self.username} ({self.puesto or 'Sin puesto'})"
+    
 class Cliente(models.Model):
     nombre = models.CharField(max_length=255, verbose_name="Nombre del Cliente")
     nomenclatura = models.CharField(
@@ -106,6 +133,7 @@ class ExcelData(models.Model):
     
 class Ticket(models.Model):
     ESTADOS_TICKET = [
+        ('ABIERTO', 'Abierto'),
         ('GENERADO', 'Generado'),
         ('EN_PROCESO', 'En Proceso'),
         ('COMPLETADO', 'Completado'),
@@ -163,6 +191,44 @@ class Ticket(models.Model):
         blank=True,
         verbose_name="Fecha de sincronización con Jira"
     )
+
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tickets_creados',
+        verbose_name="Creado por"
+    )
+    
+    asignado_a = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tickets_asignados',
+        verbose_name="Asignado a"
+    )
+    
+    comentarios_seguimiento = models.TextField(
+        blank=True,
+        verbose_name="Comentarios de seguimiento",
+        help_text="Registro de avances y comentarios del ticket"
+    )
+    
+    fecha_cierre = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de cierre"
+    )
+    
+    # SOLO UN CAMPO estado - CORREGIDO
+    estado = models.CharField(
+        max_length=20, 
+        choices=ESTADOS_TICKET, 
+        default='GENERADO',  # ← Cambiado de 'ABIERTO' a 'GENERADO'
+        verbose_name="Estado del Ticket"
+    )
     
     # Partes del código del ticket (para búsqueda y filtrado)
     empresa_code = models.CharField(max_length=10, default="BID", verbose_name="Código Empresa")
@@ -178,12 +244,7 @@ class Ticket(models.Model):
     lider_proyecto = models.CharField(max_length=255, blank=True, verbose_name="Líder del Proyecto")
     numero_version = models.CharField(max_length=255, blank=True, verbose_name="Número de Versión")
     
-    estado = models.CharField(
-        max_length=20, 
-        choices=ESTADOS_TICKET, 
-        default='GENERADO',
-        verbose_name="Estado del Ticket"
-    )
+    # NO duplicar el campo estado aquí
     
     fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
     fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
@@ -191,7 +252,7 @@ class Ticket(models.Model):
     class Meta:
         verbose_name = "Ticket"
         verbose_name_plural = "Tickets"
-        ordering = ['-fecha_creacion']
+        ordering = ['-fecha_creacion']  # ← Los más nuevos primero
         indexes = [
             models.Index(fields=['codigo']),
             models.Index(fields=['estado']),
@@ -212,7 +273,6 @@ class Ticket(models.Model):
             'proyecto': self.proyecto_code,
             'consecutivo': f"{self.consecutivo:03d}"
         }
-    
 
 class SolicitudPruebas(models.Model):
     """Modelo para almacenar las solicitudes de pruebas creadas manualmente"""
@@ -226,7 +286,8 @@ class SolicitudPruebas(models.Model):
         verbose_name="Ticket Asociado",
         related_name='solicitud'
     )
-
+    
+    
     tiene_ticket = models.BooleanField(
         default=False,
         verbose_name="¿Tiene ticket?",
@@ -491,6 +552,7 @@ class SolicitudPruebas(models.Model):
         return ticket
     
     def save(self, *args, **kwargs):
-        if self.numero_version is not None:
-            self.numero_version = str(self.numero_version)
+        # Asegurar que ticket_id nunca sea string vacío
+        if self.ticket_id == '':
+            self.ticket_id = None
         super().save(*args, **kwargs)

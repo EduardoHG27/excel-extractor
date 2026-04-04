@@ -14,7 +14,7 @@
                 <i class="bi bi-{% if es_edicion %}pencil-square{% else %}plus-circle{% endif %}"></i>
                 {{ titulo }}
             </h1>
-            <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url 'extractor:tickets:ticket_list' %}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Volver a Tickets
             </a>
         </div>
@@ -242,7 +242,7 @@
                             <i class="bi bi-{% if es_edicion %}check-circle{% else %}plus-circle{% endif %}"></i>
                             {{ boton_accion }}
                         </button>
-                        <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <a href="{% url 'extractor:tickets:ticket_list' %}" class="btn btn-outline-secondary btn-lg">
                             <i class="bi bi-x-circle"></i> Cancelar
                         </a>
                     </div>

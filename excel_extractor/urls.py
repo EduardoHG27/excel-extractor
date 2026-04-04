@@ -5,7 +5,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('extractor.urls')), 
+    path('', include('extractor.urls')),
+    path('ia/', include('ia_agent.urls')),   
 ]
 
 # Servir archivos media en desarrollo

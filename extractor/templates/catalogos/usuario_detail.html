@@ -1,0 +1,193 @@
+{% extends 'extractor/base_general.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1>👤 Perfil de Usuario</h1>
+            <p>{{ usuario.username }}</p>
+        </div>
+        <div>
+            <a href="{% url 'extractor:usuario_edit' usuario.id %}" class="btn btn-warning">✏️ Editar Perfil</a>
+            <a href="{% url 'extractor:usuarios_list' %}" class="btn btn-secondary">← Volver</a>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px;">
+    <!-- Tarjeta de información personal -->
+    <div style="background-color: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📋 Información Personal</h3>
+        
+        <div style="margin: 15px 0;">
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 130px; font-weight: bold; color: #555;">Usuario:</div>
+                <div>{{ usuario.username }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 130px; font-weight: bold; color: #555;">Email:</div>
+                <div>{{ usuario.email }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 130px; font-weight: bold; color: #555;">Nombre completo:</div>
+                <div>{{ usuario.get_full_name|default:"-" }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 130px; font-weight: bold; color: #555;">Teléfono:</div>
+                <div>{{ usuario.telefono|default:"-" }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 130px; font-weight: bold; color: #555;">Puesto:</div>
+                <div>{{ usuario.puesto|default:"-" }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 130px; font-weight: bold; color: #555;">Cliente asociado:</div>
+                <div>{{ usuario.cliente_asociado.nombre|default:"-" }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tarjeta de información de cuenta -->
+    <div style="background-color: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">🔐 Información de Cuenta</h3>
+        
+        <div style="margin: 15px 0;">
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 150px; font-weight: bold; color: #555;">Estado:</div>
+                <div>
+                    {% if usuario.is_active %}
+                        <span style="background-color: #28a745; color: white; padding: 4px 10px; border-radius: 5px;">Activo</span>
+                    {% else %}
+                        <span style="background-color: #6c757d; color: white; padding: 4px 10px; border-radius: 5px;">Inactivo</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 150px; font-weight: bold; color: #555;">Rol:</div>
+                <div>
+                    {% if usuario.is_superuser %}
+                        <span style="background-color: #dc3545; color: white; padding: 4px 10px; border-radius: 5px;">Administrador</span>
+                    {% elif usuario.is_staff %}
+                        <span style="background-color: #fd7e14; color: white; padding: 4px 10px; border-radius: 5px;">Staff</span>
+                    {% else %}
+                        <span style="background-color: #28a745; color: white; padding: 4px 10px; border-radius: 5px;">Usuario Normal</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 150px; font-weight: bold; color: #555;">Generar tickets:</div>
+                <div>{{ usuario.puede_generar_tickets|yesno:"✅ Sí,❌ No" }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 150px; font-weight: bold; color: #555;">Ver todos tickets:</div>
+                <div>{{ usuario.puede_ver_todos_tickets|yesno:"✅ Sí,❌ No" }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 150px; font-weight: bold; color: #555;">Fecha registro:</div>
+                <div>{{ usuario.date_joined|date:"d/m/Y H:i" }}</div>
+            </div>
+            <div style="display: flex; margin-bottom: 12px;">
+                <div style="width: 150px; font-weight: bold; color: #555;">Último acceso:</div>
+                <div>{{ usuario.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tickets creados por el usuario -->
+<div style="background-color: white; border-radius: 10px; padding: 20px; margin-top: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">🎫 Tickets Creados ({{ total_tickets_creados }})</h3>
+    
+    {% if tickets_creados %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa;">
+                    <th style="padding: 10px; text-align: left;">Código</th>
+                    <th style="padding: 10px; text-align: left;">Cliente</th>
+                    <th style="padding: 10px; text-align: left;">Proyecto</th>
+                    <th style="padding: 10px; text-align: center;">Estado</th>
+                    <th style="padding: 10px; text-align: center;">Fecha</th>
+                    <th style="padding: 10px; text-align: center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets_creados %}
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px;"><strong>{{ ticket.codigo }}</strong></td>
+                    <td style="padding: 10px;">{{ ticket.cliente.nombre|default:"-" }}</td>
+                    <td style="padding: 10px;">{{ ticket.proyecto.nombre|default:"-" }}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        {% if ticket.estado == 'GENERADO' %}
+                            <span style="background-color: #17a2b8; color: white; padding: 3px 8px; border-radius: 5px;">Generado</span>
+                        {% elif ticket.estado == 'EN_PROCESO' %}
+                            <span style="background-color: #fd7e14; color: white; padding: 3px 8px; border-radius: 5px;">En Proceso</span>
+                        {% elif ticket.estado == 'COMPLETADO' %}
+                            <span style="background-color: #28a745; color: white; padding: 3px 8px; border-radius: 5px;">Completado</span>
+                        {% else %}
+                            <span style="background-color: #6c757d; color: white; padding: 3px 8px; border-radius: 5px;">{{ ticket.get_estado_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px; text-align: center;">{{ ticket.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <a href="{% url 'extractor:ticket_detail' ticket.id %}" class="btn-sm btn-info" style="background-color: #17a2b8; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none;">Ver</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; padding: 20px; color: #666;">No ha creado tickets aún</p>
+    {% endif %}
+</div>
+
+<!-- Tickets asignados al usuario -->
+<div style="background-color: white; border-radius: 10px; padding: 20px; margin-top: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📌 Tickets Asignados ({{ total_tickets_asignados }})</h3>
+    
+    {% if tickets_asignados %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa;">
+                    <th style="padding: 10px; text-align: left;">Código</th>
+                    <th style="padding: 10px; text-align: left;">Cliente</th>
+                    <th style="padding: 10px; text-align: left;">Proyecto</th>
+                    <th style="padding: 10px; text-align: center;">Estado</th>
+                    <th style="padding: 10px; text-align: center;">Fecha</th>
+                    <th style="padding: 10px; text-align: center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets_asignados %}
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px;"><strong>{{ ticket.codigo }}</strong></td>
+                    <td style="padding: 10px;">{{ ticket.cliente.nombre|default:"-" }}</td>
+                    <td style="padding: 10px;">{{ ticket.proyecto.nombre|default:"-" }}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        {% if ticket.estado == 'GENERADO' %}
+                            <span style="background-color: #17a2b8; color: white; padding: 3px 8px; border-radius: 5px;">Generado</span>
+                        {% elif ticket.estado == 'EN_PROCESO' %}
+                            <span style="background-color: #fd7e14; color: white; padding: 3px 8px; border-radius: 5px;">En Proceso</span>
+                        {% elif ticket.estado == 'COMPLETADO' %}
+                            <span style="background-color: #28a745; color: white; padding: 3px 8px; border-radius: 5px;">Completado</span>
+                        {% else %}
+                            <span style="background-color: #6c757d; color: white; padding: 3px 8px; border-radius: 5px;">{{ ticket.get_estado_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px; text-align: center;">{{ ticket.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <a href="{% url 'extractor:ticket_detail' ticket.id %}" class="btn-sm btn-info" style="background-color: #17a2b8; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none;">Ver</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; padding: 20px; color: #666;">No tiene tickets asignados</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -56,32 +56,32 @@
         
         <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn" style="padding: 8px 20px;">🔍 Filtrar</button>
-            <a href="{% url 'solicitud_list' %}" class="btn btn-secondary" style="padding: 8px 20px;">🗑️ Limpiar</a>
+            <a href="{% url 'extractor:solicitud_list' %}" class="btn btn-secondary" style="padding: 8px 20px;">🗑️ Limpiar</a>
         </div>
     </form>
 </div>
 
 <div style="margin-bottom: 20px; display: flex; gap: 5px; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap;">
-    <a href="{% url 'solicitud_list' %}" 
+    <a href="{% url 'extractor:solicitud_list' %}" 
        class="btn {% if not request.GET.fecha_desde and not request.GET.fecha_hasta and not request.GET.sin_ticket %}btn-primary{% else %}btn-secondary{% endif %}" 
        style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
         📋 Todas
     </a>
     
-    <a href="{% url 'solicitud_list' %}?fecha_desde={{ today|date:'Y-m-d' }}&fecha_hasta={{ today|date:'Y-m-d' }}" 
+    <a href="{% url 'extractor:solicitud_list' %}?fecha_desde={{ today|date:'Y-m-d' }}&fecha_hasta={{ today|date:'Y-m-d' }}" 
        class="btn {% if request.GET.fecha_desde == today|date:'Y-m-d' and request.GET.fecha_hasta == today|date:'Y-m-d' %}btn-primary{% else %}btn-secondary{% endif %}" 
        style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
         📅 Hoy
     </a>
     
     <!-- CORREGIDO: ahora envía fecha_desde Y fecha_hasta -->
-    <a href="{% url 'solicitud_list' %}?fecha_desde={{ week_ago|date:'Y-m-d' }}&fecha_hasta={{ today|date:'Y-m-d' }}" 
+    <a href="{% url 'extractor:solicitud_list' %}?fecha_desde={{ week_ago|date:'Y-m-d' }}&fecha_hasta={{ today|date:'Y-m-d' }}" 
        class="btn {% if request.GET.fecha_desde == week_ago|date:'Y-m-d' and request.GET.fecha_hasta == today|date:'Y-m-d' %}btn-primary{% else %}btn-secondary{% endif %}" 
        style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
         📊 Última semana
     </a>
     
-    <a href="{% url 'solicitud_list' %}?sin_ticket=si" 
+    <a href="{% url 'extractor:solicitud_list' %}?sin_ticket=si" 
        class="btn {% if request.GET.sin_ticket == 'si' %}btn-primary{% else %}btn-secondary{% endif %}" 
        style="border-radius: 20px 20px 0 0; padding: 8px 20px; text-decoration: none;">
         ⏳ Sin ticket
@@ -166,7 +166,7 @@
                 </td>
                 <td style="padding: 12px; text-align: center;">
                     {% if solicitud.ticket %}
-                        <a href="{% url 'ticket_detail' solicitud.ticket.id %}" style="text-decoration: none;">
+                        <a href="{% url 'extractor:ticket_detail' solicitud.ticket.id %}" style="text-decoration: none;">
                             <span class="badge" style="background-color: #2ecc71;">✓ {{ solicitud.ticket.codigo }}</span>
                         </a>
                     {% else %}
@@ -180,14 +180,14 @@
                 </td>
                 <td style="padding: 12px; text-align: center;">
                     <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
-                        <a href="{% url 'solicitud_detail' solicitud.id %}" class="btn btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">👁️ Ver</a>
+                        <a href="{% url 'extractor:solicitud_detail' solicitud.id %}" class="btn btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">👁️ Ver</a>
                         {% if solicitud.ticket %}
-                        <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-sm" style="background-color: #9b59b6; color: white; padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
+                        <a href="{% url 'extractor:imprimir_solicitud' solicitud.id %}" class="btn btn-sm" style="background-color: #9b59b6; color: white; padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
                             📝 BID-PMC
                         </a>
                         {% endif %}
                         {% if not solicitud.ticket %}
-                            <a href="{% url 'imprimir_solicitud' solicitud.id %}" class="btn btn-success btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
+                            <a href="{% url 'extractor:imprimir_solicitud' solicitud.id %}" class="btn btn-success btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
                                 🖨️ Descargar
                             </a>
                         {% endif %}
@@ -200,7 +200,7 @@
                     <div style="font-size: 3rem; margin-bottom: 10px;">📭</div>
                     <div style="font-size: 1.2rem;">No hay solicitudes registradas</div>
                     <div style="margin-top: 20px;">
-                        <a href="{% url 'crear_solicitud' %}" class="btn">➕ Crear primera solicitud</a>
+                        <a href="{% url 'extractor:crear_solicitud' %}" class="btn">➕ Crear primera solicitud</a>
                     </div>
                 </td>
             </tr>
@@ -241,7 +241,7 @@
 </div>
 <!-- Botón para nueva solicitud -->
 <div style="margin-top: 30px; text-align: right;">
-    <a href="{% url 'crear_solicitud' %}" class="btn btn-success">➕ Nueva Solicitud</a>
+    <a href="{% url 'extractor:crear_solicitud' %}" class="btn btn-success">➕ Nueva Solicitud</a>
 </div>
 
 <script>
@@ -252,7 +252,7 @@ document.getElementById('cliente').addEventListener('change', function() {
     
     if (clienteId) {
         // Usar la URL inversa de Django
-        fetch(`{% url 'proyectos_por_cliente' 0 %}`.replace('0', clienteId))
+        fetch(`{% url 'extractor:proyectos_por_cliente' 0 %}`.replace('0', clienteId))
             .then(response => response.json())
             .then(data => {
                 proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';
@@ -272,7 +272,7 @@ document.getElementById('cliente').addEventListener('change', function() {
     const proyectoSelect = document.getElementById('proyecto');
     
     if (clienteId) {
-        fetch(`{% url 'proyectos_por_cliente' 0 %}`.replace('0', clienteId))
+        fetch(`{% url 'extractor:proyectos_por_cliente' 0 %}`.replace('0', clienteId))
             .then(response => response.json())
             .then(data => {
                 proyectoSelect.innerHTML = '<option value="">Todos los proyectos</option>';

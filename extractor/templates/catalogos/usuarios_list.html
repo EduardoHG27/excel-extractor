@@ -1,0 +1,197 @@
+{% extends 'extractor/base_general.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+    <div>
+        <h1>👥 Gestión de Usuarios</h1>
+        <p>Administra los usuarios registrados en el sistema</p>
+    </div>
+    <div>
+        <a href="{% url 'extractor:usuario_create' %}" class="btn btn-primary" style="background-color: #2c7a4d;">
+            ➕ Nuevo Usuario
+        </a>
+        <a href="{% url 'extractor:export_usuarios_csv' %}" class="btn btn-secondary" style="background-color: #2c6e9e;">
+            📥 Exportar CSV
+        </a>
+    </div>
+</div>
+
+<!-- Tarjetas de estadísticas -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px;">
+    <div style="background: linear-gradient(135deg, #5a67d8 0%, #6b46a0 100%); padding: 20px; border-radius: 10px; color: white;">
+        <div style="font-size: 2rem;">{{ total_usuarios }}</div>
+        <div>Total Usuarios</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #2c7a4d 0%, #3c9e6d 100%); padding: 20px; border-radius: 10px; color: white;">
+        <div style="font-size: 2rem;">{{ usuarios_activos }}</div>
+        <div>Usuarios Activos</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #b56576 0%, #e56b6f 100%); padding: 20px; border-radius: 10px; color: white;">
+        <div style="font-size: 2rem;">{{ admins }}</div>
+        <div>Administradores</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #3a7ca5 0%, #5fa3cf 100%); padding: 20px; border-radius: 10px; color: white;">
+        <div style="font-size: 2rem;">{{ staff }}</div>
+        <div>Staff</div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div style="background-color: #f1f3f5; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        <div style="flex: 1; min-width: 150px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Buscar:</label>
+            <input type="text" name="q" value="{{ busqueda }}" placeholder="Usuario, email, nombre..." class="form-control" style="padding: 8px; width: 100%;">
+        </div>
+        <div style="min-width: 130px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Rol:</label>
+            <select name="rol" class="form-control" style="padding: 8px;">
+                <option value="">Todos</option>
+                <option value="admin" {% if filtro_rol == 'admin' %}selected{% endif %}>Administradores</option>
+                <option value="staff" {% if filtro_rol == 'staff' %}selected{% endif %}>Staff</option>
+                <option value="user" {% if filtro_rol == 'user' %}selected{% endif %}>Usuarios normales</option>
+            </select>
+        </div>
+        <div style="min-width: 150px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Cliente:</label>
+            <select name="cliente" class="form-control" style="padding: 8px;">
+                <option value="">Todos</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}" {% if filtro_cliente|stringformat:"s" == cliente.id|stringformat:"s" %}selected{% endif %}>
+                    {{ cliente.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width: 120px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Estado:</label>
+            <select name="activo" class="form-control" style="padding: 8px;">
+                <option value="">Todos</option>
+                <option value="si" {% if filtro_activo == 'si' %}selected{% endif %}>Activos</option>
+                <option value="no" {% if filtro_activo == 'no' %}selected{% endif %}>Inactivos</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary" style="background-color: #4a6fa5; border: none;">🔍 Filtrar</button>
+            <a href="{% url 'extractor:usuarios_list' %}" class="btn btn-secondary" style="background-color: #6c757d; color: white;">🗑️ Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de usuarios -->
+<div style="background-color: white; border-radius: 10px; overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background-color: #2c3e50; color: white;">
+                <th style="padding: 12px; text-align: left;">
+                    <a href="?orden={% if orden_actual == 'username' %}-username{% else %}username{% endif %}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_rol %}&rol={{ filtro_rol }}{% endif %}" style="color: white; text-decoration: none;">
+                        Usuario {% if orden_actual == 'username' %}↓{% elif orden_actual == '-username' %}↑{% endif %}
+                    </a>
+                </th>
+                <th style="padding: 12px; text-align: left;">Email</th>
+                <th style="padding: 12px; text-align: left;">Nombre completo</th>
+                <th style="padding: 12px; text-align: left;">Puesto</th>
+                <th style="padding: 12px; text-align: left;">Cliente</th>
+                <th style="padding: 12px; text-align: center;">Rol</th>
+                <th style="padding: 12px; text-align: center;">Estado</th>
+                <th style="padding: 12px; text-align: center;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for usuario in usuarios %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 12px;">
+                    <strong>{{ usuario.username }}</strong>
+                </td>
+                <td style="padding: 12px;">{{ usuario.email }}</td>
+                <td style="padding: 12px;">{{ usuario.get_full_name|default:"-" }}</td>
+                <td style="padding: 12px;">{{ usuario.puesto|default:"-" }}</td>
+                <td style="padding: 12px;">{{ usuario.cliente_asociado.nombre|default:"-" }}</td>
+                <td style="padding: 12px; text-align: center;">
+                    {% if usuario.is_superuser %}
+                        <span style="background-color: #b56576; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem;">Admin</span>
+                    {% elif usuario.is_staff %}
+                        <span style="background-color: #d68c5f; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem;">Staff</span>
+                    {% else %}
+                        <span style="background-color: #2c7a4d; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem;">Usuario</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    {% if usuario.is_active %}
+                        <span style="background-color: #2c7a4d; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem;">Activo</span>
+                    {% else %}
+                        <span style="background-color: #95a5a6; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem;">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    <div style="display: flex; gap: 5px; justify-content: center;">
+                        <a href="{% url 'extractor:usuario_detail' usuario.id %}" class="btn-sm btn-info" style="background-color: #5f9ea0; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none;">👁️ Ver</a>
+                        <a href="{% url 'extractor:usuario_edit' usuario.id %}" class="btn-sm btn-warning" style="background-color: #e0a800; color: #333; padding: 5px 10px; border-radius: 5px; text-decoration: none;">✏️ Editar</a>
+                        {% if usuario.is_active %}
+                            <button onclick="confirmarEliminar({{ usuario.id }}, '{{ usuario.username }}')" class="btn-sm btn-danger" style="background-color: #c96f6f; color: white; padding: 5px 10px; border-radius: 5px; border: none; cursor: pointer;">🔴 Desactivar</button>
+                        {% else %}
+                            <form method="post" action="{% url 'extractor:usuario_activar' usuario.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-sm btn-success" style="background-color: #2c7a4d; color: white; padding: 5px 10px; border-radius: 5px; border: none; cursor: pointer;">🟢 Activar</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px;">
+                    <p>No hay usuarios registrados</p>
+                    <a href="{% url 'extractor:usuario_create' %}" class="btn btn-primary">Crear primer usuario</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación -->
+{% if page_obj.has_other_pages %}
+<div style="display: flex; justify-content: center; gap: 10px; margin-top: 30px;">
+    {% if page_obj.has_previous %}
+        <a href="?page=1{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_rol %}&rol={{ filtro_rol }}{% endif %}{% if filtro_cliente %}&cliente={{ filtro_cliente }}{% endif %}" class="btn btn-secondary" style="background-color: #6c757d; color: white;">« Primera</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_rol %}&rol={{ filtro_rol }}{% endif %}{% if filtro_cliente %}&cliente={{ filtro_cliente }}{% endif %}" class="btn btn-secondary" style="background-color: #6c757d; color: white;">‹ Anterior</a>
+    {% endif %}
+    
+    <span style="padding: 8px 16px; background-color: #2c3e50; color: white; border-radius: 5px;">
+        Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+    </span>
+    
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_rol %}&rol={{ filtro_rol }}{% endif %}{% if filtro_cliente %}&cliente={{ filtro_cliente }}{% endif %}" class="btn btn-secondary" style="background-color: #6c757d; color: white;">Siguiente ›</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_rol %}&rol={{ filtro_rol }}{% endif %}{% if filtro_cliente %}&cliente={{ filtro_cliente }}{% endif %}" class="btn btn-secondary" style="background-color: #6c757d; color: white;">Última »</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+function confirmarEliminar(userId, username) {
+    if (confirm(`¿Estás seguro de que deseas desactivar al usuario "${username}"?\n\nPodrás reactivarlo más tarde.`)) {
+        fetch(`/usuario/${userId}/eliminar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error al desactivar usuario');
+            }
+        });
+    }
+}
+</script>
+
+<style>
+    .btn-sm:hover { opacity: 0.8; transform: translateY(-1px); transition: all 0.2s; }
+    table tr:hover { background-color: #f8f9fa; }
+</style>
+{% endblock %}

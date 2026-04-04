@@ -65,11 +65,11 @@
 
             <div class="quick-actions mt-4">
                 {% if ticket and ticket.id %}
-                <a href="{% url 'generar_dictamen' ticket.id %}" class="quick-action-item">
+                <a href="{% url 'extractor:generar_dictamen' ticket.id %}" class="quick-action-item">
                     <i class="fa fa-file-pdf text-danger"></i>
                     <span>Descargar Dictamen</span>
                 </a>
-                <a href="{% url 'generar_resultados' ticket.id %}" class="quick-action-item">
+                <a href="{% url 'extractor:generar_resultados' ticket.id %}" class="quick-action-item">
                     <i class="fa fa-file-excel text-success"></i>
                     <span>Resultados Pruebas</span>
                 </a>
@@ -82,11 +82,11 @@
             </div>
                 <!-- Acciones principales (similar a quick-actions) -->
             <div class="quick-actions mt-4">
-                <a href="{% url 'upload_excel' %}" class="quick-action-item">
+                <a href="{% url 'extractor:upload_excel' %}" class="quick-action-item">
                     <i class="bi bi-upload text-primary"></i>
                     <span>Subir otro archivo</span>
                 </a>
-                <a href="{% url 'ticket_list' %}" class="quick-action-item">
+                <a href="{% url 'extractor:ticket_list' %}" class="quick-action-item">
                     <i class="bi bi-tickets text-warning"></i>
                     <span>Ver tickets</span>
                 </a>
@@ -370,7 +370,7 @@
                             <td>Ticket Asociado:</td>
                             <td>
                                 {% if ticket and ticket.id %}
-                                <a href="{% url 'ticket_detail' ticket.id %}" class="text-decoration-none">
+                                <a href="{% url 'extractor:ticket_detail' ticket.id %}" class="text-decoration-none">
                                     {{ ticket.codigo }} <i class="bi bi-box-arrow-up-right ms-1"></i>
                                 </a>
                                 {% else %}

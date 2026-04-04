@@ -81,7 +81,7 @@
                         <button type="submit" class="btn btn-success btn-lg">
                             🎫 Generar Ticket
                         </button>
-                        <a href="{% url 'ticket_list' %}" class="btn btn-secondary btn-lg">
+                        <a href="{% url 'extractor:ticket_list' %}" class="btn btn-secondary btn-lg">
                             Cancelar
                         </a>
                     </div>
@@ -269,7 +269,7 @@
         }
         
         // Hacer la petición AJAX
-        const url = "{% url 'proyectos_por_cliente' 0 %}";
+        const url = "{% url 'extractor:proyectos_por_cliente' 0 %}";
         fetch(url.replace('0', clienteId))
             .then(response => response.json())
             .then(data => {

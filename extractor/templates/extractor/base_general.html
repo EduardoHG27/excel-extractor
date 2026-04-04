@@ -92,7 +92,7 @@
             background-color: #3498db;
         }
         
-        /* Estilos para dropdowns (solo visibles cuando hay usuario) */
+        /* Estilos para dropdowns */
         .dropdown {
             position: relative;
         }
@@ -523,69 +523,115 @@
             </div>
             <nav>
                 <ul>
-                    {% if user.is_authenticated %}
-                        <!-- Menú para usuarios autenticados -->
-                        <li></li>
-                         <!--<li><a href="{% url 'data_list' %}" class="{% if request.resolver_match.url_name == 'data_list' %}active{% endif %}">📁 Datos</a></li> -->
-                        
-                        <li class="dropdown">
-                            <a href="#" class="dropdown-toggle" onclick="return false;">🎫 Tickets</a>
-                            <div class="dropdown-menu">
-                                <a href="{% url 'upload_excel' %}" style="color: #27ae60 !important; font-weight: bold;">📤 Cargar</a>
-                                <hr>
-                                <a href="{% url 'ticket_create' %}" style="color: #27ae60 !important; font-weight: bold;">➕ Ticket manual</a>
-                                <hr>
-                                <a href="{% url 'ticket_list' %}" style="color: #27ae60 !important; font-weight: bold;">📋 Todos los Tickets</a>
-                            </div>
-                        </li>
-                    
-                        <li class="dropdown">
-                            <a href="#" class="dropdown-toggle" onclick="return false;">📝 Solicitudes</a>
-                            <div class="dropdown-menu">
-                                <a href="{% url 'solicitud_list' %}" style="color: #3498db !important; font-weight: bold;">📋 Ver Solicitudes</a>
-                                <hr>
-                                <strong style="padding: 10px 20px; display: block; color: #6c757d;">BID-PMC-FORM-00017 v4</strong>
-                            </div>
-                        </li>
-                    
-                        <li class="dropdown">
-                            <a href="#" class="dropdown-toggle" onclick="return false;">⚡ Catálogos</a>
-                            <div class="dropdown-menu">
-                                <strong style="padding: 10px 20px; display: block; color: #6c757d;">CLIENTES</strong>
-                                <a href="{% url 'clientes_list' %}" class="{% if request.resolver_match.url_name == 'clientes_list' %}active{% endif %}">📋 Ver Clientes</a>
-                                <a href="{% url 'cliente_create' %}" class="{% if request.resolver_match.url_name == 'cliente_create' %}active{% endif %}">➕ Nuevo Cliente</a>
-                                <hr>
-                                <strong style="padding: 10px 20px; display: block; color: #6c757d;">PROYECTOS</strong>
-                                <a href="{% url 'proyectos_list' %}" class="{% if request.resolver_match.url_name == 'proyectos_list' %}active{% endif %}">📋 Ver Proyectos</a>
-                                <a href="{% url 'proyecto_create' %}" class="{% if request.resolver_match.url_name == 'proyecto_create' %}active{% endif %}">➕ Nuevo Proyecto</a>
-                                <hr>
-                                <strong style="padding: 10px 20px; display: block; color: #6c757d;">TIPOS DE SERVICIO</strong>
-                                <a href="{% url 'tipo_servicio_list' %}" class="{% if request.resolver_match.url_name == 'tipo_servicio_list' %}active{% endif %}">📋 Ver Tipos</a>
-                                <a href="{% url 'tipo_servicio_create' %}" class="{% if request.resolver_match.url_name == 'tipo_servicio_create' %}active{% endif %}">➕ Nuevo Tipo</a>
-                            </div>
-                        </li>
-                        
-                        <li class="dropdown user-menu">
-                            <a href="#" class="dropdown-toggle" onclick="return false;">👤 {{ user.username }}</a>
-                            <div class="dropdown-menu">
-                                <div class="user-info">
-                                    <strong>{{ user.get_full_name|default:user.username }}</strong>
-                                    <small>Último acceso: {{ user.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</small>
-                                </div>
-                                <hr>
-                                <a href="#" onclick="document.getElementById('logout-form').submit(); return false;">
-                                    🚪 Cerrar Sesión
-                                </a>
-                                <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
-                                    {% csrf_token %}
-                                </form>
-                            </div>
-                        </li>
-                    {% else %}
-                        <!-- Menú para usuarios no autenticados (base_solicitudes.html) -->
-                        <li><a href="{% url 'crear_solicitud' %}" class="{% if request.resolver_match.url_name == 'crear_solicitud' %}active{% endif %}">📝 Nueva Solicitud</a></li>
-                        <li><a href="{% url 'login' %}?next={{ request.path }}">🔐 Iniciar Sesión</a></li>
-                    {% endif %}
+        {% if user.is_authenticated %}
+            <!-- Menú para usuarios autenticados -->
+            <li></li>
+
+            <li class="dropdown">
+                <a href="#" class="dropdown-toggle" onclick="return false;">🎫 Tickets</a>
+                <div class="dropdown-menu">
+                    <a href="{% url 'extractor:upload_excel' %}" style="color: #27ae60 !important; font-weight: bold;">📤 Cargar</a>
+                    <hr>
+                    <a href="{% url 'extractor:ticket_create_simple' %}" style="color: #27ae60 !important; font-weight: bold;">➕ Ticket manual</a>
+                    <hr>
+                    <a href="{% url 'extractor:ticket_list' %}" style="color: #27ae60 !important; font-weight: bold;">📋 Todos los Tickets</a>
+                </div>
+            </li>
+
+            <li class="dropdown">
+                <a href="#" class="dropdown-toggle" onclick="return false;">📝 Solicitudes</a>
+                <div class="dropdown-menu">
+                    <a href="{% url 'extractor:solicitud_list' %}" style="color: #3498db !important; font-weight: bold;">📋 Ver Solicitudes</a>
+                    <hr>
+                    <a href="{% url 'extractor:crear_solicitud' %}" style="color: #27ae60 !important; font-weight: bold;">➕ Nueva Solicitud</a>
+                    <hr>
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">BID-PMC-FORM-00017 v4</strong>
+                </div>
+            </li>
+
+            <li class="dropdown">
+                <a href="#" class="dropdown-toggle" onclick="return false;">⚡ Catálogos</a>
+                <div class="dropdown-menu">
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">CLIENTES</strong>
+                    <a href="{% url 'extractor:clientes_list' %}">📋 Ver Clientes</a>
+                    <a href="{% url 'extractor:cliente_create' %}">➕ Nuevo Cliente</a>
+                    <hr>
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">PROYECTOS</strong>
+                    <a href="{% url 'extractor:proyectos_list' %}">📋 Ver Proyectos</a>
+                    <a href="{% url 'extractor:proyecto_create' %}">➕ Nuevo Proyecto</a>
+                    <hr>
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">TIPOS DE SERVICIO</strong>
+                    <a href="{% url 'extractor:tipo_servicio_list' %}">📋 Ver Tipos</a>
+                    <a href="{% url 'extractor:tipo_servicio_create' %}">➕ Nuevo Tipo</a>
+                </div>
+            </li>
+
+            <!-- MENÚ DE CONFIGURACIÓN - SOLO PARA SUPERUSUARIOS -->
+            {% if user.is_superuser %}
+            <li class="dropdown">
+                <a href="#" class="dropdown-toggle" onclick="return false;">⚙️ Configuración</a>
+                <div class="dropdown-menu">
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">👥 USUARIOS</strong>
+                    <a href="{% url 'extractor:usuarios_list' %}" style="color: #9b59b6 !important; font-weight: bold;">
+                        📋 Lista de Usuarios
+                    </a>
+                    <a href="{% url 'extractor:usuario_create' %}" style="color: #27ae60 !important; font-weight: bold;">
+                        ➕ Crear Nuevo Usuario
+                    </a>
+                    <a href="{% url 'extractor:export_usuarios_csv' %}" style="color: #3498db !important;">
+                        📥 Exportar Usuarios a CSV
+                    </a>
+                    <hr>
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">🗄️ SISTEMA</strong>
+                    <a href="{% url 'extractor:export_all_backup' %}" style="color: #e67e22 !important; font-weight: bold;">
+                        💾 Backup Completo (ZIP)
+                    </a>
+                    <hr>
+                    <strong style="padding: 10px 20px; display: block; color: #6c757d;">📊 EXPORTACIONES</strong>
+                    <a href="{% url 'extractor:export_clientes_csv' %}">
+                        📋 Exportar Clientes
+                    </a>
+                    <a href="{% url 'extractor:export_proyectos_csv' %}">
+                        📋 Exportar Proyectos
+                    </a>
+                    <a href="{% url 'extractor:export_tipos_servicio_csv' %}">
+                        📋 Exportar Tipos Servicio
+                    </a>
+                    <a href="{% url 'extractor:export_tickets_excel' %}">
+                        📊 Exportar Tickets (Excel)
+                    </a>
+                </div>
+            </li>
+            {% endif %}
+            
+            <li class="dropdown user-menu">
+                <a href="#" class="dropdown-toggle" onclick="return false;">👤 {{ user.username }}</a>
+                <div class="dropdown-menu">
+                    <div class="user-info">
+                        <strong>{{ user.get_full_name|default:user.username }}</strong>
+                        {% if user.is_superuser %}
+                            <small style="color: #9b59b6;">🔑 Superusuario</small>
+                        {% else %}
+                            <small>Último acceso: {{ user.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</small>
+                        {% endif %}
+                    </div>
+                    <hr>
+                    <a href="{% url 'extractor:usuario_detail' user.id %}">
+                        👤 Mi Perfil
+                    </a>
+                    <a href="#" onclick="document.getElementById('logout-form').submit(); return false;">
+                        🚪 Cerrar Sesión
+                    </a>
+                    <form id="logout-form" method="post" action="{% url 'extractor:logout' %}" style="display: none;">
+                        {% csrf_token %}
+                    </form>
+                </div>
+            </li>
+        {% else %}
+            <!-- Menú para usuarios NO autenticados -->
+            <li><a href="{% url 'extractor:crear_solicitud' %}" class="{% if request.resolver_match.url_name == 'crear_solicitud' %}active{% endif %}">📝 Nueva Solicitud</a></li>
+            <li><a href="{% url 'extractor:login' %}?next={{ request.path }}">🔐 Iniciar Sesión</a></li>
+        {% endif %}
                 </ul>
             </nav>
         </div>

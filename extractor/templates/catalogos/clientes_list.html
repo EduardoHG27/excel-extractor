@@ -28,19 +28,19 @@
                 </h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}">Inicio</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'extractor:upload_excel' %}">Inicio</a></li>
                         <li class="breadcrumb-item active">Clientes</li>
                     </ol>
                 </nav>
             </div>
             <div>
-                <a href="{% url 'cliente_create' %}" class="btn btn-primary">
+                <a href="{% url 'extractor:cliente_create' %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Nuevo Cliente
                 </a>
-                <a href="{% url 'tipo_servicio_list' %}" class="btn btn-outline-info">
+                <a href="{% url 'extractor:tipo_servicio_list' %}" class="btn btn-outline-info">
                     <i class="bi bi-list-check"></i> Tipos de Pruebas
                 </a>
-                <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">
+                <a href="{% url 'extractor:upload_excel' %}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Volver
                 </a>
             </div>
@@ -142,12 +142,12 @@
                             <td>{{ cliente.fecha_creacion|date:"d/m/Y H:i" }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{% url 'cliente_edit' cliente.id %}" class="btn btn-sm btn-warning">✏️ Editar</a>
+                                    <a href="{% url 'extractor:cliente_edit' cliente.id %}" class="btn btn-sm btn-warning">✏️ Editar</a>
                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ cliente.id }}">
                                         🗑️ Eliminar
                                     </button>
                                 </div>
-                                <a href="{% url 'proyectos_list' %}?cliente={{ cliente.id }}" class="btn btn-sm btn-info">
+                                <a href="{% url 'extractor:proyectos_list' %}?cliente={{ cliente.id }}" class="btn btn-sm btn-info">
                                     Ver Proyectos ({{ cliente.total_proyectos }})
                                 </a>
                             </td>
@@ -169,7 +169,7 @@
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <form method="post" action="{% url 'cliente_delete' cliente.id %}">
+                                        <form method="post" action="{% url 'extractor:cliente_delete' cliente.id %}">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-danger">Sí, eliminar</button>
                                         </form>
@@ -182,7 +182,7 @@
                         <tr>
                             <td colspan="6" class="text-center">
                                 <div class="alert alert-info">
-                                    No hay clientes registrados. <a href="{% url 'cliente_create' %}" class="alert-link">Crea el primero</a>
+                                    No hay clientes registrados. <a href="{% url 'extractor:cliente_create' %}" class="alert-link">Crea el primero</a>
                                 </div>
                             </td>
                         </tr>

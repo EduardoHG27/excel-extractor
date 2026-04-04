@@ -39,22 +39,22 @@
                 </h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}">Inicio</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'extractor:upload_excel' %}">Inicio</a></li>
                         <li class="breadcrumb-item active">Proyectos</li>
                     </ol>
                 </nav>
             </div>
             <div>
-                <a href="{% url 'proyecto_create' %}" class="btn btn-primary">
+                <a href="{% url 'extractor:proyecto_create' %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Nuevo Proyecto
                 </a>
-                <a href="{% url 'clientes_list' %}" class="btn btn-outline-info">
+                <a href="{% url 'extractor:clientes_list' %}" class="btn btn-outline-info">
                     <i class="bi bi-people"></i> Ver Clientes
                 </a>
-                <a href="{% url 'tipo_servicio_list' %}" class="btn btn-outline-secondary">
+                <a href="{% url 'extractor:tipo_servicio_list' %}" class="btn btn-outline-secondary">
                     <i class="bi bi-list-check"></i> Ver Tipos de Pruebas
                 </a>
-                <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">
+                <a href="{% url 'extractor:upload_excel' %}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Volver
                 </a>
             </div>
@@ -75,7 +75,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Filtros Avanzados</h5>
                 {% if has_filters %}
-                <a href="{% url 'proyectos_list' %}" class="btn btn-sm btn-outline-danger">Limpiar todos los filtros</a>
+                <a href="{% url 'extractor:proyectos_list' %}" class="btn btn-sm btn-outline-danger">Limpiar todos los filtros</a>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -125,7 +125,7 @@
                     
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
-                        <a href="{% url 'proyectos_list' %}" class="btn btn-secondary">Limpiar</a>
+                        <a href="{% url 'extractor:proyectos_list' %}" class="btn btn-secondary">Limpiar</a>
                         
                         {% if has_filters %}
                         <span class="ms-3 text-muted">
@@ -275,7 +275,7 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{% url 'proyecto_edit' proyecto.id %}" class="btn btn-sm btn-warning">Editar</a>
+                                    <a href="{% url 'extractor:proyecto_edit' proyecto.id %}" class="btn btn-sm btn-warning">Editar</a>
                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ proyecto.id }}">
                                         Eliminar
                                     </button>
@@ -299,7 +299,7 @@
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <form method="post" action="{% url 'proyecto_delete' proyecto.id %}">
+                                        <form method="post" action="{% url 'extractor:proyecto_delete' proyecto.id %}">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-danger">Sí, eliminar</button>
                                         </form>
@@ -314,10 +314,10 @@
                                 <div class="alert alert-info">
                                     {% if has_filters %}
                                         No hay proyectos que coincidan con los filtros aplicados. 
-                                        <a href="{% url 'proyectos_list' %}" class="alert-link">Limpiar filtros</a>
+                                        <a href="{% url 'extractor:proyectos_list' %}" class="alert-link">Limpiar filtros</a>
                                     {% else %}
                                         No hay proyectos registrados. 
-                                        <a href="{% url 'proyecto_create' %}" class="alert-link">Crea el primero</a>
+                                        <a href="{% url 'extractor:proyecto_create' %}" class="alert-link">Crea el primero</a>
                                     {% endif %}
                                 </div>
                             </td>

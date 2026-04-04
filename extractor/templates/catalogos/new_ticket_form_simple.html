@@ -1,5 +1,5 @@
 <!-- templates/catalogos/new_ticket_form_simple.html -->
-{% extends 'extractor/base.html' %}
+{% extends 'extractor/base_general.html' %}
 
 {% block content %}
 <div class="container mt-4">
@@ -128,7 +128,7 @@
                             <button type="submit" class="btn btn-success btn-lg">
                                 🎫 Generar Ticket
                             </button>
-                            <a href="{% url 'ticket_list' %}" class="btn btn-secondary btn-lg">
+                            <a href="{% url 'extractor:ticket_list' %}" class="btn btn-secondary btn-lg">
                                 Cancelar
                             </a>
                         </div>

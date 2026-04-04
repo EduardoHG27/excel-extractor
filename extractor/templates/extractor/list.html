@@ -11,7 +11,7 @@
     <p>
         <strong>Total de registros:</strong> {{ data_list|length }}
     </p>
-    <a href="{% url 'upload_excel' %}" class="btn">📤 Nuevo Archivo</a>
+    <a href="{% url 'extractor:upload_excel' %}" class="btn">📤 Nuevo Archivo</a>
 </div>
 
 {% if data_list %}
@@ -115,7 +115,7 @@
 <div class="alert" style="text-align: center; padding: 40px;">
     <h3 style="color: #7f8c8d; margin-bottom: 15px;">No hay datos extraídos todavía</h3>
     <p style="margin-bottom: 20px;">Sube tu primer archivo Excel para comenzar a extraer datos.</p>
-    <a href="{% url 'upload_excel' %}" class="btn btn-success">📤 Subir Primer Archivo</a>
+    <a href="{% url 'extractor:upload_excel' %}" class="btn btn-success">📤 Subir Primer Archivo</a>
 </div>
 {% endif %}
 

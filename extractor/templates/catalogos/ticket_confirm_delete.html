@@ -44,7 +44,7 @@
                         
                         <form method="post" class="d-flex justify-content-between">
                             {% csrf_token %}
-                            <a href="{% url 'ticket_detail' ticket.id %}" class="btn btn-secondary">
+                            <a href="{% url 'extractor:ticket_detail' ticket.id %}" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> Cancelar
                             </a>
                             <button type="submit" class="btn btn-danger">

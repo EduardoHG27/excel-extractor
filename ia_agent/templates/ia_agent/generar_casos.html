@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Generar Casos de Prueba{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🤖 Generar Casos de Prueba con IA</h1>
+    <p>
+        <a href="{% if tipo == 'ticket' %}{% url 'extractor:ticket_detail' ticket.id %}{% else %}{% url 'extractor:detalle_solicitud' solicitud.id %}{% endif %}" class="back-link">
+            ← Volver al detalle
+        </a>
+    </p>
+</div>
+
+<!-- Alerta informativa -->
+<div class="alert alert-info" style="margin-bottom: 30px;">
+    <i class="fas fa-info-circle"></i>
+    <strong>Información:</strong> Se utilizará inteligencia artificial para analizar el requerimiento y generar casos de prueba estructurados.
+    Este proceso puede tomar algunos segundos.
+</div>
+
+<form method="post" id="generarCasosForm">
+    {% csrf_token %}
+    
+    <!-- Información del Requerimiento -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+            📋 Información del Requerimiento
+        </h3>
+        
+        {% if tipo == 'ticket' %}
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+            <div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Código del Ticket:</td>
+                        <td style="padding: 8px 0;">{{ ticket.codigo }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Estado:</td>
+                        <td style="padding: 8px 0;">
+                            <span class="badge" style="background-color: 
+                                {% if ticket.estado == 'pendiente' %}#f39c12
+                                {% elif ticket.estado == 'en_proceso' %}#3498db
+                                {% elif ticket.estado == 'completado' %}#2ecc71
+                                {% else %}#95a5a6{% endif %};">
+                                {{ ticket.get_estado_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Responsable Solicitud:</td>
+                        <td style="padding: 8px 0;">{{ ticket.responsable_solicitud|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Líder Proyecto:</td>
+                        <td style="padding: 8px 0;">{{ ticket.lider_proyecto|default:"No especificado" }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Versión:</td>
+                        <td style="padding: 8px 0;">{{ ticket.numero_version|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Proyecto:</td>
+                        <td style="padding: 8px 0;">{{ ticket.proyecto.nombre|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Cliente:</td>
+                        <td style="padding: 8px 0;">{{ ticket.cliente.nombre|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Tipo Servicio:</td>
+                        <td style="padding: 8px 0;">{{ ticket.tipo_servicio.nombre|default:"No especificado" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        {% elif tipo == 'solicitud' %}
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+            <div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Nombre del Archivo:</td>
+                        <td style="padding: 8px 0;">{{ solicitud.nombre_archivo }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Fecha Solicitud:</td>
+                        <td style="padding: 8px 0;">{{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Cliente:</td>
+                        <td style="padding: 8px 0;">{{ solicitud.cliente.nombre }} ({{ solicitud.cliente.nomenclatura }})</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Proyecto:</td>
+                        <td style="padding: 8px 0;">{{ solicitud.proyecto.nombre }} ({{ solicitud.proyecto.codigo }})</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            <h4 style="color: #2c3e50; margin-bottom: 10px;">Descripción:</h4>
+            <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                {{ solicitud.descripcion|default:"Sin descripción"|linebreaks }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Datos del Excel asociado -->
+    {% if tiene_excel or ticket.excel_data %}
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+            📊 Datos del Excel Asociado
+        </h3>
+        
+        {% if tiene_excel %}
+            {% if funcionalidad %}
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">Funcionalidad de la liberación:</h4>
+                <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                    {{ funcionalidad|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if detalle_cambios %}
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">Detalle de los cambios:</h4>
+                <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                    {{ detalle_cambios|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if justificacion %}
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">Justificación del cambio:</h4>
+                <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                    {{ justificacion|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+        
+        {% if tipo == 'ticket' and ticket.excel_data %}
+            <div class="alert alert-success" style="margin-top: 15px;">
+                <i class="fas fa-check-circle"></i>
+                <strong>Información detectada:</strong>
+                <ul style="margin-top: 10px; margin-bottom: 0;">
+                    <li>✅ Funcionalidad específica identificada</li>
+                    <li>✅ Detalle de cambios disponible</li>
+                    <li>✅ Justificación del cambio incluida</li>
+                </ul>
+                <small style="display: block; margin-top: 10px; color: #666;">
+                    La IA utilizará toda esta información para generar casos más precisos.
+                </small>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Configuración de Generación - ACTUALIZADA CON SELECTOR -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+            ⚙️ Configuración de Generación
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+            <!-- NUEVO: Selector de cantidad de casos -->
+            <div>
+                <label for="num_casos" style="display: block; font-weight: bold; margin-bottom: 8px; color: #2c3e50;">
+                    📊 Número de casos a generar:
+                </label>
+                <select id="num_casos" name="num_casos" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+                    <option value="3">3 casos (rápido)</option>
+                    <option value="5">5 casos</option>
+                    <option value="8" selected>8 casos (recomendado)</option>
+                    <option value="10">10 casos</option>
+                    <option value="12">12 casos</option>
+                    <option value="15">15 casos (detallado)</option>
+                </select>
+                <div style="color: #7f8c8d; font-size: 0.85rem; margin-top: 5px;">
+                    <i class="fas fa-clock"></i> Más casos = más tiempo de procesamiento (15-30 segundos)
+                </div>
+            </div>
+            
+            <!-- Selector de distribución de riesgo -->
+            <div>
+                <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #2c3e50;">
+                    🎯 Enfoque de pruebas:
+                </label>
+                <div style="background-color: white; padding: 10px; border-radius: 4px; border: 1px solid #ddd;">
+                    <div style="margin-bottom: 8px;">
+                        <span style="display: inline-block; width: 12px; height: 12px; background-color: #e74c3c; border-radius: 2px;"></span>
+                        <span style="margin-left: 8px;">Alto riesgo (70%) - Flujo principal y crítico</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <span style="display: inline-block; width: 12px; height: 12px; background-color: #f39c12; border-radius: 2px;"></span>
+                        <span style="margin-left: 8px;">Medio riesgo (20%) - Validaciones importantes</span>
+                    </div>
+                    <div>
+                        <span style="display: inline-block; width: 12px; height: 12px; background-color: #2ecc71; border-radius: 2px;"></span>
+                        <span style="margin-left: 8px;">Bajo riesgo (10%) - Casos borde y UX</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Checkbox: Incluir casos negativos -->
+            <div>
+                <div class="form-check" style="margin-bottom: 10px;">
+                    <input class="form-check-input" type="checkbox" id="incluir_negativos" name="incluir_negativos" checked>
+                    <label class="form-check-label" for="incluir_negativos" style="font-weight: bold; color: #2c3e50;">
+                        🚫 Incluir casos de prueba negativos
+                    </label>
+                    <div style="color: #7f8c8d; font-size: 0.85rem; margin-top: 5px; margin-left: 25px;">
+                        Casos que validan errores, validaciones y comportamientos incorrectos
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Checkbox: Casos detallados -->
+            <div>
+                <div class="form-check" style="margin-bottom: 10px;">
+                    <input class="form-check-input" type="checkbox" id="detallado" name="detallado">
+                    <label class="form-check-label" for="detallado" style="font-weight: bold; color: #2c3e50;">
+                        📝 Generar casos detallados
+                    </label>
+                    <div style="color: #7f8c8d; font-size: 0.85rem; margin-top: 5px; margin-left: 25px;">
+                        Incluye pasos más específicos, precondiciones detalladas y datos de prueba
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información adicional sobre la distribución -->
+        <div style="margin-top: 20px; padding: 12px; background-color: #e8f4fd; border-radius: 4px; border-left: 4px solid #3498db;">
+            <small style="color: #2c3e50;">
+                <i class="fas fa-lightbulb"></i>
+                <strong>Consejo:</strong> Para funcionalidades complejas o críticas, selecciona 10-15 casos. 
+                Para pruebas rápidas o funcionalidades simples, 5-8 casos son suficientes.
+            </small>
+        </div>
+    </div>
+    
+    <!-- Botones de acción -->
+    <div style="display: flex; gap: 15px; justify-content: flex-end;">
+        <a href="{% if tipo == 'ticket' %}{% url 'extractor:ticket_detail' ticket.id %}{% else %}{% url 'extractor:detalle_solicitud' solicitud.id %}{% endif %}" 
+           class="btn" style="font-size: 1.1rem; padding: 12px 30px;">
+            Cancelar
+        </a>
+        <button type="submit" class="btn btn-success" id="btnGenerar" style="font-size: 1.1rem; padding: 12px 30px;">
+            <i class="fas fa-magic"></i> Generar Casos de Prueba
+        </button>
+    </div>
+</form>
+
+<!-- Overlay de carga -->
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; border-radius: 10px; padding: 40px; text-align: center; min-width: 300px;">
+        <div style="margin-bottom: 20px;">
+            <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 5px;"></div>
+            <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite 0.2s; margin: 0 5px;"></div>
+            <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite 0.4s; margin: 0 5px;"></div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <i class="fas fa-brain fa-3x" style="color: #3498db; animation: pulse 1.5s ease-in-out infinite;"></i>
+        </div>
+        
+        <h4 id="loadingMessage" style="margin-bottom: 15px;">Analizando la solicitud</h4>
+        
+        <div style="width: 100%; background-color: #f0f0f0; border-radius: 5px; overflow: hidden; margin-bottom: 15px;">
+            <div id="progressBar" style="width: 0%; height: 8px; background-color: #3498db; transition: width 0.3s ease;"></div>
+        </div>
+        
+        <p id="loadingSubMessage" style="color: #666; margin: 0;">
+            Procesando requerimientos...
+        </p>
+        
+        <p class="text-muted mt-3 mb-0 small">
+            <i class="fas fa-clock"></i> <span id="tiempoEstimado">Tiempo estimado: 15-30 segundos</span>
+        </p>
+    </div>
+</div>
+
+<style>
+    .back-link {
+        color: #3498db;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .back-link:hover {
+        text-decoration: underline;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        color: white;
+    }
+    
+    h4 {
+        font-size: 1rem;
+        color: #34495e;
+    }
+    
+    .btn {
+        display: inline-block;
+        background-color: #3498db;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        text-decoration: none;
+        transition: background-color 0.3s;
+    }
+    
+    .btn:hover {
+        background-color: #2980b9;
+    }
+    
+    .btn-success {
+        background-color: #2ecc71;
+    }
+    
+    .btn-success:hover {
+        background-color: #27ae60;
+    }
+    
+    .alert {
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #3498db;
+        background-color: #ecf0f1;
+    }
+    
+    .alert-info {
+        border-left-color: #3498db;
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .alert-success {
+        border-left-color: #2ecc71;
+        background-color: #d5f4e6;
+        color: #155724;
+    }
+    
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 0.7;
+        }
+    }
+    
+    @keyframes dots {
+        0%, 20% { content: "."; opacity: 0.3; }
+        40% { content: ".."; opacity: 0.6; }
+        60%, 100% { content: "..."; opacity: 1; }
+    }
+    
+    .dots-animation {
+        display: inline-block;
+        animation: dots 1.5s steps(3, end) infinite;
+    }
+    
+    select:hover {
+        border-color: #3498db;
+    }
+    
+    select:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 5px rgba(52,152,219,0.3);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('generarCasosForm');
+        const btnGenerar = document.getElementById('btnGenerar');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const loadingSubMessage = document.getElementById('loadingSubMessage');
+        const progressBar = document.getElementById('progressBar');
+        const tiempoEstimadoSpan = document.getElementById('tiempoEstimado');
+        const numCasosSelect = document.getElementById('num_casos');
+        
+        // Actualizar tiempo estimado según cantidad de casos
+        function actualizarTiempoEstimado() {
+            const numCasos = parseInt(numCasosSelect.value);
+            let tiempoMin = 10;
+            let tiempoMax = 20;
+            
+            if (numCasos <= 5) {
+                tiempoMin = 8;
+                tiempoMax = 15;
+            } else if (numCasos <= 8) {
+                tiempoMin = 12;
+                tiempoMax = 20;
+            } else if (numCasos <= 10) {
+                tiempoMin = 15;
+                tiempoMax = 25;
+            } else {
+                tiempoMin = 20;
+                tiempoMax = 35;
+            }
+            
+            tiempoEstimadoSpan.textContent = `Tiempo estimado: ${tiempoMin}-${tiempoMax} segundos`;
+        }
+        
+        // Escuchar cambios en el selector
+        if (numCasosSelect) {
+            numCasosSelect.addEventListener('change', actualizarTiempoEstimado);
+            actualizarTiempoEstimado();
+        }
+        
+        const mensajes = [
+            { principal: "Analizando la solicitud", secundario: "Procesando requerimientos", progress: 15 },
+            { principal: "Analizando la solicitud", secundario: "Extrayendo información clave", progress: 30 },
+            { principal: "Analizando la solicitud", secundario: "Identificando escenarios de prueba", progress: 45 },
+            { principal: "Creando casos de prueba", secundario: "Generando casos positivos", progress: 60 },
+            { principal: "Creando casos de prueba", secundario: "Generando casos negativos", progress: 75 },
+            { principal: "Priorizando casos de prueba", secundario: "Evaluando criticidad", progress: 85 },
+            { principal: "Priorizando casos de prueba", secundario: "Asignando niveles de prioridad", progress: 95 },
+            { principal: "Finalizando", secundario: "Preparando resultados", progress: 100 }
+        ];
+        
+        let mensajeIndex = 0;
+        let intervalId = null;
+        
+        function actualizarMensaje() {
+            if (mensajeIndex < mensajes.length) {
+                const msg = mensajes[mensajeIndex];
+                loadingMessage.textContent = msg.principal;
+                loadingSubMessage.innerHTML = msg.secundario + '<span class="dots-animation">...</span>';
+                progressBar.style.width = msg.progress + '%';
+                mensajeIndex++;
+            } else {
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                }
+            }
+        }
+        
+        function iniciarAnimacionMensajes() {
+            mensajeIndex = 0;
+            actualizarMensaje();
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+            intervalId = setInterval(actualizarMensaje, 1800);
+        }
+        
+        form.addEventListener('submit', function(e) {
+            // Mostrar overlay
+            loadingOverlay.style.display = 'flex';
+            iniciarAnimacionMensajes();
+            btnGenerar.disabled = true;
+            btnGenerar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+            
+            // Actualizar tiempo estimado final
+            const numCasos = parseInt(numCasosSelect.value);
+            let tiempoTexto = '';
+            if (numCasos <= 5) {
+                tiempoTexto = '8-15 segundos';
+            } else if (numCasos <= 8) {
+                tiempoTexto = '12-20 segundos';
+            } else if (numCasos <= 10) {
+                tiempoTexto = '15-25 segundos';
+            } else {
+                tiempoTexto = '20-35 segundos';
+            }
+            loadingSubMessage.innerHTML = `Generando ${numCasos} casos de prueba... <span class="dots-animation"></span>`;
+            tiempoEstimadoSpan.textContent = `Tiempo estimado: ${tiempoTexto}`;
+        });
+    });
+</script>
+{% endblock %}

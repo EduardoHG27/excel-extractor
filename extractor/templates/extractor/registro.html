@@ -1,0 +1,177 @@
+{% extends 'extractor/base_general.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📝 Registro de Usuario</h1>
+    <p>Crea una cuenta para acceder al sistema de gestión de solicitudes de pruebas</p>
+</div>
+
+{% if messages %}
+<div style="margin-bottom: 30px;">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" style="padding: 15px; border-radius: 5px; margin-bottom: 10px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px; margin-bottom: 30px;">
+    <form method="post" style="margin-top: 0;">
+        {% csrf_token %}
+        
+        <!-- Sección: Información de Usuario -->
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                👤 Información de Usuario
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Nombre de usuario -->
+                <div style="margin-bottom: 15px;">
+                    <label for="id_username" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                        Nombre de usuario: <span style="color: #e74c3c;">*</span>
+                    </label>
+                    <input type="text" name="username" id="id_username" class="form-control" required
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                    <small class="text-muted" style="display: block; margin-top: 5px; color: #7f8c8d;">
+                        150 caracteres o menos. Letras, números y @/./+/-/_ solamente.
+                    </small>
+                </div>
+
+                <!-- Correo electrónico -->
+                <div style="margin-bottom: 15px;">
+                    <label for="id_email" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                        Correo electrónico: <span style="color: #e74c3c;">*</span>
+                    </label>
+                    <input type="email" name="email" id="id_email" class="form-control" required
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Contraseña -->
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                🔒 Seguridad
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Contraseña -->
+                <div style="margin-bottom: 15px;">
+                    <label for="id_password1" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                        Contraseña: <span style="color: #e74c3c;">*</span>
+                    </label>
+                    <input type="password" name="password1" id="id_password1" class="form-control" required
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                    <small class="text-muted" style="display: block; margin-top: 5px; color: #7f8c8d;">
+                        Tu contraseña debe tener al menos 8 caracteres.
+                    </small>
+                </div>
+
+                <!-- Confirmar contraseña -->
+                <div style="margin-bottom: 15px;">
+                    <label for="id_password2" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                        Confirmar contraseña: <span style="color: #e74c3c;">*</span>
+                    </label>
+                    <input type="password" name="password2" id="id_password2" class="form-control" required
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Información Adicional -->
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                📋 Información Adicional
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Teléfono -->
+                <div style="margin-bottom: 15px;">
+                    <label for="id_telefono" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                        Teléfono:
+                    </label>
+                    <input type="text" name="telefono" id="id_telefono" class="form-control"
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                </div>
+
+                <!-- Puesto -->
+                <div style="margin-bottom: 15px;">
+                    <label for="id_puesto" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                        Puesto:
+                    </label>
+                    <input type="text" name="puesto" id="id_puesto" class="form-control"
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                </div>
+            </div>
+
+            <!-- Cliente asociado -->
+            <div style="margin-bottom: 15px;">
+                <label for="id_cliente_asociado" style="display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50;">
+                    Cliente asociado:
+                </label>
+                <select name="cliente_asociado" id="id_cliente_asociado" class="form-control"
+                        style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-size: 1rem;">
+                    <option value="">---------</option>
+                    {% for cliente in form.fields.cliente_asociado.queryset %}
+                        <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted" style="display: block; margin-top: 5px; color: #7f8c8d;">
+                    Opcional: Asocia tu cuenta a un cliente específico
+                </small>
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button type="submit" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                ✅ Registrarse
+            </button>
+            <a href="{% url 'extractor:login' %}" class="btn btn-secondary" style="font-size: 1.1rem; padding: 12px 30px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; display: inline-block; text-align: center;">
+                🔐 ¿Ya tienes cuenta? Iniciar sesión
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+    }
+    
+    .btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .alert-error, .alert-danger {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+    }
+    
+    .alert-info {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+    }
+</style>
+{% endblock %}

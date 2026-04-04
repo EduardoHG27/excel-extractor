@@ -13,12 +13,12 @@
 
     <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;">
         <!-- Botón para descargar la solicitud -->
-        <a href="{% url 'imprimir_solicitud' solicitud_creada.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
+        <a href="{% url 'extractor:imprimir_solicitud' solicitud_creada.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
             ⬇️ Descargar Solicitud de Pruebas (Excel)
         </a>
 
         <!-- Botón para ver detalle de la solicitud -->
-        <a href="{% url 'solicitud_detail' solicitud_creada.id %}" class="btn btn-info" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
+        <a href="{% url 'extractor:solicitud_detail' solicitud_creada.id %}" class="btn btn-info" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
             👁️ Ver Detalle de Solicitud
         </a>
     </div>
@@ -28,7 +28,7 @@
     <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 8px; margin-top: 20px;">
         <p style="font-size: 1.1rem; margin-bottom: 10px;">🎉 Se generó el ticket automáticamente:</p>
         <p style="font-size: 1.3rem; font-weight: bold; margin-bottom: 15px;">{{ ticket_generado.codigo }}</p>
-        <a href="{% url 'ticket_detail' ticket_generado.id %}" class="btn btn-primary btn-sm">Ver Detalle del Ticket</a>
+        <a href="{% url 'extractor:ticket_detail' ticket_generado.id %}" class="btn btn-primary btn-sm">Ver Detalle del Ticket</a>
     </div>
     {% endif %}
 

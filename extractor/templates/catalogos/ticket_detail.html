@@ -316,16 +316,18 @@
 </head>
 <body>
     <div class="container mt-4 mb-5">
+
+        
         <!-- Breadcrumb simplificado -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-transparent p-0 m-0">
-                    <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}" class="text-decoration-none">Inicio</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'ticket_list' %}" class="text-decoration-none">Tickets</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'extractor:upload_excel' %}" class="text-decoration-none">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'extractor:ticket_list' %}" class="text-decoration-none">Tickets</a></li>
                     <li class="breadcrumb-item active">Ticket {{ ticket.codigo }}</li>
                 </ol>
             </nav>
-            <a href="{% url 'ticket_list' %}" class="btn btn-modern btn-outline">
+            <a href="{% url 'extractor:ticket_list' %}" class="btn btn-modern btn-outline">
                 <i class="bi bi-arrow-left"></i> Listado Tickets
             </a>
         </div>
@@ -338,102 +340,266 @@
                 </div>
             {% endfor %}
         {% endif %}
-
-        <!-- Hero Section - Información principal del ticket -->
-        <div class="ticket-hero">
-            <div class="row align-items-center">
-                <div class="col-lg-8">
-                    <div class="ticket-code">
-                        {{ ticket.codigo }}
-                        <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ ticket.codigo }}')" title="Copiar código">
-                            <i class="bi bi-clipboard"></i> Copiar
-                        </button>
-                    </div>
-                    <div class="d-flex gap-3 mt-3">
-                        <span class="badge-modern">
-                            <i class="bi bi-calendar3 me-2"></i>Creado: {{ ticket.fecha_creacion|date:"d/m/Y H:i" }}
-                        </span>
-                        <span class="badge-modern">
-                            <i class="bi bi-arrow-repeat me-2"></i>Actualizado: {{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}
-                        </span>
-                    </div>
-                </div>
-                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                    <span class="badge estado-badge bg-{% if ticket.estado == 'GENERADO' %}info
-                                                     {% elif ticket.estado == 'EN_PROCESO' %}warning
-                                                     {% elif ticket.estado == 'COMPLETADO' %}success
-                                                     {% else %}danger{% endif %} p-3 px-4 rounded-pill">
-                        <i class="bi bi-{% if ticket.estado == 'GENERADO' %}hourglass-split
-                                     {% elif ticket.estado == 'EN_PROCESO' %}gear
-                                     {% elif ticket.estado == 'COMPLETADO' %}check-circle
-                                     {% else %}exclamation-circle{% endif %} me-2"></i>
-                        {{ ticket.get_estado_display }}
-                    </span>
-                </div>
+        
+    <div class="ticket-hero">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <div class="ticket-code">
+                {{ ticket.codigo }}
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ ticket.codigo }}')" title="Copiar código">
+                    <i class="bi bi-clipboard"></i> Copiar
+                </button>
+            </div>
+            <div class="d-flex gap-3 mt-3 flex-wrap">
+                <span class="badge-modern">
+                    <i class="bi bi-calendar3 me-2"></i>Creado: {{ ticket.fecha_creacion|date:"d/m/Y H:i" }}
+                </span>
+                <span class="badge-modern">
+                    <i class="bi bi-arrow-repeat me-2"></i>Actualizado: {{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}
+                </span>
+                <span class="badge-modern">
+                    <i class="bi bi-check2-square me-2"></i>
+                    Casos: {{ ticket.casos_prueba.all|length }}
+                </span>
             </div>
         </div>
-
-        <!-- Componentes del código - Chips mejorados -->
-        <div class="modern-card mb-4">
-            <div class="card-header-modern">
-                <h5><i class="bi bi-upc-scan"></i> Componentes del Ticket</h5>
-            </div>
-            <div class="card-body p-4">
-                {% with partes=ticket.get_detalle_partes %}
-                    <div class="d-flex flex-wrap gap-2">
-                        <div class="component-chip">
-                            <span class="chip-label">Empresa</span>
-                            <span class="chip-value">{{ partes.empresa }}</span>
-                        </div>
-                        <div class="component-chip">
-                            <span class="chip-label">Tipo Servicio</span>
-                            <span class="chip-value">{{ partes.tipo_servicio }}</span>
-                        </div>
-                        <div class="component-chip">
-                            <span class="chip-label">Pruebas</span>
-                            <span class="chip-value">{{ partes.funcion }}</span>
-                        </div>
-                        <div class="component-chip">
-                            <span class="chip-label">No. Pruebas</span>
-                            <span class="chip-value">{{ partes.version }}</span>
-                        </div>
-                        <div class="component-chip">
-                            <span class="chip-label">Cliente</span>
-                            <span class="chip-value">{{ partes.cliente }}</span>
-                        </div>
-                        <div class="component-chip">
-                            <span class="chip-label">Proyecto</span>
-                            <span class="chip-value">{{ partes.proyecto }}</span>
-                        </div>
-                        <div class="component-chip">
-                            <span class="chip-label">Consecutivo</span>
-                            <span class="chip-value">{{ partes.consecutivo }}</span>
-                        </div>
-                    </div>
-                {% endwith %}
-            </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <span class="badge estado-badge bg-{% if ticket.estado == 'GENERADO' %}info
+                                                    {% elif ticket.estado == 'EN_PROCESO' %}warning
+                                                    {% elif ticket.estado == 'COMPLETADO' %}success
+                                                    {% else %}danger{% endif %} p-3 px-4 rounded-pill">
+                <i class="bi bi-{% if ticket.estado == 'GENERADO' %}hourglass-split
+                                    {% elif ticket.estado == 'EN_PROCESO' %}gear
+                                    {% elif ticket.estado == 'COMPLETADO' %}check-circle
+                                    {% else %}exclamation-circle{% endif %} me-2"></i>
+                {{ ticket.get_estado_display }}
+            </span>
         </div>
+    </div>
+</div>
 
-        <!-- Quick Actions - Barra de acciones rápidas -->
+<!-- Componentes del Ticket - Sección separada, limpia y elegante -->
+<div class="modern-card mb-4" style="margin-top: -8px; border-top-left-radius: 0; border-top-right-radius: 0;">
+    <div class="card-body p-4">
+        {% with partes=ticket.get_detalle_partes %}
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <div class="me-3">
+                    <i class="bi bi-upc-scan fs-4 text-primary"></i>
+                </div>
+                {% for label, value in partes.items %}
+                    <div class="component-chip" style="background: #f8fafc; border: none; padding: 0.5rem 1rem;">
+                        <span class="chip-label">{{ label|title }}</span>
+                        <span class="chip-value" style="font-size: 0.9rem;">{{ value|default:"—" }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endwith %}
+    </div>
+</div>
+
+               <!-- Quick Actions - Barra de acciones rápidas -->
         <div class="quick-actions">
-            <a href="{% url 'generar_dictamen' ticket.id %}" class="quick-action-item">
+            <a href="{% url 'extractor:generar_dictamen' ticket.id %}" class="quick-action-item">
                 <i class="fa fa-file-pdf text-danger"></i>
                 <span>Descargar Dictamen</span>
             </a>
-            <a href="{% url 'generar_resultados' ticket.id %}" class="quick-action-item">
+            <a href="{% url 'extractor:generar_resultados' ticket.id %}" class="quick-action-item">
                 <i class="fa fa-file-excel text-success"></i>
                 <span>Resultados Pruebas</span>
-            </a>
-            <a href="{% url 'upload_excel' %}" class="quick-action-item">
+            </a>            
+                {% if ticket.casos_prueba.all %}
+                    <a href="{% url 'ia_agent:ver_casos_ticket' ticket.id %}" class="quick-action-item" style="background: #e8f0fe; border-color: var(--primary-color);">
+                        <i class="bi bi-check2-square text-primary"></i>
+                        <span>Ver CP Generados ({{ ticket.casos_prueba.all|length }})</span>
+                    </a>
+                {% else %}
+                    <a href="{% url 'ia_agent:generar_ticket' ticket.id %}" class="quick-action-item">
+                        <i class="bi bi-robot text-success"></i>
+                        <span>Crear CP con IA</span>
+                    </a>
+                {% endif %}
+            <a href="{% url 'extractor:upload_excel' %}" class="quick-action-item">
                 <i class="bi bi-upload text-success"></i>
                 <span>Crear Ticket</span>
             </a>
-            <a href="{% url 'ticket_create' %}" class="quick-action-item">
+            <a href="{% url 'extractor:ticket_create' %}" class="quick-action-item">
                 <i class="bi bi-plus-circle text-primary"></i>
                 <span>Crear Ticket manual</span>
             </a>
           
         </div>
+
+                <!-- Sección de Respuestas Predeterminadas por Correo - Rediseñada -->
+        <div class="email-section mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0 fw-bold">
+                    <i class="bi bi-envelope-paper text-primary me-2"></i>
+                    Respuestas por Correo
+                </h5>
+                <button class="btn btn-modern btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#emailTemplates">
+                    <i class="bi bi-envelope-plus"></i> Nueva Respuesta
+                </button>
+            </div>
+
+            <div class="collapse" id="emailTemplates">
+                <!-- Plantillas -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="template-pill" onclick="seleccionarPlantilla('generico')">
+                            <i class="bi bi-envelope fs-2 text-primary"></i>
+                            <div>
+                                <div class="fw-bold">Respuesta Genérica</div>
+                                <small class="text-muted">Seguimiento de solicitud</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="template-pill" onclick="seleccionarPlantilla('funcionalidad')">
+                            <i class="bi bi-gear fs-2 text-success"></i>
+                            <div>
+                                <div class="fw-bold">{{ ticket.tipo_servicio.nombre }}</div>
+                                <small class="text-muted">Pruebas específicas</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="template-pill" onclick="seleccionarPlantilla('completado')">
+                            <i class="bi bi-check-circle fs-2 text-success"></i>
+                            <div>
+                                <div class="fw-bold">Ticket Completado</div>
+                                <small class="text-muted">Notificación de finalización</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista previa -->
+                <div class="mb-4">
+                    <label class="fw-bold mb-2">Vista Previa:</label>
+                    <div class="preview-box" id="emailPreview">
+Buena tarde estimados:
+
+Por medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}
+
+Quedamos atentos a cualquier duda o comentario al respecto.
+
+Saludos.
+                    </div>
+                </div>
+
+                <!-- Campos de correo -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="fw-bold mb-2">Destinatario(s):</label>
+                        <input type="email" class="form-control form-control-lg rounded-3" id="emailDestinatario" placeholder="correo@ejemplo.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="fw-bold mb-2">Asunto:</label>
+                        <input type="text" class="form-control form-control-lg rounded-3" id="emailAsunto" value="Seguimiento de Ticket {{ ticket.codigo }}">
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="d-flex gap-2">
+                    <button class="btn btn-modern btn-success" onclick="enviarCorreo()">
+                        <i class="bi bi-send"></i> Enviar Correo
+                    </button>
+                    <button class="btn btn-modern btn-outline" onclick="copiarAlPortapapeles('emailPreview')">
+                        <i class="bi bi-clipboard"></i> Copiar
+                    </button>
+                    <button class="btn btn-modern btn-outline" onclick="limpiarSeleccion()">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Sección de Seguimiento y Usuarios -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="modern-card h-100">
+            <div class="card-header-modern">
+                <h5><i class="bi bi-person-badge"></i> Usuarios del Ticket</h5>
+            </div>
+            <div class="card-body p-4">
+                <table class="info-table">
+                    <tr>
+                        <td>Creado por:</td>
+                        <td>
+                            {% if ticket.creado_por %}
+                                <strong>{{ ticket.creado_por.get_full_name|default:ticket.creado_por.username }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ ticket.creado_por.username }}</span>
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Asignado a:</td>
+                        <td>
+                            {% if ticket.asignado_a %}
+                                <strong>{{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ ticket.asignado_a.username }}</span>
+                            {% else %}
+                                <span class="text-muted">No asignado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Estado:</td>
+                        <td>
+                            <select id="estadoSelect" 
+                                    class="form-select form-select-sm" 
+                                    data-url="{% url 'extractor:ticket_cambiar_estado' id=ticket.id %}"
+                                    onchange="cambiarEstado(this.value, {{ ticket.id }})">
+                                <option value="GENERADO" {% if ticket.estado == 'GENERADO' %}selected{% endif %}>🟡 Generado</option>
+                                <option value="ABIERTO" {% if ticket.estado == 'ABIERTO' %}selected{% endif %}>🔵 Abierto</option>
+                                <option value="EN_PROCESO" {% if ticket.estado == 'EN_PROCESO' %}selected{% endif %}>🟠 En Proceso</option>
+                                <option value="COMPLETADO" {% if ticket.estado == 'COMPLETADO' %}selected{% endif %}>🟢 Completado</option>
+                                <option value="CANCELADO" {% if ticket.estado == 'CANCELADO' %}selected{% endif %}>🔴 Cancelado</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% if ticket.fecha_cierre %}
+                    <tr>
+                        <td>Fecha cierre:</td>
+                        <td>{{ ticket.fecha_cierre|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="modern-card h-100">
+            <div class="card-header-modern">
+                <h5><i class="bi bi-chat-dots"></i> Comentarios de Seguimiento</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <textarea id="comentarioInput" class="form-control" rows="3" placeholder="Agregar comentario de seguimiento..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-sm" onclick="agregarComentario({{ ticket.id }})">
+                        <i class="bi bi-send"></i> Agregar comentario
+                    </button>
+                </div>
+        <div id="comentariosLista" class="mt-3" style="max-height: 200px; overflow-y: auto;">
+            {% if comentarios_lista %}
+                {% for comentario in comentarios_lista %}
+                    <div class="alert alert-light border-start border-primary border-3 mb-2">
+                        <small class="text-muted">{{ comentario }}</small>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center">No hay comentarios aún</p>
+            {% endif %}
+        </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
         <!-- Grid de información principal -->
         <div class="row g-4 mb-4">
@@ -527,90 +693,7 @@
             </div>
         </div>
 
-        <!-- Sección de Respuestas Predeterminadas por Correo - Rediseñada -->
-        <div class="email-section mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="mb-0 fw-bold">
-                    <i class="bi bi-envelope-paper text-primary me-2"></i>
-                    Respuestas por Correo
-                </h5>
-                <button class="btn btn-modern btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#emailTemplates">
-                    <i class="bi bi-envelope-plus"></i> Nueva Respuesta
-                </button>
-            </div>
 
-            <div class="collapse" id="emailTemplates">
-                <!-- Plantillas -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <div class="template-pill" onclick="seleccionarPlantilla('generico')">
-                            <i class="bi bi-envelope fs-2 text-primary"></i>
-                            <div>
-                                <div class="fw-bold">Respuesta Genérica</div>
-                                <small class="text-muted">Seguimiento de solicitud</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="template-pill" onclick="seleccionarPlantilla('funcionalidad')">
-                            <i class="bi bi-gear fs-2 text-success"></i>
-                            <div>
-                                <div class="fw-bold">{{ ticket.tipo_servicio.nombre }}</div>
-                                <small class="text-muted">Pruebas específicas</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="template-pill" onclick="seleccionarPlantilla('completado')">
-                            <i class="bi bi-check-circle fs-2 text-success"></i>
-                            <div>
-                                <div class="fw-bold">Ticket Completado</div>
-                                <small class="text-muted">Notificación de finalización</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vista previa -->
-                <div class="mb-4">
-                    <label class="fw-bold mb-2">Vista Previa:</label>
-                    <div class="preview-box" id="emailPreview">
-Buena tarde estimados:
-
-Por medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}
-
-Quedamos atentos a cualquier duda o comentario al respecto.
-
-Saludos.
-                    </div>
-                </div>
-
-                <!-- Campos de correo -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <label class="fw-bold mb-2">Destinatario(s):</label>
-                        <input type="email" class="form-control form-control-lg rounded-3" id="emailDestinatario" placeholder="correo@ejemplo.com">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="fw-bold mb-2">Asunto:</label>
-                        <input type="text" class="form-control form-control-lg rounded-3" id="emailAsunto" value="Seguimiento de Ticket {{ ticket.codigo }}">
-                    </div>
-                </div>
-
-                <!-- Acciones -->
-                <div class="d-flex gap-2">
-                    <button class="btn btn-modern btn-success" onclick="enviarCorreo()">
-                        <i class="bi bi-send"></i> Enviar Correo
-                    </button>
-                    <button class="btn btn-modern btn-outline" onclick="copiarAlPortapapeles('emailPreview')">
-                        <i class="bi bi-clipboard"></i> Copiar
-                    </button>
-                    <button class="btn btn-modern btn-outline" onclick="limpiarSeleccion()">
-                        <i class="bi bi-x-circle"></i> Cancelar
-                    </button>
-                </div>
-            </div>
-        </div>
 
         <!-- Datos del Excel asociado-->
      {% if ticket.excel_data %}
@@ -703,6 +786,7 @@ Saludos.
     </div>
 </div>
 {% endif %}
+
 
         <!-- Información del Sistema - Compacta -->
         <div class="modern-card">
@@ -844,6 +928,111 @@ function seleccionarPlantilla(tipo) {
         }
     }
 
+
+function cambiarEstado(nuevoEstado, ticketId) {
+    // Obtener la URL del atributo data-url
+    const select = document.getElementById('estadoSelect');
+    const url = select.getAttribute('data-url');
+    
+    // CORREGIDO: Usar el estado directamente sin mapeo
+    let estadoBackend = nuevoEstado;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ estado: estadoBackend })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `Estado cambiado a ${data.estado_display} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cambiar el estado');
+    });
+}
+
+function getCsrfToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+
+function agregarComentario(ticketId) {
+    const comentario = document.getElementById('comentarioInput').value.trim();
+    if (!comentario) {
+        alert('Por favor escribe un comentario');
+        return;
+    }
+    
+    fetch(`/extractor/ticket/${ticketId}/agregar-comentario/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCsrfToken()
+        },
+        body: JSON.stringify({ comentario: comentario })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Agregar comentario a la lista
+            const comentariosLista = document.getElementById('comentariosLista');
+            const nuevoComentario = document.createElement('div');
+            nuevoComentario.className = 'alert alert-light border-start border-primary border-3 mb-2';
+            nuevoComentario.innerHTML = `<small class="text-muted">${data.comentario_formateado}</small>`;
+            comentariosLista.appendChild(nuevoComentario);
+            
+            // Limpiar textarea
+            document.getElementById('comentarioInput').value = '';
+            
+            // Scroll al final
+            comentariosLista.scrollTop = comentariosLista.scrollHeight;
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al agregar comentario');
+    });
+}
+
+function getCsrfToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
     </script>
 
     <style>

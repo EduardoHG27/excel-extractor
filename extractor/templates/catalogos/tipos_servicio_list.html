@@ -28,19 +28,19 @@
                 </h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'upload_excel' %}">Inicio</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'extractor:upload_excel' %}">Inicio</a></li>
                         <li class="breadcrumb-item active">Tipos de pruebas</li>
                     </ol>
                 </nav>
             </div>
             <div>
-                <a href="{% url 'tipo_servicio_create' %}" class="btn btn-primary">
+                <a href="{% url 'extractor:tipo_servicio_create' %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Nuevo Tipo de Prueba
                 </a>
-                <a href="{% url 'clientes_list' %}" class="btn btn-outline-info">
+                <a href="{% url 'extractor:clientes_list' %}" class="btn btn-outline-info">
                     <i class="bi bi-people"></i> Ver Clientes
                 </a>
-                <a href="{% url 'upload_excel' %}" class="btn btn-outline-secondary">
+                <a href="{% url 'extractor:upload_excel' %}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Volver
                 </a>
             </div>
@@ -142,7 +142,7 @@
                             <td>{{ tipo.fecha_creacion|date:"d/m/Y" }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{% url 'tipo_servicio_edit' tipo.id %}" class="btn btn-sm btn-warning">Editar</a>
+                                    <a href="{% url 'extractor:tipo_servicio_edit' tipo.id %}" class="btn btn-sm btn-warning">Editar</a>
                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ tipo.id }}">
                                         Eliminar
                                     </button>
@@ -166,7 +166,7 @@
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <form method="post" action="{% url 'tipo_servicio_delete' tipo.id %}">
+                                        <form method="post" action="{% url 'extractor:tipo_servicio_delete' tipo.id %}">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-danger">Sí, eliminar</button>
                                         </form>
@@ -179,7 +179,7 @@
                         <tr>
                             <td colspan="6" class="text-center">
                                 <div class="alert alert-info">
-                                    No hay Tipo de pruebas registrados. <a href="{% url 'tipo_servicio_create' %}" class="alert-link">Crea el primero</a>
+                                    No hay Tipo de pruebas registrados. <a href="{% url 'extractor:tipo_servicio_create' %}" class="alert-link">Crea el primero</a>
                                 </div>
                             </td>
                         </tr>

@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 from dotenv import load_dotenv
 load_dotenv()  
-
+AUTH_USER_MODEL = 'extractor.Usuario'
 # ============ VARIABLES DE ENTORNO ============
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7_&y#o%h#g#_c!b6z^w8m)0+7o8xr5i@%$k!*&p)q+@v#h$4s@9')
 DEBUG = os.environ.get('DEBUG', 'False') == 'False'
@@ -59,9 +59,9 @@ if not DEBUG:
     SESSION_COOKIE_SAMESITE = 'Lax'
 
 # ============ CONFIGURACIÓN DE AUTENTICACIÓN ============
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'upload_excel'
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = 'extractor:login'
+LOGIN_REDIRECT_URL = 'extractor:upload_excel'
+LOGOUT_REDIRECT_URL = 'extractor:login'
 
 # ============ APLICACIONES ============
 INSTALLED_APPS = [
@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'extractor',
+    'ia_agent'
 ]
 
 MIDDLEWARE = [
@@ -169,3 +170,5 @@ print("================================")
 
 SOLICITUD_COOLDOWN_MINUTOS = 5  
 SOLICITUD_COOLDOWN_SEGUNDOS = SOLICITUD_COOLDOWN_MINUTOS * 60
+
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')

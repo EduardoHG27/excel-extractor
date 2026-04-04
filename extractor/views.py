@@ -11,7 +11,7 @@ from django.db.models import Q, Count
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import ExcelData, Cliente ,TipoServicio, Proyecto, Ticket
+from .models import ExcelData, Cliente ,TipoServicio, Proyecto, Ticket, Usuario
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseServerError, JsonResponse
 from django.db import models
 from openpyxl import Workbook
@@ -30,7 +30,9 @@ from django.contrib.auth import login, logout, authenticate
 from django.shortcuts import redirect
 from django.conf import settings
 from django.core.cache import cache
-
+from .forms import RegistroUsuarioForm
+import json
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,7 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
-            next_url = request.GET.get('next', 'solicitud_list')
+            next_url = request.GET.get('next', 'extractor:upload_excel')
             return redirect(next_url)
         else:
             messages.error(request, 'Usuario o contraseña incorrectos')
@@ -52,9 +54,9 @@ def login_view(request):
 def logout_view(request):
     """Vista personalizada de logout"""
     logout(request)
-    return redirect('login')
+    return redirect('extractor:login')
 
-@login_required(login_url='login')
+@login_required
 def export_clientes_csv(request):
     """
     Exporta clientes a CSV
@@ -95,9 +97,9 @@ def export_clientes_csv(request):
     except Exception as e:
         logger.error(f"Error exportando clientes: {str(e)}", exc_info=True)
         messages.error(request, "Error al exportar clientes")
-        return redirect('clientes_list')
+        return redirect('extractor:clientes_list')
 
-@login_required(login_url='login')
+@login_required
 def export_proyectos_csv(request):
     """
     Exporta proyectos a CSV
@@ -134,9 +136,9 @@ def export_proyectos_csv(request):
     except Exception as e:
         logger.error(f"Error exportando proyectos: {str(e)}", exc_info=True)
         messages.error(request, "Error al exportar proyectos")
-        return redirect('proyectos_list')
+        return redirect('extractor:proyectos_list')
     
-@login_required(login_url='login')
+@login_required
 def export_tipos_servicio_csv(request):
     """
     Exporta tipos de servicio a CSV
@@ -171,7 +173,7 @@ def export_tipos_servicio_csv(request):
         messages.error(request, "Error al exportar tipos de servicio")
         return redirect('tipos_servicio_list')
 
-@login_required(login_url='login')
+@login_required
 def export_tickets_csv_view(request):
     """
     Exporta tickets a CSV (versión mejorada de export_tickets_excel pero en CSV)
@@ -226,7 +228,7 @@ def export_tickets_csv_view(request):
     except Exception as e:
         logger.error(f"Error exportando tickets: {str(e)}", exc_info=True)
         messages.error(request, "Error al exportar tickets")
-        return redirect('ticket_list')
+        return redirect('extractor:ticket_list')
     
 
 def extract_excel_data(file_path):
@@ -369,7 +371,7 @@ def extract_excel_data(file_path):
         print(f"❌ Error al extraer datos: {e}")
         raise
 
-@login_required(login_url='login')
+@login_required
 def upload_excel(request):
     """
     Procesa la carga de archivos Excel y genera tickets
@@ -488,7 +490,8 @@ def upload_excel(request):
                 extracted_data=extracted_data,
                 tipo_servicio_form=tipo_servicio_form,
                 nomenclaturas=nomenclaturas,
-                objetos_encontrados=objetos_encontrados
+                objetos_encontrados=objetos_encontrados,
+                request=request
             )
             
             # ===== NUEVO: CREAR INCIDENCIA EN JIRA =====
@@ -596,7 +599,7 @@ def upload_excel(request):
             
             ticket_parts = generate_ticket_parts(ticket_code)
             
-            return redirect('ticket_detail', id=ticket_obj.id)
+            return redirect('extractor:ticket_detail', id=ticket_obj.id)
             
         except ValidationError as e:
             # Errores esperados (validación de usuario)
@@ -684,12 +687,12 @@ def generate_ticket_code(extracted_data, tipo_servicio):
     
     return f"BID-{tipo_servicio_code}-F&REG-{version}-{cliente_nom}-{proyecto_nom}-{consecutivo}"
 
-@login_required(login_url='login')
+@login_required
 def data_list(request):
     data = ExcelData.objects.all().order_by('-extracted_date')
     return render(request, 'extractor/list.html', {'data_list': data})
 
-@login_required(login_url='login')
+@login_required
 def clientes_list(request):
     try:
         clientes = Cliente.objects.all()
@@ -747,7 +750,7 @@ def clientes_list(request):
             <pre>{dict(request.GET)}</pre>
         """)
 
-@login_required(login_url='login')
+@login_required
 def cliente_create(request):
     """Crear un nuevo cliente"""
     if request.method == 'POST':
@@ -775,7 +778,7 @@ def cliente_create(request):
                 activo=request.POST.get('activo', 'on') == 'on'
             )
             messages.success(request, f'Cliente "{cliente.nombre}" creado exitosamente')
-            return redirect('clientes_list')
+            return redirect('extractor:clientes_list')
         except Exception as e:
             messages.error(request, f'Error al crear cliente: {str(e)}')
     
@@ -835,7 +838,7 @@ def generate_ticket_parts(ticket_code):
     
     return parts
 
-@login_required(login_url='login')
+@login_required
 def cliente_edit(request, id):
     """Editar un cliente existente"""
     cliente = get_object_or_404(Cliente, id=id)
@@ -865,13 +868,13 @@ def cliente_edit(request, id):
             cliente.save()
             
             messages.success(request, f'Cliente "{cliente.nombre}" actualizado exitosamente')
-            return redirect('clientes_list')
+            return redirect('extractor:clientes_list')
         except Exception as e:
             messages.error(request, f'Error al actualizar cliente: {str(e)}')
     
     return render(request, 'catalogos/cliente_form.html', {'cliente': cliente})
 
-@login_required(login_url='login')
+@login_required
 def cliente_delete(request, id):
     """Eliminar un cliente"""
     cliente = get_object_or_404(Cliente, id=id)
@@ -884,9 +887,9 @@ def cliente_delete(request, id):
         except Exception as e:
             messages.error(request, f'Error al eliminar cliente: {str(e)}')
     
-    return redirect('clientes_list')
+    return redirect('extractor:clientes_list')
 
-@login_required(login_url='login')
+@login_required
 def tipos_servicio_list(request):
     try:
         tipos = TipoServicio.objects.filter(activo=True)
@@ -942,7 +945,7 @@ def tipos_servicio_list(request):
             <pre>{dict(request.GET)}</pre>
         """)
 
-@login_required(login_url='login')
+@login_required
 def tipo_servicio_create(request):
     """Crear un nuevo tipo de servicio"""
     if request.method == 'POST':
@@ -976,7 +979,7 @@ def tipo_servicio_create(request):
     
     return render(request, 'catalogos/tipo_servicio_form.html')
 
-@login_required(login_url='login')
+@login_required
 def tipo_servicio_edit(request, id):
     """Editar un tipo de servicio existente"""
     tipo = get_object_or_404(TipoServicio, id=id)
@@ -1013,7 +1016,7 @@ def tipo_servicio_edit(request, id):
     return render(request, 'catalogos/tipo_servicio_form.html', {'tipo': tipo})
 
 
-@login_required(login_url='login')
+@login_required
 def tipo_servicio_delete(request, id):
     """Eliminar un tipo de servicio"""
     tipo = get_object_or_404(TipoServicio, id=id)
@@ -1028,7 +1031,7 @@ def tipo_servicio_delete(request, id):
     
     return redirect('tipos_servicio_list')
 
-@login_required(login_url='login')
+@login_required
 def proyectos_list(request):
     """Lista todos los proyectos con filtro por cliente opcional"""
     cliente_id = request.GET.get('cliente', '')
@@ -1046,7 +1049,7 @@ def proyectos_list(request):
         'clientes': clientes,
         'cliente_filtro': cliente_id
     })
-@login_required(login_url='login')
+@login_required
 def proyecto_create(request):
     """Crear un nuevo proyecto"""
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
@@ -1088,13 +1091,13 @@ def proyecto_create(request):
                 fecha_fin=request.POST.get('fecha_fin') or None
             )
             messages.success(request, f'Proyecto "{proyecto.nombre}" creado exitosamente')
-            return redirect('proyectos_list')
+            return redirect('extractor:proyectos_list')
         except Exception as e:
             messages.error(request, f'Error al crear proyecto: {str(e)}')
     
     return render(request, 'catalogos/proyecto_form.html', {'clientes': clientes})
 
-@login_required(login_url='login')
+@login_required
 def proyecto_edit(request, id):
     """Editar un proyecto existente"""
     proyecto = get_object_or_404(Proyecto, id=id)
@@ -1149,7 +1152,7 @@ def proyecto_edit(request, id):
             proyecto.save()
             
             messages.success(request, f'Proyecto "{proyecto.nombre}" actualizado exitosamente')
-            return redirect('proyectos_list')
+            return redirect('extractor:proyectos_list')
         except Exception as e:
             messages.error(request, f'Error al actualizar proyecto: {str(e)}')
     
@@ -1158,7 +1161,7 @@ def proyecto_edit(request, id):
         'clientes': clientes
     })
 
-@login_required(login_url='login')
+@login_required
 def proyecto_delete(request, id):
     """Eliminar un proyecto"""
     proyecto = get_object_or_404(Proyecto, id=id)
@@ -1171,16 +1174,16 @@ def proyecto_delete(request, id):
         except Exception as e:
             messages.error(request, f'Error al eliminar proyecto: {str(e)}')
     
-    return redirect('proyectos_list')
+    return redirect('extractor:proyectos_list')
 
     
-def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, objetos_encontrados):
+def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, objetos_encontrados, request=None):
     """Genera y guarda un ticket en la base de datos"""
     
     # Obtener valores para los argumentos
     tipo_servicio_code = tipo_servicio_form
-    tipo_pruebas_nom = nomenclaturas.get('tipo_pruebas_nomenclatura', '???')  # ← Esto es la nomenclatura (INT, FUN, etc)
-    tipo_pruebas_id = objetos_encontrados.get('tipo_servicio_obj').id  # ← ID numérico
+    tipo_pruebas_nom = nomenclaturas.get('tipo_pruebas_nomenclatura', '???')
+    tipo_pruebas_id = objetos_encontrados.get('tipo_servicio_obj').id
     cliente_nom = nomenclaturas.get('cliente_nomenclatura', '???')
     proyecto_nom = nomenclaturas.get('proyecto_nomenclatura', '???')
     
@@ -1208,7 +1211,6 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
     # Generar las partes del código
     empresa_code = "BID"
     
-    # 🔥 IMPORTANTE: El código ahora usa la NOMENCLATURA en la tercera parte
     ticket_code = f"{empresa_code}-{tipo_servicio_code}-{tipo_pruebas_nom}-{tipo_pruebas_id}-{cliente_nom}-{proyecto_nom}-{consecutivo_str}"
     
     print(f"🎫 Código de ticket generado: {ticket_code}")
@@ -1220,28 +1222,38 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
     
     # Crear el ticket en la base de datos
     try:
-        ticket = Ticket.objects.create(
-            codigo=ticket_code,
-            
-            # Partes del código
-            empresa_code=empresa_code,
-            tipo_servicio_code=tipo_servicio_code,
-            funcion_code=tipo_pruebas_nom,  # ← NOMENCLATURA
-            version_code=str(tipo_pruebas_id),  # ← ID
-            cliente_code=cliente_nom,
-            proyecto_code=proyecto_nom,
-            consecutivo=consecutivo_num,
-            
-            # Relaciones
-            cliente=cliente_obj,
-            proyecto=proyecto_obj,
-            tipo_servicio=tipo_servicio_obj,
-            
-            # Datos adicionales
-            responsable_solicitud=extracted_data.get('responsable_solicitud', ''),
-            lider_proyecto=extracted_data.get('lider_proyecto', ''),
-            numero_version=extracted_data.get('numero_version', '')
-        )
+        ticket_data = {
+            'codigo': ticket_code,
+            'empresa_code': empresa_code,
+            'tipo_servicio_code': tipo_servicio_code,
+            'funcion_code': tipo_pruebas_nom,
+            'version_code': str(tipo_pruebas_id),
+            'cliente_code': cliente_nom,
+            'proyecto_code': proyecto_nom,
+            'consecutivo': consecutivo_num,
+            'cliente': cliente_obj,
+            'proyecto': proyecto_obj,
+            'tipo_servicio': tipo_servicio_obj,
+            'responsable_solicitud': extracted_data.get('responsable_solicitud', ''),
+            'lider_proyecto': extracted_data.get('lider_proyecto', ''),
+            'numero_version': extracted_data.get('numero_version', ''),
+            'estado': 'GENERADO',  # ← CAMBIAR DE 'ABIERTO' a 'GENERADO'
+            'fecha_creacion': timezone.now(),  # ← AGREGAR EXPLÍCITAMENTE LA FECHA
+        }
+        
+        # Agregar el usuario creador si request está disponible
+        if request and request.user.is_authenticated:
+            ticket_data['creado_por'] = request.user
+            # Por defecto, asignar al mismo usuario
+            ticket_data['asignado_a'] = request.user
+        
+        ticket = Ticket.objects.create(**ticket_data)
+        
+        # Registrar comentario inicial
+        if request and request.user.is_authenticated:
+            comentario_inicial = f"Ticket creado por {request.user.get_full_name() or request.user.username} vía carga de Excel"
+            ticket.comentarios_seguimiento = comentario_inicial
+            ticket.save()
         
         print(f"✅ Ticket guardado en BD con ID: {ticket.id}")
         return ticket_code, ticket
@@ -1252,9 +1264,13 @@ def generate_and_save_ticket(extracted_data, tipo_servicio_form, nomenclaturas, 
         traceback.print_exc()
         return ticket_code, None
 
-@login_required(login_url='login')
+@login_required
 def ticket_list(request):
     """Listado de tickets con filtros y paginación"""
+    from django.db import connection
+    from django.utils import timezone
+    
+     
     tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio')
 
     # Filtros
@@ -1262,7 +1278,7 @@ def ticket_list(request):
     cliente_id = request.GET.get('cliente')
     proyecto_id = request.GET.get('proyecto')
     busqueda = request.GET.get('q')
-    por_pagina = request.GET.get('por_pagina', 20)  # Nuevo: número de tickets por página
+    por_pagina = request.GET.get('por_pagina', 20)
 
     if estado:
         tickets = tickets.filter(estado=estado)
@@ -1277,11 +1293,11 @@ def ticket_list(request):
             Q(lider_proyecto__icontains=busqueda)
         )
 
-    # Ordenamiento (igual que en clientes)
+    # Ordenamiento - los más nuevos primero por defecto
     orden = request.GET.get('orden', '-fecha_creacion')
     tickets = tickets.order_by(orden)
 
-    # PAGINACIÓN: 20 tickets por página (o el valor seleccionado)
+    # PAGINACIÓN
     try:
         por_pagina = int(por_pagina)
         if por_pagina not in [10, 20, 50, 100]:
@@ -1293,32 +1309,42 @@ def ticket_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Estadísticas (totales sin paginar)
+    # Debug: imprimir información de tickets
+    print(f"📊 Total tickets en BD: {Ticket.objects.count()}")
+    print(f"📊 Tickets en página: {len(page_obj)}")
+    for t in page_obj:
+        print(f"   - {t.codigo} | Estado: {t.estado} | Fecha: {t.fecha_creacion}")
+
+    # Estadísticas - CORREGIDO para incluir 'ABIERTO' si existe
+    tickets_generados = Ticket.objects.filter(estado='GENERADO').count()
+    tickets_abiertos = Ticket.objects.filter(estado='ABIERTO').count()  # ← NUEVO
+    tickets_proceso = Ticket.objects.filter(estado='EN_PROCESO').count()
+    tickets_completados = Ticket.objects.filter(estado='COMPLETADO').count()
+    tickets_cancelados = Ticket.objects.filter(estado='CANCELADO').count()
+    
     context = {
-        'tickets': page_obj,  # ← AHORA ENVIAMOS EL OBJETO PAGINADO
-        'page_obj': page_obj,  # También útil para la navegación
+        'tickets': page_obj,
+        'page_obj': page_obj,
         'total_tickets': Ticket.objects.count(),
-        'tickets_generados': Ticket.objects.filter(estado='GENERADO').count(),
-        'tickets_proceso': Ticket.objects.filter(estado='EN_PROCESO').count(),
-        'tickets_completados': Ticket.objects.filter(estado='COMPLETADO').count(),
-        'tickets_cancelados': Ticket.objects.filter(estado='CANCELADO').count(),
+        'tickets_generados': tickets_generados + tickets_abiertos,  # ← SUMAR AMBOS
+        'tickets_proceso': tickets_proceso,
+        'tickets_completados': tickets_completados,
+        'tickets_cancelados': tickets_cancelados,
         'clientes': Cliente.objects.filter(activo=True),
         'tipos_servicio': TipoServicio.objects.filter(activo=True),
         'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
         'estados_disponibles': Ticket.ESTADOS_TICKET,
-        # Filtros actuales
         'estado_selected': estado,
         'cliente_selected': int(cliente_id) if cliente_id else 0,
         'proyecto_selected': int(proyecto_id) if proyecto_id else 0,
         'busqueda': busqueda or '',
         'orden_actual': orden,
-        'por_pagina': por_pagina,  # Para mantener el selector
-        'tickets_count': tickets.count(),  # Total de tickets filtrados
+        'por_pagina': por_pagina,
+        'tickets_count': tickets.count(),
     }
     return render(request, 'catalogos/ticket_list.html', context)
 
-
-@login_required(login_url='login')
+@login_required
 def ticket_delete(request, id):
     """Eliminar un ticket"""
     ticket = get_object_or_404(Ticket, id=id)
@@ -1331,10 +1357,10 @@ def ticket_delete(request, id):
             ticket.delete()
             
             messages.success(request, f'✅ Ticket "{codigo}" eliminado exitosamente')
-            return redirect('ticket_list')
+            return redirect('extractor:ticket_list')
         except Exception as e:
             messages.error(request, f'Error al eliminar ticket: {str(e)}')
-            return redirect('ticket_detail', id=id)
+            return redirect('extractor:ticket_list')
     
     # GET request - mostrar página de confirmación
     context = {
@@ -1342,18 +1368,23 @@ def ticket_delete(request, id):
     }
     return render(request, 'catalogos/ticket_confirm_delete.html', context)
 
-@login_required(login_url='login')
-def ticket_detail(request, id):
-    """Ver detalle de un ticket"""
+@login_required
+def ticket_detail(request, id):  # Cambia 'ticket_id' por 'id'
     ticket = get_object_or_404(Ticket, id=id)
+    
+    # Preparar la lista de comentarios
+    comentarios_lista = []
+    if ticket.comentarios_seguimiento:
+        comentarios_lista = ticket.comentarios_seguimiento.split('\n')
+        comentarios_lista = [c for c in comentarios_lista if c.strip()]
+    
     context = {
         'ticket': ticket,
-        'partes_codigo': ticket.get_detalle_partes(),
-        'estados_disponibles': Ticket.ESTADOS_TICKET,
+        'comentarios_lista': comentarios_lista,
     }
     return render(request, 'catalogos/ticket_detail.html', context)
 
-@login_required(login_url='login')
+@login_required
 def ticket_create(request):
     """Crear un nuevo ticket manualmente"""
     if request.method == 'POST':
@@ -1391,31 +1422,31 @@ def ticket_create(request):
             if campos_faltantes:
                 mensaje = "Los siguientes campos son obligatorios: " + ", ".join(campos_faltantes)
                 messages.error(request, mensaje)
-                return redirect('ticket_create')
+                return redirect('extractor:ticket_create')
             
             # Obtener los objetos relacionados
             try:
                 cliente = Cliente.objects.get(id=cliente_id, activo=True)
             except Cliente.DoesNotExist:
                 messages.error(request, 'El cliente seleccionado no existe')
-                return redirect('ticket_create')
+                return redirect('extractor:ticket_create')
             
             try:
                 proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
             except Proyecto.DoesNotExist:
                 messages.error(request, 'El proyecto seleccionado no existe')
-                return redirect('ticket_create')
+                return redirect('extractor:ticket_create')
             
             try:
                 tipo_prueba = TipoServicio.objects.get(id=tipo_prueba_id, activo=True)
             except TipoServicio.DoesNotExist:
                 messages.error(request, 'El tipo de prueba seleccionado no existe')
-                return redirect('ticket_create')
+                return redirect('extractor:ticket_create')
             
             # Verificar que el proyecto pertenezca al cliente
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto seleccionado no pertenece al cliente')
-                return redirect('ticket_create')
+                return redirect('extractor:ticket_create')
             
             # Validar consecutivo
             consecutivo_manual = request.POST.get('consecutivo', '').strip()
@@ -1425,7 +1456,7 @@ def ticket_create(request):
                     consecutivo_num = int(consecutivo_manual)
                     if consecutivo_num < 1 or consecutivo_num > 999:
                         messages.error(request, 'El consecutivo debe estar entre 1 y 999')
-                        return redirect('ticket_create')
+                        return redirect('extractor:ticket_create')
                     
                     # Verificar si ya existe
                     ticket_existente = Ticket.objects.filter(
@@ -1440,11 +1471,11 @@ def ticket_create(request):
                     
                     if ticket_existente:
                         messages.error(request, f'Ya existe un ticket con el consecutivo {consecutivo_num:03d} para esta combinación')
-                        return redirect('ticket_create')
+                        return redirect('extractor:ticket_create')
                     
                 except ValueError:
                     messages.error(request, 'El consecutivo debe ser un número válido')
-                    return redirect('ticket_create')
+                    return redirect('extractor:ticket_create')
             else:
                 # Auto-generar consecutivo
                 tickets_existentes = Ticket.objects.filter(
@@ -1508,14 +1539,14 @@ def ticket_create(request):
                 ticket.save()
             
             messages.success(request, f'✅ Ticket creado exitosamente: {ticket_code}')
-            return redirect('ticket_detail', id=ticket.id)
+            return redirect('extractor:ticket_detail', id=ticket.id)
             
         except Exception as e:
             import traceback
             print(f"ERROR EN TICKET CREATE: {str(e)}")
             print(traceback.format_exc())
             messages.error(request, f'Error al crear ticket: {str(e)}')
-            return redirect('ticket_create')
+            return redirect('extractor:ticket_create')
     
     # GET request - mostrar formulario
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
@@ -1552,7 +1583,7 @@ def proyectos_por_cliente(request, cliente_id):
         print(f"Error en proyectos_por_cliente: {str(e)}")
         return JsonResponse({'error': str(e), 'proyectos': []})
 
-@login_required(login_url='login')
+@login_required
 def ticket_create_simple(request):
     """VERSIÓN SIMPLIFICADA - Crear un nuevo ticket manualmente"""
     
@@ -1575,7 +1606,7 @@ def ticket_create_simple(request):
             # Validación MÍNIMA
             if not cliente_id or not proyecto_id or not tipo_servicio_id:
                 messages.error(request, 'Cliente, Proyecto y Tipo de Servicio son obligatorios')
-                return redirect('ticket_create_simple')
+                return redirect('extractor:ticket_create_simple')
             
             # 2. OBTENER OBJETOS
             try:
@@ -1584,12 +1615,12 @@ def ticket_create_simple(request):
                 tipo_servicio = TipoServicio.objects.get(id=tipo_servicio_id, activo=True)
             except (Cliente.DoesNotExist, Proyecto.DoesNotExist, TipoServicio.DoesNotExist):
                 messages.error(request, 'Uno de los elementos seleccionados no existe')
-                return redirect('ticket_create_simple')
+                return redirect('extractor:ticket_create_simple')
             
             # 3. VALIDAR QUE EL PROYECTO PERTENEZCA AL CLIENTE
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
-                return redirect('ticket_create_simple')
+                return redirect('extractor:ticket_create_simple')
             
             # 4. PROCESAR CONSECUTIVO
             consecutivo_manual = request.POST.get('consecutivo', '').strip()
@@ -1600,7 +1631,7 @@ def ticket_create_simple(request):
                     consecutivo_num = int(consecutivo_manual)
                     if consecutivo_num < 1 or consecutivo_num > 999:
                         messages.error(request, 'El consecutivo debe ser entre 1 y 999')
-                        return redirect('ticket_create_simple')
+                        return redirect('extractor:ticket_create_simple')
                     
                     # Verificar si ya existe
                     existe = Ticket.objects.filter(
@@ -1615,13 +1646,13 @@ def ticket_create_simple(request):
                     
                     if existe:
                         messages.error(request, f'Ya existe un ticket con consecutivo {consecutivo_num:03d}')
-                        return redirect('ticket_create_simple')
+                        return redirect('extractor:ticket_create_simple')
                     
                     consecutivo_str = f"{consecutivo_num:03d}"
                     
                 except ValueError:
                     messages.error(request, 'El consecutivo debe ser un número')
-                    return redirect('ticket_create_simple')
+                    return redirect('extractor:ticket_create_simple')
             else:
                 # AUTO-GENERAR CONSECUTIVO
                 tickets_existentes = Ticket.objects.filter(
@@ -1660,7 +1691,10 @@ def ticket_create_simple(request):
                 responsable_solicitud=request.POST.get('responsable_solicitud', '')[:255],
                 lider_proyecto=request.POST.get('lider_proyecto', '')[:255],
                 numero_version=request.POST.get('numero_version', '')[:255],
-                estado='GENERADO'
+                estado='ABIERTO',  # Cambiado de GENERADO a ABIERTO
+                creado_por=request.user,  # NUEVO
+                asignado_a=request.user,  # NUEVO - Asignado al creador por defecto
+                comentarios_seguimiento=f"Ticket creado manualmente por {request.user.get_full_name() or request.user.username}"
             )
             
             # 7. CREAR DATOS EXCEL ASOCIADOS (si hay información adicional)
@@ -1689,7 +1723,7 @@ def ticket_create_simple(request):
             messages.success(request, f'✅ Ticket creado exitosamente: {ticket_code}')
             
             # Redirigir al detalle o al listado
-            return redirect('ticket_detail', id=ticket.id)
+            return redirect('extractor:ticket_detail', id=ticket.id)
             
         except Exception as e:
             # CAPTURAR CUALQUIER ERROR
@@ -1698,9 +1732,9 @@ def ticket_create_simple(request):
             print(traceback.format_exc())
             
             messages.error(request, f'Error al crear ticket: {str(e)}')
-            return redirect('ticket_create_simple')
+            return redirect('extractor:ticket_create_simple')
 
-@login_required(login_url='login')
+@login_required
 def generar_excel_dictamen(request, ticket_id):
     """
     Genera el Dictamen de Pruebas usando la plantilla
@@ -1728,7 +1762,7 @@ def generar_excel_dictamen(request, ticket_id):
             request, 
             f"No se encontró la plantilla. Por favor, coloca el archivo en: {plantilla_path}"
         )
-        return redirect('ticket_detail', id=ticket.id)
+        return redirect('extractor:ticket_detail', id=ticket.id)
     
     try:
         # Cargar la plantilla
@@ -1839,7 +1873,7 @@ def generar_excel_dictamen(request, ticket_id):
         import traceback
         traceback.print_exc()
         messages.error(request, f"Error al generar dictamen: {str(e)}")
-        return redirect('ticket_detail', id=ticket.id)
+        return redirect('extractor:ticket_detail', id=ticket.id)
 
 def verificar_plantilla(request):
     import os
@@ -1968,7 +2002,7 @@ def generar_excel_resultados(request, ticket_id):
     
     return response
 
-@login_required(login_url='login')
+@login_required
 def export_tickets_excel(request):
     """
     Exporta los tickets filtrados a un archivo Excel
@@ -2069,7 +2103,89 @@ def export_tickets_excel(request):
     
     return response
 
-@login_required(login_url='login')
+@login_required
+def ticket_cambiar_estado(request, id):
+    """API para cambiar el estado de un ticket"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            nuevo_estado = data.get('estado')
+            
+            ticket = get_object_or_404(Ticket, id=id)
+            
+            # CORREGIDO: Validar todos los estados disponibles
+            estados_validos = ['ABIERTO', 'GENERADO', 'EN_PROCESO', 'COMPLETADO', 'CANCELADO']
+            if nuevo_estado not in estados_validos:
+                return JsonResponse({'success': False, 'error': 'Estado no válido'})
+            
+            # Registrar comentario de cambio de estado
+            usuario = request.user.get_full_name() or request.user.username
+            fecha_hora = timezone.now().strftime('%d/%m/%Y %H:%M')
+            comentario_estado = f"[{fecha_hora}] {usuario} cambió el estado de {ticket.get_estado_display()} a {dict(Ticket.ESTADOS_TICKET).get(nuevo_estado)}"
+            
+            if ticket.comentarios_seguimiento:
+                ticket.comentarios_seguimiento += f"\n{comentario_estado}"
+            else:
+                ticket.comentarios_seguimiento = comentario_estado
+            
+            # Si se completa el ticket, registrar fecha de cierre
+            if nuevo_estado == 'COMPLETADO' and ticket.estado != 'COMPLETADO':
+                ticket.fecha_cierre = timezone.now()
+            elif nuevo_estado != 'COMPLETADO':
+                ticket.fecha_cierre = None
+            
+            ticket.estado = nuevo_estado
+            ticket.save()
+            
+            estado_display = dict(Ticket.ESTADOS_TICKET).get(nuevo_estado)
+            
+            return JsonResponse({
+                'success': True,
+                'estado_display': estado_display
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+
+@login_required
+def ticket_agregar_comentario(request, id):
+    """API para agregar comentario de seguimiento"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            comentario = data.get('comentario', '').strip()
+            
+            if not comentario:
+                return JsonResponse({'success': False, 'error': 'Comentario vacío'})
+            
+            ticket = get_object_or_404(Ticket, id=id)
+            
+            usuario = request.user.get_full_name() or request.user.username
+            fecha_hora = timezone.now().strftime('%d/%m/%Y %H:%M')
+            comentario_formateado = f"[{fecha_hora}] {usuario}: {comentario}"
+            
+            if ticket.comentarios_seguimiento:
+                ticket.comentarios_seguimiento += f"\n{comentario_formateado}"
+            else:
+                ticket.comentarios_seguimiento = comentario_formateado
+            
+            ticket.save()
+            
+            return JsonResponse({
+                'success': True,
+                'comentario_formateado': comentario_formateado
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+
+@login_required
 def export_table_csv(request, table_name):
     """
     Exporta una tabla específica a formato CSV
@@ -2129,7 +2245,7 @@ def export_table_csv(request, table_name):
         traceback.print_exc()
         return HttpResponseServerError(f"Error al exportar: {str(e)}")
 
-@login_required(login_url='login')
+@login_required
 def crear_ticket_manual(request):
     """Vista para crear solicitud de pruebas manualmente"""
     from django.utils import timezone
@@ -2144,7 +2260,7 @@ def crear_ticket_manual(request):
             # Validaciones básicas
             if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id:
                 messages.error(request, 'Todos los campos obligatorios deben estar llenos')
-                return redirect('crear_ticket_manual')
+                return redirect('extractor:crear_ticket_manual')
             
             # Obtener objetos
             cliente = Cliente.objects.get(id=cliente_id, activo=True)
@@ -2154,7 +2270,7 @@ def crear_ticket_manual(request):
             # Validar que el proyecto pertenezca al cliente
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
-                return redirect('crear_ticket_manual')
+                return redirect('extractor:crear_ticket_manual')
             
             # Generar consecutivo
             tickets_existentes = Ticket.objects.filter(
@@ -2216,14 +2332,14 @@ def crear_ticket_manual(request):
             ticket.save()
             
             messages.success(request, f'✅ Solicitud creada exitosamente. Ticket: {ticket_code}')
-            return redirect('ticket_detail', id=ticket.id)
+            return redirect('extractor:ticket_detail', id=ticket.id)
             
         except Exception as e:
             import traceback
             print(f"ERROR: {str(e)}")
             print(traceback.format_exc())
             messages.error(request, f'Error al crear solicitud: {str(e)}')
-            return redirect('crear_ticket_manual')
+            return redirect('extractor:crear_ticket_manual')
     
     # GET - Mostrar formulario
     context = {
@@ -2234,7 +2350,7 @@ def crear_ticket_manual(request):
     }
     return render(request, 'extractor/crear_solicitud.html', context)
 
-@login_required(login_url='login')
+@login_required
 def export_all_tables_backup(request):
     """
     Exporta todas las tablas como CSV en un archivo ZIP
@@ -2334,7 +2450,7 @@ def crear_solicitud(request):
                     request, 
                     f'⏳ Debes esperar {minutos} minutos y {segundos} segundos antes de crear otra solicitud.'
                 )
-                return redirect('solicitud_list')
+                return redirect('extractor:solicitud_list')
     
     # ===== CAPA 2: HONEYPOT (solo en POST) =====
     if request.method == 'POST':
@@ -2342,12 +2458,12 @@ def crear_solicitud(request):
         if request.POST.get('web_contacto', ''):  # Si el campo oculto tiene contenido
             messages.error(request, 'Actividad sospechosa detectada. Si eres humano, no llenes campos ocultos.')
             logger.warning(f"Intento de bot detectado - IP: {request.META.get('REMOTE_ADDR')} - Usuario: {request.user}")
-            return redirect('crear_solicitud')
+            return redirect('extractor:crear_solicitud')
         
         if request.POST.get('confirmar_email', ''):  # Segundo campo honeypot
             messages.error(request, 'Actividad sospechosa detectada.')
             logger.warning(f"Intento de bot detectado (campo2) - IP: {request.META.get('REMOTE_ADDR')}")
-            return redirect('crear_solicitud')
+            return redirect('extractor:crear_solicitud')
     
     # ===== CAPA 3: RATE LIMITING POR IP (solo en POST) =====
     if request.method == 'POST':
@@ -2355,7 +2471,7 @@ def crear_solicitud(request):
         if not permitido:
             messages.error(request, mensaje)
             logger.info(f"Rate limit excedido - IP: {request.META.get('REMOTE_ADDR')}")
-            return redirect('solicitud_list')
+            return redirect('extractor:solicitud_list')
     
     # ===== PROCESAR FORMULARIO (solo si pasa todas las capas) =====
     if request.method == 'POST':
@@ -2369,7 +2485,7 @@ def crear_solicitud(request):
             # Validaciones básicas
             if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id:
                 messages.error(request, 'Los campos obligatorios deben estar llenos')
-                return redirect('crear_solicitud')
+                return redirect('extractor:crear_solicitud')
             
             # Obtener objetos
             cliente = Cliente.objects.get(id=cliente_id, activo=True)
@@ -2379,7 +2495,7 @@ def crear_solicitud(request):
             # Validar que el proyecto pertenezca al cliente
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
-                return redirect('crear_solicitud')
+                return redirect('extractor:crear_solicitud')
             
             # ===== CREAR SOLICITUD =====
             solicitud = SolicitudPruebas(
@@ -2447,7 +2563,7 @@ def crear_solicitud(request):
             print(traceback.format_exc())
             messages.error(request, 'Error al crear solicitud. Por favor intenta de nuevo.')
         
-        return redirect('crear_solicitud')
+        return redirect('extractor:crear_solicitud')
     
     # GET - Mostrar formulario
     context = {
@@ -2459,7 +2575,7 @@ def crear_solicitud(request):
     }
     return render(request, 'extractor/crear_solicitud.html', context)
 
-@login_required(login_url='login')
+@login_required
 def solicitud_list(request):
     """Listado de solicitudes de pruebas"""
     from django.utils import timezone
@@ -2543,15 +2659,15 @@ def solicitud_generar_ticket(request, id):
         try:
             if solicitud.ticket:
                 messages.warning(request, f'Esta solicitud ya tiene un ticket asociado: {solicitud.ticket.codigo}')
-                return redirect('ticket_detail', id=solicitud.ticket.id)
+                return redirect('extractor:eticket_detail', id=solicitud.ticket.id)
             
             ticket = solicitud.generar_ticket()
             messages.success(request, f'✅ Ticket generado exitosamente: {ticket.codigo}')
-            return redirect('ticket_detail', id=ticket.id)
+            return redirect('extractor:eticket_detail', id=ticket.id)
             
         except Exception as e:
             messages.error(request, f'Error al generar ticket: {str(e)}')
-            return redirect('solicitud_detail', id=solicitud.id)
+            return redirect('extractor:solicitud_detail', id=solicitud.id)
     
     # GET - Mostrar confirmación
     context = {
@@ -2567,15 +2683,15 @@ def solicitud_delete(request, id):
         try:
             if solicitud.ticket:
                 messages.error(request, 'No se puede eliminar una solicitud que tiene un ticket asociado')
-                return redirect('solicitud_detail', id=solicitud.id)
+                return redirect('extractor:solicitud_detail', id=solicitud.id)
             
             solicitud.delete()
             messages.success(request, '✅ Solicitud eliminada exitosamente')
-            return redirect('solicitud_list')
+            return redirect('extractor:solicitud_list')
             
         except Exception as e:
             messages.error(request, f'Error al eliminar solicitud: {str(e)}')
-            return redirect('solicitud_detail', id=solicitud.id)
+            return redirect('extractor:solicitud_detail', id=solicitud.id)
     
     # GET - Mostrar confirmación
     context = {
@@ -2605,7 +2721,7 @@ def imprimir_solicitud_excel(request, id):
     
     if not os.path.exists(plantilla_path):
         messages.error(request, f"No se encontró la plantilla en: {plantilla_path}")
-        return redirect('solicitud_detail', id=solicitud.id)
+        return redirect('extractor:solicitud_detail', id=solicitud.id)
     
     try:
         wb = load_workbook(plantilla_path)
@@ -2749,7 +2865,7 @@ def imprimir_solicitud_excel(request, id):
         traceback.print_exc()
         
         messages.error(request, f"Error al generar el archivo: {str(e)}")
-        return redirect('solicitud_detail', id=solicitud.id)
+        return redirect('extractor:solicitud_detail', id=solicitud.id)
     
 def check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600):
     """
@@ -2786,3 +2902,567 @@ def check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600):
     
     return True, ""
 
+def registro_view(request):
+    """Vista para registro de nuevos usuarios"""
+    if request.method == 'POST':
+        form = RegistroUsuarioForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Iniciar sesión automáticamente
+            login(request, user)
+            messages.success(request, f'¡Bienvenido {user.username}! Tu cuenta ha sido creada exitosamente.')
+            return redirect('extractor:solicitud_list') 
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Error en {field}: {error}')
+    else:
+        form = RegistroUsuarioForm()
+    
+    return render(request, 'extractor/registro.html', {'form': form})
+
+# ===== VISTAS PARA GESTIÓN DE USUARIOS =====
+
+@login_required
+def usuarios_list(request):
+    """
+    Lista todos los usuarios registrados en el sistema
+    Solo accesible para superusuarios o usuarios con permisos especiales
+    """
+    # Verificar permisos (solo admin puede ver lista de usuarios)
+    if not request.user.is_superuser and not request.user.has_perm('auth.view_user'):
+        messages.error(request, 'No tienes permiso para ver la lista de usuarios')
+        return redirect('extractor:solicitud_list')
+    
+    usuarios = Usuario.objects.all().select_related('cliente_asociado')
+    
+    # Filtros
+    rol = request.GET.get('rol')
+    cliente_id = request.GET.get('cliente')
+    search = request.GET.get('q')
+    is_active = request.GET.get('activo')
+    
+    if rol:
+        if rol == 'admin':
+            usuarios = usuarios.filter(is_superuser=True)
+        elif rol == 'staff':
+            usuarios = usuarios.filter(is_staff=True, is_superuser=False)
+        elif rol == 'user':
+            usuarios = usuarios.filter(is_staff=False, is_superuser=False)
+    
+    if cliente_id:
+        usuarios = usuarios.filter(cliente_asociado_id=cliente_id)
+    
+    if search:
+        usuarios = usuarios.filter(
+            Q(username__icontains=search) |
+            Q(email__icontains=search) |
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search) |
+            Q(puesto__icontains=search)
+        )
+    
+    if is_active == 'si':
+        usuarios = usuarios.filter(is_active=True)
+    elif is_active == 'no':
+        usuarios = usuarios.filter(is_active=False)
+    
+    # Ordenamiento
+    orden = request.GET.get('orden', '-date_joined')
+    usuarios = usuarios.order_by(orden)
+    
+    # Paginación
+    por_pagina = request.GET.get('por_pagina', 20)
+    try:
+        por_pagina = int(por_pagina)
+    except ValueError:
+        por_pagina = 20
+    
+    paginator = Paginator(usuarios, por_pagina)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Estadísticas
+    context = {
+        'usuarios': page_obj,
+        'page_obj': page_obj,
+        'total_usuarios': Usuario.objects.count(),
+        'usuarios_activos': Usuario.objects.filter(is_active=True).count(),
+        'usuarios_inactivos': Usuario.objects.filter(is_active=False).count(),
+        'admins': Usuario.objects.filter(is_superuser=True).count(),
+        'staff': Usuario.objects.filter(is_staff=True, is_superuser=False).count(),
+        'clientes': Cliente.objects.filter(activo=True),
+        'filtro_rol': rol,
+        'filtro_cliente': cliente_id,
+        'filtro_activo': is_active,
+        'busqueda': search or '',
+        'orden_actual': orden,
+        'por_pagina': por_pagina,
+    }
+    return render(request, 'catalogos/usuarios_list.html', context)
+
+
+@login_required
+def usuario_detail(request, id):
+    """Ver detalle de un usuario específico"""
+    if not request.user.is_superuser and request.user.id != id:
+        messages.error(request, 'No tienes permiso para ver este perfil')
+        return redirect('extractor:usuarios_list')
+    
+    usuario = get_object_or_404(Usuario, id=id)
+    
+    # Obtener tickets creados por el usuario
+    tickets_creados = Ticket.objects.filter(creado_por=usuario).order_by('-fecha_creacion')[:10]
+    
+    # Obtener tickets asignados al usuario
+    tickets_asignados = Ticket.objects.filter(asignado_a=usuario).order_by('-fecha_creacion')[:10]
+    
+    context = {
+        'usuario': usuario,
+        'tickets_creados': tickets_creados,
+        'tickets_asignados': tickets_asignados,
+        'total_tickets_creados': Ticket.objects.filter(creado_por=usuario).count(),
+        'total_tickets_asignados': Ticket.objects.filter(asignado_a=usuario).count(),
+    }
+    return render(request, 'catalogos/usuario_detail.html', context)
+
+
+@login_required
+def usuario_edit(request, id):
+    """Editar un usuario existente"""
+    if not request.user.is_superuser and request.user.id != id:
+        messages.error(request, 'No tienes permiso para editar este usuario')
+        return redirect('extractor:usuarios_list')
+    
+    usuario = get_object_or_404(Usuario, id=id)
+    
+    if request.method == 'POST':
+        try:
+            # Datos básicos
+            usuario.first_name = request.POST.get('first_name', '')
+            usuario.last_name = request.POST.get('last_name', '')
+            usuario.email = request.POST.get('email', '')
+            usuario.telefono = request.POST.get('telefono', '')
+            usuario.puesto = request.POST.get('puesto', '')
+            
+            cliente_id = request.POST.get('cliente_asociado')
+            if cliente_id:
+                usuario.cliente_asociado_id = cliente_id
+            else:
+                usuario.cliente_asociado = None
+            
+            # Permisos (solo superusuario puede cambiar estos)
+            if request.user.is_superuser:
+                usuario.is_active = request.POST.get('is_active', 'off') == 'on'
+                usuario.is_staff = request.POST.get('is_staff', 'off') == 'on'
+                usuario.is_superuser = request.POST.get('is_superuser', 'off') == 'on'
+                usuario.puede_generar_tickets = request.POST.get('puede_generar_tickets', 'off') == 'on'
+                usuario.puede_ver_todos_tickets = request.POST.get('puede_ver_todos_tickets', 'off') == 'on'
+            
+            # Cambiar contraseña si se proporcionó
+            nueva_password = request.POST.get('new_password')
+            if nueva_password:
+                if len(nueva_password) >= 8:
+                    usuario.set_password(nueva_password)
+                    messages.success(request, 'Contraseña actualizada exitosamente')
+                else:
+                    messages.error(request, 'La contraseña debe tener al menos 8 caracteres')
+                    return redirect('extractor:usuario_edit', id=usuario.id)
+            
+            usuario.save()
+            messages.success(request, f'Usuario "{usuario.username}" actualizado exitosamente')
+            
+            if request.user.is_superuser:
+                return redirect('extractor:usuarios_list')
+            else:
+                return redirect('extractor:usuario_detail', id=usuario.id)
+                
+        except Exception as e:
+            messages.error(request, f'Error al actualizar usuario: {str(e)}')
+            return redirect('extractor:usuario_edit', id=usuario.id)
+    
+    context = {
+        'usuario': usuario,
+        'clientes': Cliente.objects.filter(activo=True),
+        'es_superusuario': request.user.is_superuser,
+    }
+    return render(request, 'catalogos/usuario_form.html', context)
+
+
+@login_required
+def usuario_create(request):
+    """Crear un nuevo usuario manualmente (solo superusuarios)"""
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permiso para crear usuarios')
+        return redirect('extractor:usuarios_list')
+    
+    if request.method == 'POST':
+        try:
+            username = request.POST.get('username', '').strip()
+            email = request.POST.get('email', '').strip()
+            password = request.POST.get('password', '')
+            password_confirm = request.POST.get('password_confirm', '')
+            
+            # Validaciones
+            if not username or not email:
+                messages.error(request, 'Usuario y email son obligatorios')
+                return redirect('extractor:usuario_create')
+            
+            if Usuario.objects.filter(username=username).exists():
+                messages.error(request, f'El usuario "{username}" ya existe')
+                return redirect('extractor:usuario_create')
+            
+            if Usuario.objects.filter(email=email).exists():
+                messages.error(request, f'El email "{email}" ya está registrado')
+                return redirect('extractor:usuario_create')
+            
+            if password != password_confirm:
+                messages.error(request, 'Las contraseñas no coinciden')
+                return redirect('extractor:usuario_create')
+            
+            if len(password) < 8:
+                messages.error(request, 'La contraseña debe tener al menos 8 caracteres')
+                return redirect('extractor:usuario_create')
+            
+            # Crear usuario
+            usuario = Usuario.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=request.POST.get('first_name', ''),
+                last_name=request.POST.get('last_name', ''),
+                telefono=request.POST.get('telefono', ''),
+                puesto=request.POST.get('puesto', ''),
+            )
+            
+            # Asignar cliente
+            cliente_id = request.POST.get('cliente_asociado')
+            if cliente_id:
+                usuario.cliente_asociado_id = cliente_id
+            
+            # Permisos
+            usuario.is_active = request.POST.get('is_active', 'on') == 'on'
+            usuario.is_staff = request.POST.get('is_staff', 'off') == 'on'
+            usuario.is_superuser = request.POST.get('is_superuser', 'off') == 'on'
+            usuario.puede_generar_tickets = request.POST.get('puede_generar_tickets', 'on') == 'on'
+            usuario.puede_ver_todos_tickets = request.POST.get('puede_ver_todos_tickets', 'off') == 'on'
+            usuario.save()
+            
+            messages.success(request, f'✅ Usuario "{usuario.username}" creado exitosamente')
+            return redirect('extractor:usuarios_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error al crear usuario: {str(e)}')
+            return redirect('extractor:usuario_create')
+    
+    context = {
+        'clientes': Cliente.objects.filter(activo=True),
+    }
+    return render(request, 'catalogos/usuario_create_form.html')
+
+
+@login_required
+def usuario_delete(request, id):
+    """Eliminar (desactivar) un usuario"""
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permiso para eliminar usuarios')
+        return redirect('extractor:usuarios_list')
+    
+    usuario = get_object_or_404(Usuario, id=id)
+    
+    # No permitir eliminar el propio usuario
+    if usuario.id == request.user.id:
+        messages.error(request, 'No puedes eliminarte a ti mismo')
+        return redirect('extractor:usuarios_list')
+    
+    if request.method == 'POST':
+        try:
+            username = usuario.username
+            # En lugar de eliminar, desactivar (soft delete)
+            usuario.is_active = False
+            usuario.save()
+            messages.success(request, f'Usuario "{username}" desactivado exitosamente')
+        except Exception as e:
+            messages.error(request, f'Error al desactivar usuario: {str(e)}')
+    
+    return redirect('extractor:usuarios_list')
+
+
+@login_required
+def usuario_activar(request, id):
+    """Reactivar un usuario desactivado"""
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permiso para activar usuarios')
+        return redirect('extractor:usuarios_list')
+    
+    usuario = get_object_or_404(Usuario, id=id)
+    
+    if request.method == 'POST':
+        try:
+            usuario.is_active = True
+            usuario.save()
+            messages.success(request, f'Usuario "{usuario.username}" activado exitosamente')
+        except Exception as e:
+            messages.error(request, f'Error al activar usuario: {str(e)}')
+    
+    return redirect('extractor:usuarios_list')
+
+
+@login_required
+def usuario_cambiar_rol(request, id):
+    """Cambiar rol de usuario (API AJAX)"""
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'})
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            usuario = get_object_or_404(Usuario, id=id)
+            nuevo_rol = data.get('rol')
+            
+            if nuevo_rol == 'admin':
+                usuario.is_superuser = True
+                usuario.is_staff = True
+            elif nuevo_rol == 'staff':
+                usuario.is_superuser = False
+                usuario.is_staff = True
+            elif nuevo_rol == 'user':
+                usuario.is_superuser = False
+                usuario.is_staff = False
+            else:
+                return JsonResponse({'success': False, 'error': 'Rol no válido'})
+            
+            usuario.save()
+            
+            return JsonResponse({
+                'success': True,
+                'rol_display': usuario.get_rol_display() if hasattr(usuario, 'get_rol_display') else nuevo_rol
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+
+@login_required
+def export_usuarios_csv(request):
+    """Exportar usuarios a CSV"""
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permiso para exportar usuarios')
+        return redirect('extractor:usuarios_list')
+    
+    try:
+        usuarios = Usuario.objects.all().select_related('cliente_asociado')
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"usuarios_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'ID', 'Usuario', 'Email', 'Nombre', 'Apellido', 'Teléfono', 
+            'Puesto', 'Cliente Asociado', 'Activo', 'Staff', 'Superusuario',
+            'Puede Generar Tickets', 'Puede Ver Todos Tickets', 'Fecha Registro'
+        ])
+        
+        for usuario in usuarios:
+            writer.writerow([
+                usuario.id,
+                usuario.username,
+                usuario.email,
+                usuario.first_name,
+                usuario.last_name,
+                usuario.telefono or '',
+                usuario.puesto or '',
+                usuario.cliente_asociado.nombre if usuario.cliente_asociado else '',
+                'Sí' if usuario.is_active else 'No',
+                'Sí' if usuario.is_staff else 'No',
+                'Sí' if usuario.is_superuser else 'No',
+                'Sí' if usuario.puede_generar_tickets else 'No',
+                'Sí' if usuario.puede_ver_todos_tickets else 'No',
+                usuario.date_joined.strftime('%d/%m/%Y %H:%M') if usuario.date_joined else ''
+            ])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando usuarios: {str(e)}", exc_info=True)
+        messages.error(request, "Error al exportar usuarios")
+        return redirect('extractor:usuarios_list')
+
+@login_required
+def export_clientes_csv(request):
+    """Exporta clientes a CSV"""
+    try:
+        clientes = Cliente.objects.all()
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"clientes_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Nombre', 'Nomenclatura', 'Activo', 'Fecha Creación'])
+        
+        for cliente in clientes:
+            writer.writerow([
+                cliente.id,
+                cliente.nombre,
+                cliente.nomenclatura,
+                'Sí' if cliente.activo else 'No',
+                cliente.fecha_creacion.strftime('%d/%m/%Y %H:%M') if cliente.fecha_creacion else ''
+            ])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando clientes: {str(e)}")
+        messages.error(request, "Error al exportar clientes")
+        return redirect('extractor:clientes_list')
+
+
+@login_required
+def export_proyectos_csv(request):
+    """Exporta proyectos a CSV"""
+    try:
+        proyectos = Proyecto.objects.all().select_related('cliente')
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"proyectos_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Cliente', 'Nombre', 'Código', 'Descripción', 'Activo', 'Fecha Inicio', 'Fecha Fin'])
+        
+        for proyecto in proyectos:
+            writer.writerow([
+                proyecto.id,
+                proyecto.cliente.nombre if proyecto.cliente else '',
+                proyecto.nombre,
+                proyecto.codigo,
+                proyecto.descripcion or '',
+                'Sí' if proyecto.activo else 'No',
+                proyecto.fecha_inicio.strftime('%d/%m/%Y') if proyecto.fecha_inicio else '',
+                proyecto.fecha_fin.strftime('%d/%m/%Y') if proyecto.fecha_fin else ''
+            ])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando proyectos: {str(e)}")
+        messages.error(request, "Error al exportar proyectos")
+        return redirect('extractor:proyectos_list')
+
+
+@login_required
+def export_tipos_servicio_csv(request):
+    """Exporta tipos de servicio a CSV"""
+    try:
+        tipos = TipoServicio.objects.all()
+        
+        response = HttpResponse(content_type='text/csv')
+        response.write('\ufeff'.encode('utf-8'))
+        
+        from django.utils import timezone
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"tipos_servicio_{timestamp}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Nombre', 'Nomenclatura', 'Activo', 'Fecha Creación'])
+        
+        for tipo in tipos:
+            writer.writerow([
+                tipo.id,
+                tipo.nombre,
+                tipo.nomenclatura,
+                'Sí' if tipo.activo else 'No',
+                tipo.fecha_creacion.strftime('%d/%m/%Y %H:%M') if tipo.fecha_creacion else ''
+            ])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exportando tipos de servicio: {str(e)}")
+        messages.error(request, "Error al exportar tipos de servicio")
+        return redirect('extractor:tipo_servicio_list')
+
+
+@login_required
+def export_all_tables_backup(request):
+    """Exporta todas las tablas como CSV en un archivo ZIP"""
+    import zipfile
+    import io
+    import csv
+    from django.http import HttpResponse
+    from django.utils import timezone
+    
+    try:
+        # Crear archivo ZIP en memoria
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            models_to_export = {
+                'clientes': Cliente,
+                'proyectos': Proyecto,
+                'tipos_servicio': TipoServicio,
+                'tickets': Ticket,
+                'datos_excel': ExcelData,
+                'solicitudes_pruebas': SolicitudPruebas,
+                'usuarios': Usuario,
+            }
+            
+            for filename, model in models_to_export.items():
+                # Crear CSV en memoria
+                csv_buffer = io.StringIO()
+                writer = csv.writer(csv_buffer)
+                
+                queryset = model.objects.all()
+                
+                # Escribir encabezados
+                headers = [field.name for field in model._meta.fields]
+                writer.writerow(headers)
+                
+                # Escribir datos
+                for obj in queryset:
+                    row = []
+                    for field in headers:
+                        value = getattr(obj, field)
+                        if value is None:
+                            row.append('')
+                        elif hasattr(value, 'strftime'):
+                            row.append(value.strftime('%Y-%m-%d %H:%M:%S'))
+                        elif hasattr(value, 'pk'):
+                            row.append(value.pk)
+                        else:
+                            row.append(str(value))
+                    writer.writerow(row)
+                
+                # Convertir StringIO a bytes para el ZIP
+                csv_content = csv_buffer.getvalue().encode('utf-8-sig')
+                zip_file.writestr(f"{filename}.csv", csv_content)
+        
+        # Preparar respuesta
+        zip_buffer.seek(0)
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="backup_completo_{timestamp}.zip"'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error en backup: {str(e)}", exc_info=True)
+        messages.error(request, f"Error al crear backup: {str(e)}")
+        return redirect('extractor:solicitud_list')

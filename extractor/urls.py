@@ -1,11 +1,14 @@
+# extractor/urls.py
 from django.urls import path
 from django.contrib.auth import views as auth_views 
 from . import views
 
+app_name = 'extractor'  
+
 urlpatterns = [
     # ===== AUTENTICACIÓN (PÚBLICAS) =====
-    path('login/', views.login_view, name='login'),  # Usar vista personalizada
-    path('logout/', views.logout_view, name='logout'),  # Usar vista personalizada
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
     
     # ===== SOLICITUDES (PÚBLICAS) =====
     path('solicitudes/', views.solicitud_list, name='solicitud_list'),
@@ -51,9 +54,27 @@ urlpatterns = [
     
     # ===== EXPORTACIONES (PRIVADAS) =====
     path('export/tickets/', views.export_tickets_excel, name='export_tickets_excel'),
+    path('export/clientes/', views.export_clientes_csv, name='export_clientes_csv'),
+    path('export/proyectos/', views.export_proyectos_csv, name='export_proyectos_csv'),
+    path('export/tipos-servicio/', views.export_tipos_servicio_csv, name='export_tipos_servicio_csv'),
     path('export/table/<str:table_name>/', views.export_table_csv, name='export_table_csv'),
     path('export/backup/', views.export_all_tables_backup, name='export_all_backup'),
     
     # ===== UTILIDADES (PÚBLICA PARA PRUEBAS) =====
     path('verificar-plantilla/', views.verificar_plantilla, name='verificar_plantilla'),
+    path('registro/', views.registro_view, name='registro'),
+
+    # ===== SEGUIMIENTO DE TICKETS =====
+    path('ticket/<int:id>/cambiar-estado/', views.ticket_cambiar_estado, name='ticket_cambiar_estado'),
+    path('ticket/<int:id>/agregar-comentario/', views.ticket_agregar_comentario, name='ticket_agregar_comentario'),
+
+    # ===== GESTIÓN DE USUARIOS =====
+    path('usuarios/', views.usuarios_list, name='usuarios_list'),
+    path('usuario/<int:id>/', views.usuario_detail, name='usuario_detail'),
+    path('usuario/<int:id>/editar/', views.usuario_edit, name='usuario_edit'),
+    path('usuario/crear/', views.usuario_create, name='usuario_create'),
+    path('usuario/<int:id>/eliminar/', views.usuario_delete, name='usuario_delete'),
+    path('usuario/<int:id>/activar/', views.usuario_activar, name='usuario_activar'),
+    path('usuario/<int:id>/cambiar-rol/', views.usuario_cambiar_rol, name='usuario_cambiar_rol'),
+    path('usuarios/exportar-csv/', views.export_usuarios_csv, name='export_usuarios_csv'),
 ]

@@ -1,0 +1,128 @@
+{% extends 'extractor/base_general.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-header">
+    <h1>✏️ Editar Usuario</h1>
+    <p>{{ usuario.username }}</p>
+</div>
+
+<div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px;">
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Información personal -->
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                👤 Información Personal
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Nombre:</label>
+                    <input type="text" name="first_name" value="{{ usuario.first_name }}" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Apellido:</label>
+                    <input type="text" name="last_name" value="{{ usuario.last_name }}" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Email:</label>
+                    <input type="email" name="email" value="{{ usuario.email }}" required class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Teléfono:</label>
+                    <input type="text" name="telefono" value="{{ usuario.telefono }}" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Puesto:</label>
+                    <input type="text" name="puesto" value="{{ usuario.puesto }}" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Cliente asociado:</label>
+                    <select name="cliente_asociado" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="">---------</option>
+                        {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}" {% if usuario.cliente_asociado.id == cliente.id %}selected{% endif %}>
+                                {{ cliente.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cambiar contraseña -->
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                🔒 Cambiar Contraseña
+            </h3>
+            <p style="color: #666; margin-bottom: 15px;">Dejar en blanco para mantener la contraseña actual</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Nueva contraseña:</label>
+                    <input type="password" name="new_password" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Confirmar contraseña:</label>
+                    <input type="password" name="confirm_password" class="form-control" style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Permisos (solo superusuario) -->
+        {% if es_superusuario %}
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                ⚙️ Permisos y Roles
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" name="is_active" {% if usuario.is_active %}checked{% endif %}>
+                    <span>✅ Usuario Activo</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" name="is_staff" {% if usuario.is_staff %}checked{% endif %}>
+                    <span>👔 Es Staff (acceso al admin)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" name="is_superuser" {% if usuario.is_superuser %}checked{% endif %}>
+                    <span>👑 Superusuario (todos los permisos)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" name="puede_generar_tickets" {% if usuario.puede_generar_tickets %}checked{% endif %}>
+                    <span>🎫 Puede generar tickets</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" name="puede_ver_todos_tickets" {% if usuario.puede_ver_todos_tickets %}checked{% endif %}>
+                    <span>👁️ Puede ver todos los tickets</span>
+                </label>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Botones -->
+        <div style="display: flex; gap: 15px; margin-top: 20px;">
+            <button type="submit" class="btn btn-success" style="background-color: #28a745; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer;">
+                💾 Guardar Cambios
+            </button>
+            <a href="{% if es_superusuario %}{% url 'extractor:usuarios_list' %}{% else %}{% url 'extractor:usuario_detail' usuario.id %}{% endif %}" class="btn btn-secondary" style="background-color: #6c757d; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px;">
+                ❌ Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const newPass = document.querySelector('input[name="new_password"]').value;
+    const confirmPass = document.querySelector('input[name="confirm_password"]').value;
+    
+    if (newPass && newPass !== confirmPass) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+    }
+});
+</script>
+{% endblock %}

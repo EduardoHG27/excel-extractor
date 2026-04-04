@@ -1,0 +1,223 @@
+[
+  {
+    "identificador": "TC-001",
+    "titulo": "Registro exitoso de usuario y activación de cuenta mediante email",
+    "descripcion": "Prueba del flujo principal (Happy Path) de registro de un nuevo usuario, incluyendo la recepción y confirmación del email de verificación. Este caso es de ALTO RIESGO porque es la funcionalidad CRÍTICA para que nuevos usuarios puedan acceder al sistema. Una falla aquí impediría la adquisición de usuarios y el acceso al servicio.",
+    "nivel_riesgo": "alto",
+    "precondiciones": [
+      "El sistema de registro está accesible y operativo.",
+      "El servicio de envío de correos electrónicos está configurado y funcionando correctamente.",
+      "No existe un usuario previamente registrado con el email 'usuario.nuevo@example.com'."
+    ],
+    "pasos": [
+      "1. Navegar a la página de registro del sistema.",
+      "2. Ingresar 'usuario.nuevo@example.com' en el campo 'Email'.",
+      "3. Ingresar 'Password123!' en el campo 'Contraseña'.",
+      "4. Ingresar 'Password123!' en el campo 'Confirmar Contraseña'.",
+      "5. Hacer clic en el botón 'Registrar'.",
+      "6. Acceder a la bandeja de entrada del correo 'usuario.nuevo@example.com'.",
+      "7. Abrir el email de verificación enviado por el sistema.",
+      "8. Hacer clic en el enlace de verificación dentro del email."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de éxito indicando que el registro fue exitoso y se ha enviado un email de verificación.",
+      "Se recibe un email de verificación en la bandeja de entrada de 'usuario.nuevo@example.com' con un enlace válido.",
+      "Al hacer clic en el enlace, el usuario es redirigido a una página de confirmación de cuenta activada.",
+      "La cuenta del usuario 'usuario.nuevo@example.com' se marca como 'activa' en la base de datos del sistema."
+    ],
+    "datos_prueba": {
+      "email": "usuario.nuevo@example.com",
+      "password": "Password123!",
+      "confirm_password": "Password123!"
+    }
+  },
+  {
+    "identificador": "TC-002",
+    "titulo": "Intento de inicio de sesión con cuenta no verificada",
+    "descripcion": "Prueba de seguridad para asegurar que un usuario no puede iniciar sesión si su cuenta no ha sido activada mediante la verificación de email. Este caso es de ALTO RIESGO porque una falla permitiría el acceso no autorizado o prematuro al sistema, bypassando un requisito de seguridad crítico y la integridad del proceso de registro.",
+    "nivel_riesgo": "alto",
+    "precondiciones": [
+      "El sistema de registro está accesible y operativo.",
+      "Un usuario ('no.verificado@example.com') ha sido registrado exitosamente pero su email NO ha sido verificado.",
+      "El sistema de inicio de sesión está accesible y operativo."
+    ],
+    "pasos": [
+      "1. Navegar a la página de inicio de sesión del sistema.",
+      "2. Ingresar 'no.verificado@example.com' en el campo 'Email'.",
+      "3. Ingresar 'MyPassword789' en el campo 'Contraseña'.",
+      "4. Hacer clic en el botón 'Iniciar Sesión'."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de error claro indicando que la cuenta no ha sido verificada o está inactiva.",
+      "El usuario NO es redirigido a la página principal o a cualquier otra página de contenido del sistema.",
+      "La sesión del usuario no se establece correctamente.",
+      "Posiblemente se ofrece una opción para reenviar el email de verificación."
+    ],
+    "datos_prueba": {
+      "email": "no.verificado@example.com",
+      "password": "MyPassword789"
+    }
+  },
+  {
+    "identificador": "TC-003",
+    "titulo": "Registro con email inválido (formato incorrecto)",
+    "descripcion": "Prueba de validación para asegurar que el sistema rechaza emails con formatos incorrectos. Este caso es de ALTO RIESGO porque la aceptación de emails inválidos puede llevar a la creación de cuentas inaccesibles, problemas de comunicación con el usuario, y corrupción de datos en la base de datos, afectando la calidad y la capacidad de soporte del sistema.",
+    "nivel_riesgo": "alto",
+    "precondiciones": [
+      "El sistema de registro está accesible y operativo.",
+      "El campo de email tiene validación de formato implementada."
+    ],
+    "pasos": [
+      "1. Navegar a la página de registro del sistema.",
+      "2. Ingresar 'emailinvalido.com' en el campo 'Email'.",
+      "3. Ingresar 'ValidPass123' en el campo 'Contraseña'.",
+      "4. Ingresar 'ValidPass123' en el campo 'Confirmar Contraseña'.",
+      "5. Hacer clic en el botón 'Registrar'."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de error claro e intuitivo indicando que el formato del email es inválido.",
+      "El registro NO es exitoso y no se crea ninguna cuenta en el sistema.",
+      "El campo 'Email' se resalta visualmente para indicar el error."
+    ],
+    "datos_prueba": {
+      "email": "emailinvalido.com",
+      "password": "ValidPass123",
+      "confirm_password": "ValidPass123"
+    }
+  },
+  {
+    "identificador": "TC-004",
+    "titulo": "Registro con contraseñas que no coinciden",
+    "descripcion": "Prueba de validación para asegurar que los campos de contraseña y confirmación de contraseña deben ser idénticos. Este caso es de MEDIO RIESGO porque, si falla, un usuario podría registrarse con una contraseña que no conoce o que no pretendía, lo que resultaría en incapacidad para iniciar sesión y una mala experiencia de usuario, generando posibles tickets de soporte.",
+    "nivel_riesgo": "medio",
+    "precondiciones": [
+      "El sistema de registro está accesible y operativo.",
+      "La validación de coincidencia de contraseñas está implementada."
+    ],
+    "pasos": [
+      "1. Navegar a la página de registro del sistema.",
+      "2. Ingresar 'mismatch@example.com' en el campo 'Email'.",
+      "3. Ingresar 'Pass1234' en el campo 'Contraseña'.",
+      "4. Ingresar 'Pass5678' en el campo 'Confirmar Contraseña' (diferente a la anterior).",
+      "5. Hacer clic en el botón 'Registrar'."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de error claro indicando que las contraseñas no coinciden.",
+      "El registro NO es exitoso y no se crea ninguna cuenta en el sistema.",
+      "Los campos 'Contraseña' y 'Confirmar Contraseña' se resaltan visualmente para indicar el error."
+    ],
+    "datos_prueba": {
+      "email": "mismatch@example.com",
+      "password": "Pass1234",
+      "confirm_password": "Pass5678"
+    }
+  },
+  {
+    "identificador": "TC-005",
+    "titulo": "Registro con contraseña menor a 8 caracteres",
+    "descripcion": "Prueba de validación para asegurar que la contraseña cumple con el requisito de longitud mínima. Este caso es de MEDIO RIESGO porque una falla permitiría a los usuarios crear contraseñas débiles, comprometiendo la seguridad de sus cuentas y, potencialmente, la seguridad general del sistema si estas cuentas son vulneradas.",
+    "nivel_riesgo": "medio",
+    "precondiciones": [
+      "El sistema de registro está accesible y operativo.",
+      "La política de contraseña mínima de 8 caracteres está implementada."
+    ],
+    "pasos": [
+      "1. Navegar a la página de registro del sistema.",
+      "2. Ingresar 'shortpass@example.com' en el campo 'Email'.",
+      "3. Ingresar 'short' (5 caracteres) en el campo 'Contraseña'.",
+      "4. Ingresar 'short' en el campo 'Confirmar Contraseña'.",
+      "5. Hacer clic en el botón 'Registrar'."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de error claro indicando que la contraseña no cumple con la longitud mínima requerida (ej. 'La contraseña debe tener al menos 8 caracteres').",
+      "El registro NO es exitoso y no se crea ninguna cuenta en el sistema.",
+      "El campo 'Contraseña' se resalta visualmente para indicar el error."
+    ],
+    "datos_prueba": {
+      "email": "shortpass@example.com",
+      "password": "short",
+      "confirm_password": "short"
+    }
+  },
+  {
+    "identificador": "TC-006",
+    "titulo": "Reenvío de email de verificación para cuenta no activada",
+    "descripcion": "Prueba de la funcionalidad de reenvío de email de verificación para usuarios que no han activado su cuenta. Este caso es de MEDIO RIESGO porque es una funcionalidad alternativa importante para la activación de cuentas. Si falla, los usuarios que no recibieron el email inicial o lo perdieron, no podrán activar su cuenta, lo que impacta la usabilidad y la capacidad de acceso al sistema.",
+    "nivel_riesgo": "medio",
+    "precondiciones": [
+      "Un usuario ('reenviar@example.com') ha sido registrado pero su cuenta NO ha sido verificada.",
+      "El sistema de login o una página de estado de cuenta ofrece la opción de reenviar el email de verificación.",
+      "El servicio de envío de correos electrónicos está configurado y funcionando correctamente."
+    ],
+    "pasos": [
+      "1. Intentar iniciar sesión con 'reenviar@example.com' y 'ReenviarPass123'.",
+      "2. Observar el mensaje de error que indica que la cuenta no está verificada.",
+      "3. Hacer clic en la opción 'Reenviar email de verificación' (o similar).",
+      "4. Acceder a la bandeja de entrada del correo 'reenviar@example.com'.",
+      "5. Abrir el nuevo email de verificación recibido."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de confirmación indicando que el email de verificación ha sido reenviado.",
+      "Se recibe un nuevo email de verificación en la bandeja de entrada de 'reenviar@example.com'.",
+      "El enlace de verificación en el nuevo email es válido y permite la activación de la cuenta."
+    ],
+    "datos_prueba": {
+      "email": "reenviar@example.com",
+      "password": "ReenviarPass123"
+    }
+  },
+  {
+    "identificador": "TC-007",
+    "titulo": "Registro con email ya existente en el sistema",
+    "descripcion": "Prueba para asegurar que no se pueden crear múltiples cuentas con el mismo email. Este caso es de BAJO RIESGO porque, aunque no es un fallo crítico que detenga la operación, es una validación importante para la integridad de los datos de usuario y una buena experiencia de usuario. Previene duplicados y confusión.",
+    "nivel_riesgo": "bajo",
+    "precondiciones": [
+      "El sistema de registro está accesible y operativo.",
+      "Existe un usuario previamente registrado con el email 'existente@example.com'."
+    ],
+    "pasos": [
+      "1. Navegar a la página de registro del sistema.",
+      "2. Ingresar 'existente@example.com' en el campo 'Email'.",
+      "3. Ingresar 'ExistingPass123' en el campo 'Contraseña'.",
+      "4. Ingresar 'ExistingPass123' en el campo 'Confirmar Contraseña'.",
+      "5. Hacer clic en el botón 'Registrar'."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de error claro indicando que el email ya está registrado o en uso.",
+      "El registro NO es exitoso y no se crea una nueva cuenta en el sistema.",
+      "La cuenta existente con 'existente@example.com' no sufre ninguna modificación."
+    ],
+    "datos_prueba": {
+      "email": "existente@example.com",
+      "password": "ExistingPass123",
+      "confirm_password": "ExistingPass123"
+    }
+  },
+  {
+    "identificador": "TC-008",
+    "titulo": "Verificación de email con token expirado o inválido",
+    "descripcion": "Prueba el manejo del sistema cuando se intenta verificar una cuenta con un token que ya no es válido (ej. expirado o manipulado). Este caso es de BAJO RIESGO porque no detiene la operación principal, pero es importante para la robustez del sistema y la experiencia del usuario. Un manejo incorrecto podría generar confusión o incluso vulnerabilidades si el token no se invalida correctamente.",
+    "nivel_riesgo": "bajo",
+    "precondiciones": [
+      "Un usuario ('expirado@example.com') ha sido registrado pero su cuenta NO ha sido verificada.",
+      "Se ha generado un token de verificación para 'expirado@example.com' que ha sido invalidado o expirado (simulado).",
+      "El sistema de verificación de tokens está operativo."
+    ],
+    "pasos": [
+      "1. Simular el registro de 'expirado@example.com' con 'ExpiredToken123'.",
+      "2. Simular la expiración o invalidación del token de verificación asociado a 'expirado@example.com'.",
+      "3. Intentar acceder al enlace de verificación con el token expirado/inválido (ej. 'https://sistema.com/verify?token=INVALID_TOKEN_XYZ').",
+      "4. Observar la página de destino."
+    ],
+    "resultados_esperados": [
+      "Se muestra un mensaje de error claro indicando que el token de verificación es inválido o ha expirado.",
+      "La cuenta del usuario 'expirado@example.com' permanece en estado 'no activa'.",
+      "Se ofrece una opción para reenviar un nuevo email de verificación."
+    ],
+    "datos_prueba": {
+      "email": "expirado@example.com",
+      "password": "ExpiredToken123",
+      "token_invalido": "INVALID_TOKEN_XYZ"
+    }
+  }
+]
