@@ -4,7 +4,7 @@
     "buildCommand": "pip install --upgrade pip && pip install -r requirements.txt && python manage.py collectstatic --noinput"
   },
   "deploy": {
-    "startCommand": "python pre_start.py && python manage.py migrate --noinput && python create_superuser.py && gunicorn excel_extractor.wsgi --timeout 120 --workers 2 --bind 0.0.0.0:8000",
+    "startCommand": "python pre_start.py && python manage.py migrate --noinput && python create_superuser.py && gunicorn excel_extractor.wsgi --timeout 120 --workers 2",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
