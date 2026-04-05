@@ -13,7 +13,7 @@ load_dotenv()
 AUTH_USER_MODEL = 'extractor.Usuario'
 # ============ VARIABLES DE ENTORNO ============
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7_&y#o%h#g#_c!b6z^w8m)0+7o8xr5i@%$k!*&p)q+@v#h$4s@9')
-DEBUG = os.environ.get('DEBUG', 'False') == 'False'
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 #DEBUG = os.environ.get('DEBUG', 'True') == 'True'#
 
 # ============ HOSTS Y CSRF CONFIG ============
