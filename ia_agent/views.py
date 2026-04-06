@@ -335,6 +335,10 @@ def ver_casos(request, ticket_id=None, solicitud_id=None, requerimiento_id=None)
     else:
         titulo = "Todos los Casos de Prueba"
     
+    casos_prioridad_alta = casos.filter(prioridad='alta').count()
+    casos_prioridad_media = casos.filter(prioridad='media').count()
+    casos_prioridad_baja = casos.filter(prioridad='baja').count()
+
     context = {
         'casos': casos,
         'titulo': titulo,
@@ -342,7 +346,10 @@ def ver_casos(request, ticket_id=None, solicitud_id=None, requerimiento_id=None)
         'solicitud': solicitud,
         'requerimiento': requerimiento,
         'ticket_id': ticket_id,
-        'solicitud_id': solicitud_id
+        'solicitud_id': solicitud_id,
+        'casos_prioridad_alta': casos_prioridad_alta,
+        'casos_prioridad_media': casos_prioridad_media,
+        'casos_prioridad_baja': casos_prioridad_baja,
     }
     return render(request, 'ia_agent/ver_casos.html', context)
 

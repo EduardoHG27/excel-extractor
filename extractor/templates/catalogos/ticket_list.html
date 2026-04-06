@@ -426,55 +426,83 @@
                             </div>
                             
                             <!-- Información principal -->
-                            <div class="row mt-3">
-                                <div class="col-6">
-                                    <small class="text-muted d-block">
-                                        <i class="bi bi-building"></i> <strong>Cliente:</strong>
-                                    </small>
-                                    <span class="fw-bold">
-                                        {% if ticket.cliente %}
-                                            {{ ticket.cliente.nombre }}
-                                            <span class="badge bg-light text-dark">{{ ticket.cliente.nomenclatura }}</span>
-                                        {% else %}
-                                            <span class="text-muted">No asignado</span>
-                                        {% endif %}
-                                    </span>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted d-block">
-                                        <i class="bi bi-diagram-3"></i> <strong>Proyecto:</strong>
-                                    </small>
-                                    <span class="fw-bold">
-                                        {% if ticket.proyecto %}
-                                            {{ ticket.proyecto.nombre }}
-                                        {% else %}
-                                            <span class="text-muted">No asignado</span>
-                                        {% endif %}
-                                    </span>
-                                </div>
+                        <div class="row mt-3">
+                            <div class="col-6">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-building"></i> <strong>Cliente:</strong>
+                                </small>
+                                <span class="fw-bold">
+                                    {% if ticket.cliente %}
+                                        {{ ticket.cliente.nombre }}
+                                        <span class="badge bg-light text-dark">{{ ticket.cliente.nomenclatura }}</span>
+                                    {% else %}
+                                        <span class="text-muted">No asignado</span>
+                                    {% endif %}
+                                </span>
                             </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-diagram-3"></i> <strong>Proyecto:</strong>
+                                </small>
+                                <span class="fw-bold">
+                                    {% if ticket.proyecto %}
+                                        {{ ticket.proyecto.nombre }}
+                                    {% else %}
+                                        <span class="text-muted">No asignado</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-tag"></i> <strong>Tipo Servicio:</strong>
+                                </small>
+                                <span>
+                                    {% if ticket.tipo_servicio %}
+                                        {{ ticket.tipo_servicio.nombre }}
+                                    {% else %}
+                                        {{ ticket.tipo_servicio_code|default:"-" }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-person"></i> <strong>Responsable:</strong>
+                                </small>
+                                <span>{{ ticket.responsable_solicitud|default:"-" }}</span>
+                            </div>
+                        </div>
                             
                             <div class="row mt-2">
                                 <div class="col-6">
                                     <small class="text-muted d-block">
-                                        <i class="bi bi-tag"></i> <strong>Tipo Servicio:</strong>
+                                        <i class="bi bi-person-plus"></i> <strong>Creado por:</strong>
                                     </small>
                                     <span>
-                                        {% if ticket.tipo_servicio %}
-                                            {{ ticket.tipo_servicio.nombre }}
+                                        {% if ticket.creado_por %}
+                                            {{ ticket.creado_por.get_full_name|default:ticket.creado_por.username }}
                                         {% else %}
-                                            {{ ticket.tipo_servicio_code|default:"-" }}
+                                            <span class="text-muted">-</span>
                                         {% endif %}
                                     </span>
                                 </div>
                                 <div class="col-6">
                                     <small class="text-muted d-block">
-                                        <i class="bi bi-person"></i> <strong>Responsable:</strong>
+                                        <i class="bi bi-person-check"></i> <strong>Asignado a:</strong>
                                     </small>
-                                    <span>{{ ticket.responsable_solicitud|default:"-" }}</span>
+                                    <span>
+                                        {% if ticket.asignado_a %}
+                                            {{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </span>
                                 </div>
                             </div>
-                            
+
+
                             <!-- Fecha y versión -->
                             <div class="row mt-3">
                                 <div class="col-6">

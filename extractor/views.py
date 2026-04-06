@@ -1743,10 +1743,26 @@ def generar_excel_dictamen(request, ticket_id):
     import os
     from django.conf import settings
     from openpyxl import load_workbook
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from django.contrib import messages
     
     ticket = get_object_or_404(Ticket, id=ticket_id)
+    
+    # Obtener la solicitud asociada (si existe)
+    solicitud = None
+    fecha_solicitud = None
+    try:
+        solicitud = SolicitudPruebas.objects.filter(ticket=ticket).first()
+        if solicitud and solicitud.fecha_solicitud:
+            fecha_solicitud = solicitud.fecha_solicitud
+            print(f"✅ Fecha de solicitud encontrada: {fecha_solicitud}")
+        else:
+            print("⚠️ No se encontró solicitud asociada o no tiene fecha de solicitud")
+            if ticket.fecha_creacion:
+                fecha_solicitud = ticket.fecha_creacion
+                print(f"   Usando fecha de creación del ticket: {fecha_solicitud}")
+    except Exception as e:
+        print(f"⚠️ Error al buscar solicitud: {e}")
     
     # Ruta a la plantilla
     plantilla_path = os.path.join(
@@ -1756,7 +1772,6 @@ def generar_excel_dictamen(request, ticket_id):
         'XXX-XXX-XXX-X-XXX-XXX-XXX DictamenPruebas PRUEBAS.xlsx'
     )
     
-    # Verificar que la plantilla existe
     if not os.path.exists(plantilla_path):
         messages.error(
             request, 
@@ -1765,101 +1780,133 @@ def generar_excel_dictamen(request, ticket_id):
         return redirect('extractor:ticket_detail', id=ticket.id)
     
     try:
-        # Cargar la plantilla
         wb = load_workbook(plantilla_path)
         
-        # Seleccionar la hoja de Dictamen
         if 'Dictamen' in wb.sheetnames:
             ws = wb['Dictamen']
         else:
             ws = wb.active
         
+        def set_cell_value(sheet, coordinate, value):
+            """Escribe un valor en una celda, manejando correctamente celdas fusionadas"""
+            try:
+                for merged_range in sheet.merged_cells.ranges:
+                    if coordinate in merged_range:
+                        top_left = merged_range.start_cell.coordinate
+                        sheet[top_left] = value
+                        return
+                sheet[coordinate] = value
+            except Exception as e:
+                print(f"⚠️ Error en {coordinate}: {e}")
+        
         # Desglosar código del ticket
         partes = ticket.codigo.split('-')
         print(f"Partes del ticket: {partes}")
         
-        # MAPEO SEGÚN SYS.TXT - Usando coordenadas de celda
         if len(partes) >= 7:
-            # MODIFICACIÓN: Verificar si la celda está fusionada antes de asignar
-            try:
-                # Verificar si G2 está en un rango fusionado
-                is_merged = False
-                for merged_range in ws.merged_cells.ranges:
-                    if ws['G2'].coordinate in merged_range:
-                        is_merged = True
-                        print(f"✅ G2 está fusionada en el rango: {merged_range}")
-                        # Obtener la celda superior izquierda del rango fusionado
-                        top_left_cell = ws[merged_range.start_cell.coordinate]
-                        top_left_cell.value = partes[1]
-                        print(f"✅ Celda fusionada {merged_range.start_cell.coordinate} = {partes[1]}")
-                        break
-                
-                if not is_merged:
-                    # Si no está fusionada, asignar directamente
-                    ws['G2'] = partes[1]
-                    print(f"✅ G2 = {partes[1]}")
-            except Exception as e:
-                print(f"❌ Error al asignar G2: {e}")
-            
-            # I2 = Tipo de pruebas
-            try:
-                ws['I2'] = partes[2]
-                print(f"✅ I2 = {partes[2]}")
-            except Exception as e:
-                print(f"❌ Error en I2: {e}")
-            
-            # K2 = No. Pruebas
-            try:
-                ws['K2'] = partes[3]
-                print(f"✅ K2 = {partes[3]}")
-            except Exception as e:
-                print(f"❌ Error en K2: {e}")
-            
-            # M2 = Cliente
-            try:
-                ws['M2'] = partes[4]
-                print(f"✅ M2 = {partes[4]}")
-            except Exception as e:
-                print(f"❌ Error en M2: {e}")
-            
-            # ✅ NUEVO: O2 = Nomenclatura del Proyecto (parte 5 del código)
-            try:
-                ws['O2'] = partes[5]
-                print(f"✅ O2 = {partes[5]}")
-            except Exception as e:
-                print(f"❌ Error en O2: {e}")
-            
-            # Q2 = Consecutivo
-            try:
-                ws['Q2'] = partes[6]
-                print(f"✅ Q2 = {partes[6]}")
-            except Exception as e:
-                print(f"❌ Error en Q2: {e}")
+            set_cell_value(ws, 'G2', partes[1])  # Tipo de Servicio
+            set_cell_value(ws, 'I2', partes[2])  # Tipo de pruebas
+            set_cell_value(ws, 'K2', partes[3])  # No. Pruebas
+            set_cell_value(ws, 'M2', partes[4])  # Cliente
+            set_cell_value(ws, 'O2', partes[5])  # Nomenclatura del Proyecto
+            set_cell_value(ws, 'Q2', partes[6])  # Consecutivo
+            print(f"✅ Código del ticket mapeado correctamente")
         
-        # Otros campos
+        # Fecha actual
+        fecha_actual = datetime.now()
+        fecha_actual_str = fecha_actual.strftime('%d/%m/%Y')
+        
+        # ===== PERÍODO DE PRUEBAS EN K5 =====
+        if fecha_solicitud:
+            if hasattr(fecha_solicitud, 'strftime'):
+                fecha_solicitud_str = fecha_solicitud.strftime('%d/%m/%Y')
+            else:
+                try:
+                    fecha_obj = datetime.strptime(str(fecha_solicitud), '%Y-%m-%d')
+                    fecha_solicitud_str = fecha_obj.strftime('%d/%m/%Y')
+                except:
+                    fecha_solicitud_str = str(fecha_solicitud)
+        else:
+            if ticket.fecha_creacion:
+                fecha_solicitud_str = ticket.fecha_creacion.strftime('%d/%m/%Y')
+            else:
+                fecha_solicitud_str = fecha_actual_str
+        
+        periodo_pruebas = f"{fecha_solicitud_str} - {fecha_actual_str}"
+        set_cell_value(ws, 'K5', periodo_pruebas)
+        print(f"✅ K5 = {periodo_pruebas}")
+        
+        # ===== FECHA ACTUAL EN K6 =====
+        set_cell_value(ws, 'K6', fecha_actual_str)
+        print(f"✅ K6 = {fecha_actual_str}")
+        
+        # ===== CÁLCULO DE HORAS EN M18 =====
+        horas_totales = 0
+        
+        if fecha_solicitud:
+            if hasattr(fecha_solicitud, 'date'):
+                fecha_solicitud_date = fecha_solicitud.date()
+            else:
+                fecha_solicitud_date = fecha_solicitud
+            
+            fecha_actual_date = fecha_actual.date()
+            dias_habiles = calcular_dias_habiles(fecha_solicitud_date, fecha_actual_date)
+            horas_totales = dias_habiles * 8
+            print(f"📊 Días hábiles: {dias_habiles}, Horas: {horas_totales}")
+        
+        try:
+            is_merged_m18 = False
+            for merged_range in ws.merged_cells.ranges:
+                if 'M18' in merged_range or ws['M18'].coordinate in merged_range:
+                    is_merged_m18 = True
+                    top_left_cell = ws[merged_range.start_cell.coordinate]
+                    top_left_cell.value = horas_totales
+                    top_left_cell.number_format = '0'
+                    print(f"✅ M18 = {horas_totales}")
+                    break
+            
+            if not is_merged_m18:
+                ws['M18'] = horas_totales
+                ws['M18'].number_format = '0'
+                print(f"✅ M18 = {horas_totales}")
+        except Exception as e:
+            print(f"❌ Error al asignar M18: {e}")
+        
+        # ===== SOLO CAMPOS QUE DEBEN MODIFICARSE =====
+        # NOTA: E6, B24, H24 NO se modifican para mantener sus textos originales
         campos = [
             ('B5', ticket.cliente.nombre if ticket.cliente else ''),
             ('B6', ticket.proyecto.nombre if ticket.proyecto else ''),
             ('C7', ticket.tipo_servicio.nombre if ticket.tipo_servicio else ''),
-            ('H6', datetime.now().strftime('%d/%m/%Y')),
-            ('B24', ticket.responsable_solicitud or ''),
-            ('H24', ticket.lider_proyecto or ''),
         ]
         
         for celda, valor in campos:
-            try:
-                ws[celda] = valor
-                print(f"✅ {celda} = {valor}")
-            except Exception as e:
-                print(f"❌ Error en {celda}: {e}")
+            set_cell_value(ws, celda, valor)
+            print(f"✅ {celda} = {valor}")
         
-        ws.row_dimensions[37].height = 32.6
+        # ===== RESPONSABLE DEL TICKET EN F28 =====
+        responsable_nombre = ""
+        if ticket.asignado_a:
+            responsable_nombre = ticket.asignado_a.get_full_name() or ticket.asignado_a.username
+        elif ticket.creado_por:
+            responsable_nombre = ticket.creado_por.get_full_name() or ticket.creado_por.username
+        else:
+            responsable_nombre = "No asignado"
+        
+        set_cell_value(ws, 'F28', responsable_nombre)
+        print(f"✅ F28 = {responsable_nombre}")
+        
+        # Ajustar altura de fila 37
+        try:
+            ws.row_dimensions[37].height = 32.6
+        except:
+            pass
+        
         # Guardar en buffer
         buffer = io.BytesIO()
         wb.save(buffer)
         buffer.seek(0)
         
-        # Crear respuesta
         response = HttpResponse(
             buffer.getvalue(),
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -2001,6 +2048,39 @@ def generar_excel_resultados(request, ticket_id):
     response['Content-Length'] = len(buffer.getvalue())
     
     return response
+
+
+def calcular_dias_habiles(fecha_inicio, fecha_fin):
+    """
+    Calcula el número de días hábiles entre dos fechas (excluyendo sábados y domingos)
+    """
+    from datetime import timedelta
+    
+    if not fecha_inicio or not fecha_fin:
+        return 0
+    
+    # Asegurar que las fechas son datetime.date
+    if hasattr(fecha_inicio, 'date'):
+        fecha_inicio = fecha_inicio.date()
+    if hasattr(fecha_fin, 'date'):
+        fecha_fin = fecha_fin.date()
+    
+    # Si la fecha de inicio es mayor que la fecha de fin, retornar 0
+    if fecha_inicio > fecha_fin:
+        return 0
+    
+    # Contar días hábiles
+    dias_habiles = 0
+    fecha_actual = fecha_inicio
+    
+    while fecha_actual <= fecha_fin:
+        # 0 = lunes, 1 = martes, ..., 4 = viernes, 5 = sábado, 6 = domingo
+        if fecha_actual.weekday() < 5:  # Lunes a viernes
+            dias_habiles += 1
+        fecha_actual += timedelta(days=1)
+    
+    return dias_habiles
+
 
 @login_required
 def export_tickets_excel(request):
