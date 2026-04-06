@@ -2193,14 +2193,17 @@ def ticket_cambiar_estado(request, id):
             
             ticket = get_object_or_404(Ticket, id=id)
             
-            # CORREGIDO: Validar todos los estados disponibles
             estados_validos = ['ABIERTO', 'GENERADO', 'EN_PROCESO', 'COMPLETADO', 'CANCELADO']
             if nuevo_estado not in estados_validos:
                 return JsonResponse({'success': False, 'error': 'Estado no válido'})
             
-            # Registrar comentario de cambio de estado
             usuario = request.user.get_full_name() or request.user.username
-            fecha_hora = timezone.now().strftime('%d/%m/%Y %H:%M')
+            
+            # ✅ CORRECCIÓN: Convertir a hora local
+            from django.utils import timezone
+            ahora_local = timezone.localtime(timezone.now())
+            fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
+            
             comentario_estado = f"[{fecha_hora}] {usuario} cambió el estado de {ticket.get_estado_display()} a {dict(Ticket.ESTADOS_TICKET).get(nuevo_estado)}"
             
             if ticket.comentarios_seguimiento:
@@ -2208,7 +2211,6 @@ def ticket_cambiar_estado(request, id):
             else:
                 ticket.comentarios_seguimiento = comentario_estado
             
-            # Si se completa el ticket, registrar fecha de cierre
             if nuevo_estado == 'COMPLETADO' and ticket.estado != 'COMPLETADO':
                 ticket.fecha_cierre = timezone.now()
             elif nuevo_estado != 'COMPLETADO':
@@ -2244,7 +2246,12 @@ def ticket_agregar_comentario(request, id):
             ticket = get_object_or_404(Ticket, id=id)
             
             usuario = request.user.get_full_name() or request.user.username
-            fecha_hora = timezone.now().strftime('%d/%m/%Y %H:%M')
+            
+            # ✅ CORRECCIÓN: Convertir a hora local
+            from django.utils import timezone
+            ahora_local = timezone.localtime(timezone.now())
+            fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
+            
             comentario_formateado = f"[{fecha_hora}] {usuario}: {comentario}"
             
             if ticket.comentarios_seguimiento:
