@@ -1737,7 +1737,7 @@ def ticket_create_simple(request):
 @login_required
 def generar_excel_dictamen(request, ticket_id):
     """
-    Genera el Dictamen de Pruebas usando la plantilla
+    Genera el Dictamen de Pruebas usando la plantilla data
     """
     import io
     import os
