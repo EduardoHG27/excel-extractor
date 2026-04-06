@@ -986,11 +986,14 @@ function agregarComentario(ticketId) {
         return;
     }
     
-    fetch(`/extractor/ticket/${ticketId}/agregar-comentario/`, {
+    // ✅ Usar la URL generada por Django
+    const url = "{% url 'extractor:ticket_agregar_comentario' ticket.id %}";
+    
+    fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCsrfToken()
+            'X-CSRFToken': getCsrfToken()
         },
         body: JSON.stringify({ comentario: comentario })
     })
