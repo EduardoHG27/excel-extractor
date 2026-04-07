@@ -595,10 +595,12 @@ Saludos.
                 <p class="text-muted text-center">No hay comentarios aún</p>
             {% endif %}
         </div>
-            </div>
-        </div>
-    </div>
-{% if ticket.estado == 'COMPLETADO' %}
+            </div>  ← Cierra card-body
+        </div>      ← Cierra modern-card
+    </div>          ← Cierra col-md-6
+</div>  
+    
+ {% if ticket.estado == 'COMPLETADO' %}
 <div class="row g-4 mb-4">
     <div class="col-12">
         <div class="modern-card">
