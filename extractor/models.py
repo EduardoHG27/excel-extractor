@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import User
 from django.conf import settings
+from cloudinary.models import CloudinaryField
 import random  
 
 
@@ -222,15 +223,70 @@ class Ticket(models.Model):
         verbose_name="Fecha de cierre"
     )
     
-    # SOLO UN CAMPO estado - CORREGIDO
+    # Estado del ticket
     estado = models.CharField(
         max_length=20, 
         choices=ESTADOS_TICKET, 
-        default='GENERADO',  # ← Cambiado de 'ABIERTO' a 'GENERADO'
+        default='GENERADO',
         verbose_name="Estado del Ticket"
     )
     
-    # Partes del código del ticket (para búsqueda y filtrado)
+    # ===== ARCHIVOS CON CLOUDINARY (SOLO UNA VEZ CADA UNO) =====
+    dictamen_pdf = CloudinaryField(
+        'Dictamen PDF',
+        folder='tickets/dictamenes/',
+        null=True,
+        blank=True,
+        resource_type='auto'
+    )
+
+    evidencia_pdf = CloudinaryField(
+        'Evidencia de Pruebas PDF',  # ← Primer argumento es el verbose_name
+        folder='tickets/evidencias/',
+        null=True,
+        blank=True,
+        resource_type='auto'  # ← Sin verbose_name duplicado
+    )
+    
+    # URLs públicas (opcional, CloudinaryField ya tiene URL)
+    dictamen_url = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        verbose_name="URL del dictamen"
+    )
+    
+    evidencia_url = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        verbose_name="URL de la evidencia"
+    )
+    
+    # Fechas de subida
+    fecha_subida_dictamen = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de subida del dictamen"
+    )
+    
+    fecha_subida_evidencia = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de subida de evidencia"
+    )
+    
+    # Usuario que subió los archivos
+    subido_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='archivos_subidos',
+        verbose_name="Subido por"
+    )
+    
+    # Partes del código del ticket
     empresa_code = models.CharField(max_length=10, default="BID", verbose_name="Código Empresa")
     tipo_servicio_code = models.CharField(max_length=10, verbose_name="Código Tipo Servicio")
     funcion_code = models.CharField(max_length=20, verbose_name="Código Función")
@@ -244,15 +300,14 @@ class Ticket(models.Model):
     lider_proyecto = models.CharField(max_length=255, blank=True, verbose_name="Líder del Proyecto")
     numero_version = models.CharField(max_length=255, blank=True, verbose_name="Número de Versión")
     
-    # NO duplicar el campo estado aquí
-    
+    # Fechas
     fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
     fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
 
     class Meta:
         verbose_name = "Ticket"
         verbose_name_plural = "Tickets"
-        ordering = ['-fecha_creacion']  # ← Los más nuevos primero
+        ordering = ['-fecha_creacion']
         indexes = [
             models.Index(fields=['codigo']),
             models.Index(fields=['estado']),

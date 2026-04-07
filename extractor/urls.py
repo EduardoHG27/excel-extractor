@@ -77,4 +77,8 @@ urlpatterns = [
     path('usuario/<int:id>/activar/', views.usuario_activar, name='usuario_activar'),
     path('usuario/<int:id>/cambiar-rol/', views.usuario_cambiar_rol, name='usuario_cambiar_rol'),
     path('usuarios/exportar-csv/', views.export_usuarios_csv, name='export_usuarios_csv'),
+
+    path('ticket/<int:id>/subir-dictamen/', views.subir_dictamen, name='subir_dictamen'),
+    path('ticket/<int:id>/subir-evidencia/', views.subir_evidencia, name='subir_evidencia'),
+    path('ticket/<int:id>/eliminar-archivo/<str:tipo>/', views.eliminar_archivo, name='eliminar_archivo'),
 ]

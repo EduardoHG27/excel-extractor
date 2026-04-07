@@ -5,6 +5,10 @@ Django settings for excel_extractor project.
 import os
 from pathlib import Path
 import dj_database_url
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -172,3 +176,19 @@ SOLICITUD_COOLDOWN_MINUTOS = 5
 SOLICITUD_COOLDOWN_SEGUNDOS = SOLICITUD_COOLDOWN_MINUTOS * 60
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),  # ← Sin valor por defecto
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),        # ← Sin valor por defecto
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),  # ← Sin valor por defecto
+}
+
+cloudinary.config(
+    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+    api_key=CLOUDINARY_STORAGE['API_KEY'],
+    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+    secure=True  # Usar HTTPS
+)
+
+# Configurar almacenamiento de archivos
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

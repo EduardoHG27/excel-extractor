@@ -598,6 +598,146 @@ Saludos.
             </div>
         </div>
     </div>
+{% if ticket.estado == 'COMPLETADO' %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <h5><i class="bi bi-file-pdf text-danger"></i> Documentación Final</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="row">
+                    <!-- Dictamen -->
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-file-pdf text-danger me-2"></i>
+                                    Dictamen de Pruebas
+                                </h6>
+                                {% if ticket.dictamen_pdf %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-cloud-check"></i> Subido
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if ticket.dictamen_pdf %}
+                                <div class="alert alert-success">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-file-pdf-fill me-2"></i>
+                                            <strong>Dictamen {{ ticket.codigo }}.pdf</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="bi bi-cloud"></i> Subido: {{ ticket.fecha_subida_dictamen|date:"d/m/Y H:i" }}
+                                                {% if ticket.subido_por %}
+                                                    por {{ ticket.subido_por.get_full_name|default:ticket.subido_por.username }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="btn-group">
+                                            <a href="{{ ticket.dictamen_pdf.url }}" class="btn btn-sm btn-success" target="_blank">
+                                                <i class="bi bi-eye"></i> Ver
+                                            </a>
+                                            <a href="{{ ticket.dictamen_pdf.url }}" download class="btn btn-sm btn-primary">
+                                                <i class="bi bi-download"></i> Descargar
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'dictamen')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <form method="POST" action="{% url 'extractor:subir_dictamen' ticket.id %}" 
+                                      enctype="multipart/form-data" class="mt-2">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <input type="file" name="dictamen_pdf" accept=".pdf" class="form-control" required>
+                                        <small class="text-muted">
+                                            <i class="bi bi-cloud-upload"></i> PDF máximo 10MB - Se guardará en Cloudinary
+                                        </small>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-cloud-upload"></i> Subir Dictamen
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Evidencia -->
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-file-pdf text-danger me-2"></i>
+                                    Evidencia de Pruebas
+                                </h6>
+                                {% if ticket.evidencia_pdf %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-cloud-check"></i> Subido
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if ticket.evidencia_pdf %}
+                                <div class="alert alert-success">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-file-pdf-fill me-2"></i>
+                                            <strong>Evidencia {{ ticket.codigo }}.pdf</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="bi bi-cloud"></i> Subido: {{ ticket.fecha_subida_evidencia|date:"d/m/Y H:i" }}
+                                                {% if ticket.subido_por %}
+                                                    por {{ ticket.subido_por.get_full_name|default:ticket.subido_por.username }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="btn-group">
+                                            <a href="{{ ticket.evidencia_pdf.url }}" class="btn btn-sm btn-success" target="_blank">
+                                                <i class="bi bi-eye"></i> Ver
+                                            </a>
+                                            <a href="{{ ticket.evidencia_pdf.url }}" download class="btn btn-sm btn-primary">
+                                                <i class="bi bi-download"></i> Descargar
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'evidencia')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <form method="POST" action="{% url 'extractor:subir_evidencia' ticket.id %}" 
+                                      enctype="multipart/form-data" class="mt-2">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <input type="file" name="evidencia_pdf" accept=".pdf" class="form-control" required>
+                                        <small class="text-muted">
+                                            <i class="bi bi-cloud-upload"></i> PDF máximo 10MB - Se guardará en Cloudinary
+                                        </small>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-cloud-upload"></i> Subir Evidencia
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </div>
 
 
@@ -928,6 +1068,27 @@ function seleccionarPlantilla(tipo) {
         }
     }
 
+function eliminarArchivoCloudinary(ticketId, tipo) {
+    if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} de Cloudinary?`)) {
+        fetch(`/extractor/ticket/${ticketId}/eliminar-archivo/${tipo}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error al eliminar el archivo');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al eliminar el archivo');
+        });
+    }
+}
 
 function cambiarEstado(nuevoEstado, ticketId) {
     // Obtener la URL del atributo data-url
