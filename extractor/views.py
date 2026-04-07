@@ -3596,7 +3596,7 @@ def subir_dictamen(request, id):
             resultado = cloudinary.uploader.upload(
                 archivo,
                 folder=f"tickets/{ticket.id}/dictamenes",
-                resource_type="auto",
+                resource_type="raw",
                 allowed_formats=["pdf"],
                 public_id=f"dictamen_{nombre_limpio}"
             )
@@ -3656,7 +3656,7 @@ def subir_evidencia(request, id):
             resultado = cloudinary.uploader.upload(
                 archivo,
                 folder=f"tickets/{ticket.id}/evidencias",
-                resource_type="auto",
+                resource_type="raw",
                 allowed_formats=["pdf"],
                 public_id=f"evidencia_{nombre_limpio}"
             )
