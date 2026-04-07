@@ -33,8 +33,17 @@ from django.core.cache import cache
 from .forms import RegistroUsuarioForm
 import json
 from django.views.decorators.csrf import csrf_exempt
+import re
 
 logger = logging.getLogger(__name__)
+
+def sanitizar_public_id(nombre):
+    """Limpia caracteres inválidos para Cloudinary"""
+    nombre = re.sub(r'[&<>#%{}|\\^~\[\]`;?:@=$,/]', '_', nombre)
+    nombre = re.sub(r'\s+', '_', nombre)
+    nombre = nombre.encode('ascii', 'ignore').decode('ascii')
+    nombre = re.sub(r'[^a-zA-Z0-9_-]', '_', nombre)
+    return nombre
 
 # ===== VISTAS PÚBLICAS (NO requieren login) =====
 def login_view(request):
@@ -3583,12 +3592,13 @@ def subir_dictamen(request, id):
             from django.utils import timezone
             
             # Subir a Cloudinary
+            nombre_limpio = sanitizar_public_id(ticket.codigo)
             resultado = cloudinary.uploader.upload(
                 archivo,
                 folder=f"tickets/{ticket.id}/dictamenes",
                 resource_type="auto",
                 allowed_formats=["pdf"],
-                public_id=f"dictamen_{ticket.codigo.replace('-', '_')}"
+                public_id=f"dictamen_{nombre_limpio}"
             )
             
             # Guardar la URL en el ticket
@@ -3642,12 +3652,13 @@ def subir_evidencia(request, id):
             import cloudinary.uploader
             from django.utils import timezone
             
+            nombre_limpio = sanitizar_public_id(ticket.codigo)
             resultado = cloudinary.uploader.upload(
                 archivo,
                 folder=f"tickets/{ticket.id}/evidencias",
                 resource_type="auto",
                 allowed_formats=["pdf"],
-                public_id=f"evidencia_{ticket.codigo.replace('-', '_')}"
+                public_id=f"evidencia_{nombre_limpio}"
             )
             
             ticket.evidencia_pdf = resultado['secure_url']
@@ -3693,7 +3704,8 @@ def eliminar_archivo_cloudinary(request, id, tipo):
         fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
         
         if tipo == 'dictamen' and ticket.dictamen_pdf:
-            public_id = f"tickets/{ticket.id}/dictamenes/dictamen_{ticket.codigo.replace('-', '_')}"
+            nombre_limpio = sanitizar_public_id(ticket.codigo)
+            public_id = f"tickets/{ticket.id}/dictamenes/dictamen_{nombre_limpio}"
             cloudinary.uploader.destroy(public_id, resource_type="image")
             
             ticket.dictamen_pdf = None
@@ -3703,7 +3715,8 @@ def eliminar_archivo_cloudinary(request, id, tipo):
             messages.success(request, '✅ Dictamen eliminado de Cloudinary')
             
         elif tipo == 'evidencia' and ticket.evidencia_pdf:
-            public_id = f"tickets/{ticket.id}/evidencias/evidencia_{ticket.codigo.replace('-', '_')}"
+            nombre_limpio = sanitizar_public_id(ticket.codigo)
+            public_id = f"tickets/{ticket.id}/evidencias/evidencia_{nombre_limpio}"
             cloudinary.uploader.destroy(public_id, resource_type="image")
             
             ticket.evidencia_pdf = None
