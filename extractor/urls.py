@@ -80,5 +80,5 @@ urlpatterns = [
 
     path('ticket/<int:id>/subir-dictamen/', views.subir_dictamen, name='subir_dictamen'),
     path('ticket/<int:id>/subir-evidencia/', views.subir_evidencia, name='subir_evidencia'),
-    path('ticket/<int:id>/eliminar-archivo/<str:tipo>/', views.eliminar_archivo, name='eliminar_archivo'),
+    path('ticket/<int:id>/eliminar-archivo/<str:tipo>/', views.eliminar_archivo_cloudinary, name='eliminar_archivo'),
 ]
