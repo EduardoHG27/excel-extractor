@@ -1072,23 +1072,33 @@ function seleccionarPlantilla(tipo) {
     }
 
 function eliminarArchivoCloudinary(ticketId, tipo) {
-    if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} de Cloudinary?`)) {
-        fetch(`/extractor/ticket/${ticketId}/eliminar-archivo/${tipo}/`, {
+    if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
+        // Construir la URL correctamente
+        const url = `/extractor/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
+        
+        fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCsrfToken()
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
             }
         })
         .then(response => {
-            if (response.ok) {
+            if (response.redirected) {
+                // Si hay redirección, recargar la página
+                window.location.href = response.url;
+            } else if (response.ok) {
+                // Recargar la página para mostrar cambios
                 location.reload();
             } else {
-                alert('Error al eliminar el archivo');
+                return response.json().then(data => {
+                    alert('Error: ' + (data.error || 'No se pudo eliminar el archivo'));
+                });
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error al eliminar el archivo');
+            alert('Error al eliminar el archivo. Por favor, intenta de nuevo.');
         });
     }
 }

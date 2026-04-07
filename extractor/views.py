@@ -3566,10 +3566,9 @@ def export_all_tables_backup(request):
 
 @login_required
 def subir_dictamen(request, id):
-    """Subir archivo PDF del dictamen a Cloudinary cuando el ticket está COMPLETADO"""
+    """Subir archivo PDF del dictamen a Cloudinary"""
     ticket = get_object_or_404(Ticket, id=id)
     
-    # Verificar que el ticket esté COMPLETADO
     if ticket.estado != 'COMPLETADO':
         messages.error(request, 'Solo se pueden subir archivos cuando el ticket está COMPLETADO')
         return redirect('extractor:ticket_detail', id=ticket.id)
@@ -3577,38 +3576,27 @@ def subir_dictamen(request, id):
     if request.method == 'POST' and request.FILES.get('dictamen_pdf'):
         archivo = request.FILES['dictamen_pdf']
         
-        # Validar que sea PDF
         if not archivo.name.endswith('.pdf'):
             messages.error(request, 'Solo se permiten archivos PDF')
             return redirect('extractor:ticket_detail', id=ticket.id)
         
-        # Validar tamaño máximo (10MB)
         if archivo.size > 10 * 1024 * 1024:
             messages.error(request, 'El archivo no puede superar los 10MB')
             return redirect('extractor:ticket_detail', id=ticket.id)
         
         try:
-            import cloudinary.uploader
             from django.utils import timezone
             
-            # Subir a Cloudinary
-            nombre_limpio = sanitizar_public_id(ticket.codigo)
-            resultado = cloudinary.uploader.upload(
-                archivo,
-                folder=f"tickets/{ticket.id}/dictamenes",
-                resource_type="raw",
-                allowed_formats=["pdf"],
-                public_id=f"dictamen_{nombre_limpio}"
-            )
-            
-            # Guardar la URL en el ticket
-            ticket.dictamen_pdf = resultado['secure_url']
-            ticket.dictamen_url = resultado['secure_url']
+            # Asignar directamente al CloudinaryField
+            ticket.dictamen_pdf = archivo
             ticket.fecha_subida_dictamen = timezone.now()
             ticket.subido_por = request.user
             ticket.save()
             
-            # Registrar comentario automático
+            # La URL se genera automáticamente por CloudinaryField
+            # No necesitas guardarla manualmente
+            
+            # Registrar comentario
             usuario = request.user.get_full_name() or request.user.username
             ahora_local = timezone.localtime(timezone.now())
             fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
@@ -3620,17 +3608,17 @@ def subir_dictamen(request, id):
                 ticket.comentarios_seguimiento = comentario
             ticket.save()
             
-            messages.success(request, f'✅ Dictamen subido exitosamente a Cloudinary: {archivo.name}')
+            messages.success(request, f'✅ Dictamen subido exitosamente: {archivo.name}')
             
         except Exception as e:
-            messages.error(request, f'Error al subir a Cloudinary: {str(e)}')
+            messages.error(request, f'Error al subir: {str(e)}')
     
     return redirect('extractor:ticket_detail', id=ticket.id)
 
 
 @login_required
 def subir_evidencia(request, id):
-    """Subir archivo PDF de evidencia a Cloudinary cuando el ticket está COMPLETADO"""
+    """Subir archivo PDF de evidencia a Cloudinary"""
     ticket = get_object_or_404(Ticket, id=id)
     
     if ticket.estado != 'COMPLETADO':
@@ -3649,24 +3637,15 @@ def subir_evidencia(request, id):
             return redirect('extractor:ticket_detail', id=ticket.id)
         
         try:
-            import cloudinary.uploader
             from django.utils import timezone
             
-            nombre_limpio = sanitizar_public_id(ticket.codigo)
-            resultado = cloudinary.uploader.upload(
-                archivo,
-                folder=f"tickets/{ticket.id}/evidencias",
-                resource_type="raw",
-                allowed_formats=["pdf"],
-                public_id=f"evidencia_{nombre_limpio}"
-            )
-            
-            ticket.evidencia_pdf = resultado['secure_url']
-            ticket.evidencia_url = resultado['secure_url']
+            # Asignar directamente al CloudinaryField
+            ticket.evidencia_pdf = archivo
             ticket.fecha_subida_evidencia = timezone.now()
             ticket.subido_por = request.user
             ticket.save()
             
+            # Registrar comentario
             usuario = request.user.get_full_name() or request.user.username
             ahora_local = timezone.localtime(timezone.now())
             fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
@@ -3678,17 +3657,17 @@ def subir_evidencia(request, id):
                 ticket.comentarios_seguimiento = comentario
             ticket.save()
             
-            messages.success(request, f'✅ Evidencia subida exitosamente a Cloudinary: {archivo.name}')
+            messages.success(request, f'✅ Evidencia subida exitosamente: {archivo.name}')
             
         except Exception as e:
-            messages.error(request, f'Error al subir a Cloudinary: {str(e)}')
+            messages.error(request, f'Error al subir: {str(e)}')
     
     return redirect('extractor:ticket_detail', id=ticket.id)
 
 
 @login_required
 def eliminar_archivo_cloudinary(request, id, tipo):
-    """Eliminar archivo de Cloudinary"""
+    """Eliminar archivo de Cloudinary - VERSIÓN CORREGIDA"""
     ticket = get_object_or_404(Ticket, id=id)
     
     if ticket.estado != 'COMPLETADO':
@@ -3702,41 +3681,122 @@ def eliminar_archivo_cloudinary(request, id, tipo):
         usuario = request.user.get_full_name() or request.user.username
         ahora_local = timezone.localtime(timezone.now())
         fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
+        comentario = None
         
         if tipo == 'dictamen' and ticket.dictamen_pdf:
-            nombre_limpio = sanitizar_public_id(ticket.codigo)
-            public_id = f"tickets/{ticket.id}/dictamenes/dictamen_{nombre_limpio}"
-            cloudinary.uploader.destroy(public_id, resource_type="image")
-            
-            ticket.dictamen_pdf = None
-            ticket.dictamen_url = None
-            ticket.fecha_subida_dictamen = None
-            comentario = f"[{fecha_hora}] {usuario} eliminó el dictamen"
-            messages.success(request, '✅ Dictamen eliminado de Cloudinary')
-            
+            # Obtener el public_id directamente del CloudinaryField
+            if hasattr(ticket.dictamen_pdf, 'public_id'):
+                public_id = ticket.dictamen_pdf.public_id
+                
+                # Eliminar usando resource_type='auto' (coincide con la subida)
+                result = cloudinary.uploader.destroy(public_id, resource_type="auto")
+                
+                if result.get('result') == 'ok':
+                    # Limpiar el campo
+                    ticket.dictamen_pdf = None
+                    ticket.fecha_subida_dictamen = None
+                    comentario = f"[{fecha_hora}] {usuario} eliminó el dictamen"
+                    messages.success(request, '✅ Dictamen eliminado de Cloudinary')
+                else:
+                    messages.warning(request, f'⚠️ No se pudo eliminar: {result.get("result")}')
+            else:
+                messages.warning(request, 'No se encontró el public_id del dictamen')
+                
         elif tipo == 'evidencia' and ticket.evidencia_pdf:
-            nombre_limpio = sanitizar_public_id(ticket.codigo)
-            public_id = f"tickets/{ticket.id}/evidencias/evidencia_{nombre_limpio}"
-            cloudinary.uploader.destroy(public_id, resource_type="image")
-            
-            ticket.evidencia_pdf = None
-            ticket.evidencia_url = None
-            ticket.fecha_subida_evidencia = None
-            comentario = f"[{fecha_hora}] {usuario} eliminó la evidencia"
-            messages.success(request, '✅ Evidencia eliminada de Cloudinary')
+            if hasattr(ticket.evidencia_pdf, 'public_id'):
+                public_id = ticket.evidencia_pdf.public_id
+                
+                result = cloudinary.uploader.destroy(public_id, resource_type="auto")
+                
+                if result.get('result') == 'ok':
+                    ticket.evidencia_pdf = None
+                    ticket.fecha_subida_evidencia = None
+                    comentario = f"[{fecha_hora}] {usuario} eliminó la evidencia"
+                    messages.success(request, '✅ Evidencia eliminada de Cloudinary')
+                else:
+                    messages.warning(request, f'⚠️ No se pudo eliminar: {result.get("result")}')
+            else:
+                messages.warning(request, 'No se encontró el public_id de la evidencia')
         else:
             messages.error(request, 'Archivo no encontrado')
             return redirect('extractor:ticket_detail', id=ticket.id)
         
+        # Guardar cambios en el ticket
         ticket.save()
         
-        if ticket.comentarios_seguimiento:
-            ticket.comentarios_seguimiento += f"\n{comentario}"
-        else:
-            ticket.comentarios_seguimiento = comentario
-        ticket.save()
+        # Agregar comentario de seguimiento
+        if comentario:
+            if ticket.comentarios_seguimiento:
+                ticket.comentarios_seguimiento += f"\n{comentario}"
+            else:
+                ticket.comentarios_seguimiento = comentario
+            ticket.save()
         
     except Exception as e:
         messages.error(request, f'Error al eliminar de Cloudinary: {str(e)}')
     
     return redirect('extractor:ticket_detail', id=ticket.id)
+
+@login_required
+def ver_archivo_cloudinary(request, id, tipo):
+    """Ver archivo de Cloudinary (redirige a la URL pública)"""
+    ticket = get_object_or_404(Ticket, id=id)
+    
+    if tipo == 'dictamen' and ticket.dictamen_pdf:
+        return redirect(ticket.dictamen_pdf.url)
+    elif tipo == 'evidencia' and ticket.evidencia_pdf:
+        return redirect(ticket.evidencia_pdf.url)
+    else:
+        messages.error(request, 'Archivo no encontrado')
+        return redirect('extractor:ticket_detail', id=ticket.id)
+
+
+@login_required
+def descargar_archivo_cloudinary(request, id, tipo):
+    """Descargar archivo de Cloudinary (forzar descarga)"""
+    ticket = get_object_or_404(Ticket, id=id)
+    
+    if tipo == 'dictamen' and ticket.dictamen_pdf:
+        # Agregar flag de descarga a la URL
+        url = ticket.dictamen_pdf.url
+        if '?' in url:
+            url += '&flags=attachment'
+        else:
+            url += '?flags=attachment'
+        return redirect(url)
+    elif tipo == 'evidencia' and ticket.evidencia_pdf:
+        url = ticket.evidencia_pdf.url
+        if '?' in url:
+            url += '&flags=attachment'
+        else:
+            url += '?flags=attachment'
+        return redirect(url)
+    else:
+        messages.error(request, 'Archivo no encontrado')
+        return redirect('extractor:ticket_detail', id=ticket.id)
+
+
+@login_required
+def verificar_archivo_cloudinary(request, id, tipo):
+    """Vista de debug para ver información del archivo en Cloudinary"""
+    ticket = get_object_or_404(Token, id=id)
+    
+    info = {}
+    if tipo == 'dictamen' and ticket.dictamen_pdf:
+        info = {
+            'tiene_archivo': True,
+            'url': ticket.dictamen_pdf.url if ticket.dictamen_pdf else None,
+            'tiene_public_id': hasattr(ticket.dictamen_pdf, 'public_id'),
+            'public_id': ticket.dictamen_pdf.public_id if hasattr(ticket.dictamen_pdf, 'public_id') else None,
+        }
+    elif tipo == 'evidencia' and ticket.evidencia_pdf:
+        info = {
+            'tiene_archivo': True,
+            'url': ticket.evidencia_pdf.url if ticket.evidencia_pdf else None,
+            'tiene_public_id': hasattr(ticket.evidencia_pdf, 'public_id'),
+            'public_id': ticket.evidencia_pdf.public_id if hasattr(ticket.evidencia_pdf, 'public_id') else None,
+        }
+    else:
+        info = {'tiene_archivo': False}
+    
+    return JsonResponse(info)
