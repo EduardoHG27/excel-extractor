@@ -536,12 +536,42 @@ Saludos.
                     <tr>
                         <td>Asignado a:</td>
                         <td>
-                            {% if ticket.asignado_a %}
-                                <strong>{{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}</strong>
-                                <span class="badge bg-secondary ms-2">{{ ticket.asignado_a.username }}</span>
-                            {% else %}
-                                <span class="text-muted">No asignado</span>
-                            {% endif %}
+                            <div class="d-flex align-items-center gap-2">
+                                <div id="asignadoDisplay" class="flex-grow-1">
+                                    {% if ticket.asignado_a %}
+                                        <strong>{{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}</strong>
+                                        <span class="badge bg-secondary ms-2">{{ ticket.asignado_a.username }}</span>
+                                    {% else %}
+                                        <span class="text-muted">No asignado</span>
+                                    {% endif %}
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="mostrarSelectorAsignado()"
+                                        id="btnEditarAsignado">
+                                    <i class="bi bi-pencil"></i> Cambiar
+                                </button>
+                            </div>
+                            <!-- Selector oculto -->
+                            <div id="selectorAsignado" style="display: none;" class="mt-2">
+                                <select id="asignadoSelect" class="form-select form-select-sm">
+                                    <option value="">-- Sin asignar --</option>
+                                    {% for usuario in usuarios_disponibles %}
+                                        <option value="{{ usuario.id }}" 
+                                                {% if ticket.asignado_a and ticket.asignado_a.id == usuario.id %}selected{% endif %}>
+                                            {{ usuario.get_full_name|default:usuario.username }} ({{ usuario.username }})
+                                            {% if usuario.puesto %} - {{ usuario.puesto }}{% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="mt-2 d-flex gap-2">
+                                    <button class="btn btn-sm btn-success" onclick="guardarAsignado({{ ticket.id }})">
+                                        <i class="bi bi-check"></i> Guardar
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="cancelarEdicionAsignado()">
+                                        <i class="bi bi-x"></i> Cancelar
+                                    </button>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -584,21 +614,21 @@ Saludos.
                         <i class="bi bi-send"></i> Agregar comentario
                     </button>
                 </div>
-        <div id="comentariosLista" class="mt-3" style="max-height: 200px; overflow-y: auto;">
-            {% if comentarios_lista %}
-                {% for comentario in comentarios_lista %}
-                    <div class="alert alert-light border-start border-primary border-3 mb-2">
-                        <small class="text-muted">{{ comentario }}</small>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <p class="text-muted text-center">No hay comentarios aún</p>
-            {% endif %}
-        </div>
+                <div id="comentariosLista" class="mt-3" style="max-height: 200px; overflow-y: auto;">
+                    {% if comentarios_lista %}
+                        {% for comentario in comentarios_lista %}
+                            <div class="alert alert-light border-start border-primary border-3 mb-2">
+                                <small class="text-muted">{{ comentario }}</small>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No hay comentarios aún</p>
+                    {% endif %}
+                </div>
             </div> 
         </div>      
     </div>          
- 
+</div>
     
  {% if ticket.estado == 'COMPLETADO' %}
 <div class="row g-4 mb-4">
@@ -1209,6 +1239,91 @@ function getCsrfToken() {
         }
     }
     return cookieValue;
+}
+
+
+let asignadoOriginalHtml = '';
+
+function mostrarSelectorAsignado() {
+    const displayDiv = document.getElementById('asignadoDisplay');
+    const selectorDiv = document.getElementById('selectorAsignado');
+    const btnEditar = document.getElementById('btnEditarAsignado');
+    
+    // Guardar el HTML original
+    asignadoOriginalHtml = displayDiv.innerHTML;
+    
+    // Ocultar display y mostrar selector
+    displayDiv.style.display = 'none';
+    selectorDiv.style.display = 'block';
+    btnEditar.style.display = 'none';
+}
+
+function cancelarEdicionAsignado() {
+    const displayDiv = document.getElementById('asignadoDisplay');
+    const selectorDiv = document.getElementById('selectorAsignado');
+    const btnEditar = document.getElementById('btnEditarAsignado');
+    
+    // Restaurar HTML original
+    displayDiv.innerHTML = asignadoOriginalHtml;
+    
+    // Mostrar display y ocultar selector
+    displayDiv.style.display = 'block';
+    selectorDiv.style.display = 'none';
+    btnEditar.style.display = 'inline-block';
+}
+
+function guardarAsignado(ticketId) {
+    const select = document.getElementById('asignadoSelect');
+    const usuarioId = select.value;
+    const usuarioNombre = select.options[select.selectedIndex]?.text || 'Sin asignar';
+    
+    // ✅ CORREGIDO: Usar la URL correcta sin el prefijo 'extractor'
+    const url = `/ticket/${ticketId}/cambiar-asignado/`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ asignado_a_id: usuarioId || null })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Actualizar el display con el nuevo valor
+            const displayDiv = document.getElementById('asignadoDisplay');
+            if (data.asignado_nombre) {
+                displayDiv.innerHTML = `<strong>${data.asignado_nombre}</strong>
+                                        <span class="badge bg-secondary ms-2">${data.asignado_username}</span>`;
+            } else {
+                displayDiv.innerHTML = '<span class="text-muted">No asignado</span>';
+            }
+            
+            // Actualizar el selector con el nuevo valor seleccionado
+            select.value = usuarioId;
+            
+            // Recargar la página para actualizar la bitácora
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+            
+            // Mostrar mensaje de éxito
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `✅ Asignado actualizado: ${data.asignado_nombre || 'Sin asignar'} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+            
+            // Cancelar edición
+            cancelarEdicionAsignado();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cambiar el asignado');
+    });
 }
     </script>
 

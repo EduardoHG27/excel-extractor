@@ -1383,7 +1383,7 @@ def ticket_delete(request, id):
     return render(request, 'catalogos/ticket_confirm_delete.html', context)
 
 @login_required
-def ticket_detail(request, id):  # Cambia 'ticket_id' por 'id'
+def ticket_detail(request, id):
     ticket = get_object_or_404(Ticket, id=id)
     
     # Preparar la lista de comentarios
@@ -1392,9 +1392,14 @@ def ticket_detail(request, id):  # Cambia 'ticket_id' por 'id'
         comentarios_lista = ticket.comentarios_seguimiento.split('\n')
         comentarios_lista = [c for c in comentarios_lista if c.strip()]
     
+    # Obtener usuarios disponibles para asignación
+    # Solo usuarios activos
+    usuarios_disponibles = Usuario.objects.filter(is_active=True).order_by('first_name', 'username')
+    
     context = {
         'ticket': ticket,
         'comentarios_lista': comentarios_lista,
+        'usuarios_disponibles': usuarios_disponibles,  # ← Agregar esta línea
     }
     return render(request, 'catalogos/ticket_detail.html', context)
 
@@ -1771,6 +1776,63 @@ def ticket_create_simple(request):
             print(traceback.format_exc())
             messages.error(request, f'Error al crear ticket: {str(e)}')
             return redirect('extractor:ticket_create_simple')
+
+
+
+@login_required
+def ticket_cambiar_asignado(request, id):
+    """API para cambiar el usuario asignado a un ticket"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            nuevo_asignado_id = data.get('asignado_a_id')
+            
+            ticket = get_object_or_404(Ticket, id=id)
+            usuario_anterior = ticket.asignado_a
+            
+            # Cambiar el asignado
+            if nuevo_asignado_id:
+                nuevo_asignado = get_object_or_404(Usuario, id=nuevo_asignado_id)
+                ticket.asignado_a = nuevo_asignado
+            else:
+                ticket.asignado_a = None
+                nuevo_asignado = None
+            
+            ticket.save()
+            
+            # Registrar en la bitácora de comentarios
+            usuario_actual = request.user.get_full_name() or request.user.username
+            from django.utils import timezone
+            ahora_local = timezone.localtime(timezone.now())
+            fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
+            
+            if usuario_anterior and nuevo_asignado:
+                comentario = f"[{fecha_hora}] {usuario_actual} cambió la asignación de {usuario_anterior.get_full_name() or usuario_anterior.username} a {nuevo_asignado.get_full_name() or nuevo_asignado.username}"
+            elif usuario_anterior and not nuevo_asignado:
+                comentario = f"[{fecha_hora}] {usuario_actual} desasignó el ticket de {usuario_anterior.get_full_name() or usuario_anterior.username}"
+            elif not usuario_anterior and nuevo_asignado:
+                comentario = f"[{fecha_hora}] {usuario_actual} asignó el ticket a {nuevo_asignado.get_full_name() or nuevo_asignado.username}"
+            else:
+                comentario = f"[{fecha_hora}] {usuario_actual} actualizó la asignación del ticket"
+            
+            # Agregar comentario a la bitácora
+            if ticket.comentarios_seguimiento:
+                ticket.comentarios_seguimiento += f"\n{comentario}"
+            else:
+                ticket.comentarios_seguimiento = comentario
+            ticket.save()
+            
+            return JsonResponse({
+                'success': True,
+                'asignado_nombre': nuevo_asignado.get_full_name() or nuevo_asignado.username if nuevo_asignado else None,
+                'asignado_username': nuevo_asignado.username if nuevo_asignado else None
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
 
 @login_required
 def generar_excel_dictamen(request, ticket_id):

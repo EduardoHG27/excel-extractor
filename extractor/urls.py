@@ -23,6 +23,7 @@ urlpatterns = [
     path('catalogos/tickets/eliminar/<int:id>/', views.ticket_delete, name='ticket_delete'),
     path('catalogos/tickets/nuevo/simple/', views.ticket_create_simple, name='ticket_create_simple'),
     path('tickets/crear-manual/', views.crear_ticket_manual, name='crear_ticket_manual'),
+    path('ticket/<int:id>/cambiar-asignado/', views.ticket_cambiar_asignado, name='ticket_cambiar_asignado'),
     path('solicitudes/<int:id>/generar-ticket/', views.solicitud_generar_ticket, name='solicitud_generar_ticket'),
     
     # ===== EXCEL UPLOAD (PRIVADAS) =====
