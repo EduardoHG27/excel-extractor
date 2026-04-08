@@ -795,14 +795,17 @@ def cliente_create(request):
 
 
 def get_next_consecutivo(tipo_servicio_code, tipo_pruebas_nom, tipo_pruebas_id, cliente_nom, proyecto_nom):
-    """Obtiene el siguiente número consecutivo para tickets con los mismos datos"""
+    """
+    Obtiene el siguiente número consecutivo para tickets con los mismos datos
+    Formato de búsqueda: BID-PRU-FUNCION-ID-CLIENTE-PROYECTO-*
+    """
     try:
-        # Parámetros de búsqueda - CORREGIDO
+        # Parámetros de búsqueda
         filtro = {
             'empresa_code': "BID",
             'tipo_servicio_code': tipo_servicio_code,
-            'funcion_code': tipo_pruebas_nom,  # ← Esto es la nomenclatura
-            'version_code': tipo_pruebas_id,    # ← Esto es el ID (valor numérico)
+            'funcion_code': tipo_pruebas_nom,      # ← Nomenclatura del tipo de prueba
+            'version_code': str(tipo_pruebas_id),   # ← ID del tipo de prueba
             'cliente_code': cliente_nom,
             'proyecto_code': proyecto_nom
         }
@@ -827,9 +830,11 @@ def get_next_consecutivo(tipo_servicio_code, tipo_pruebas_nom, tipo_pruebas_id, 
         else:
             print(f"✨ No hay tickets similares, empezando en 1")
             return 1
+            
     except Exception as e:
         print(f"⚠️ Error al obtener consecutivo: {str(e)}")
-        traceback.print_exc()  # ← Añadir traceback completo
+        import traceback
+        traceback.print_exc()
         return 1
 
 
@@ -1607,35 +1612,63 @@ def ticket_create_simple(request):
     # POST - Procesar formulario
     if request.method == 'POST':
         try:
-            # 1. OBTENER DATOS BÁSICOS
+            # ===== OBTENER DATOS DEL FORMULARIO =====
             cliente_id = request.POST.get('cliente')
             proyecto_id = request.POST.get('proyecto')
-            tipo_servicio_id = request.POST.get('tipo_servicio')
+            tipo_servicio_code = request.POST.get('tipo_servicio_code', '').strip().upper()  # PRU, EST, G&A
+            tipo_prueba_id = request.POST.get('tipo_prueba')  # ID del tipo de prueba (FUN, INT, etc.)
+            consecutivo_manual = request.POST.get('consecutivo', '').strip()
             
-            # Validación MÍNIMA
-            if not cliente_id or not proyecto_id or not tipo_servicio_id:
-                messages.error(request, 'Cliente, Proyecto y Tipo de Servicio son obligatorios')
+            # Debug
+            print("\n=== DATOS RECIBIDOS ===")
+            print(f"cliente_id: {cliente_id}")
+            print(f"proyecto_id: {proyecto_id}")
+            print(f"tipo_servicio_code: {tipo_servicio_code}")
+            print(f"tipo_prueba_id: {tipo_prueba_id}")
+            print(f"consecutivo_manual: {consecutivo_manual}")
+            print("=======================\n")
+            
+            # ===== VALIDACIONES =====
+            campos_faltantes = []
+            if not cliente_id:
+                campos_faltantes.append("Cliente")
+            if not proyecto_id:
+                campos_faltantes.append("Proyecto")
+            if not tipo_servicio_code:
+                campos_faltantes.append("Tipo de Servicio (PRU/EST/G&A)")
+            if not tipo_prueba_id:
+                campos_faltantes.append("Tipo de Prueba")
+            
+            if campos_faltantes:
+                messages.error(request, f'Campos obligatorios faltantes: {", ".join(campos_faltantes)}')
                 return redirect('extractor:ticket_create_simple')
             
-            # 2. OBTENER OBJETOS
+            # ===== OBTENER OBJETOS =====
             try:
                 cliente = Cliente.objects.get(id=cliente_id, activo=True)
-                proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
-                tipo_servicio = TipoServicio.objects.get(id=tipo_servicio_id, activo=True)
-            except (Cliente.DoesNotExist, Proyecto.DoesNotExist, TipoServicio.DoesNotExist):
-                messages.error(request, 'Uno de los elementos seleccionados no existe')
+            except Cliente.DoesNotExist:
+                messages.error(request, 'El cliente seleccionado no existe')
                 return redirect('extractor:ticket_create_simple')
             
-            # 3. VALIDAR QUE EL PROYECTO PERTENEZCA AL CLIENTE
+            try:
+                proyecto = Proyecto.objects.get(id=proyecto_id, activo=True)
+            except Proyecto.DoesNotExist:
+                messages.error(request, 'El proyecto seleccionado no existe')
+                return redirect('extractor:ticket_create_simple')
+            
+            try:
+                tipo_prueba = TipoServicio.objects.get(id=tipo_prueba_id, activo=True)
+            except TipoServicio.DoesNotExist:
+                messages.error(request, 'El tipo de prueba seleccionado no existe')
+                return redirect('extractor:ticket_create_simple')
+            
+            # Validar que el proyecto pertenezca al cliente
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
                 return redirect('extractor:ticket_create_simple')
             
-            # 4. PROCESAR CONSECUTIVO
-            consecutivo_manual = request.POST.get('consecutivo', '').strip()
-            
+            # ===== PROCESAR CONSECUTIVO =====
             if consecutivo_manual:
-                # USAR CONSECUTIVO MANUAL
                 try:
                     consecutivo_num = int(consecutivo_manual)
                     if consecutivo_num < 1 or consecutivo_num > 999:
@@ -1645,30 +1678,28 @@ def ticket_create_simple(request):
                     # Verificar si ya existe
                     existe = Ticket.objects.filter(
                         empresa_code="BID",
-                        tipo_servicio_code=tipo_servicio.nomenclatura,
-                        funcion_code=tipo_servicio.nomenclatura,
-                        version_code=str(tipo_servicio.id),
+                        tipo_servicio_code=tipo_servicio_code,
+                        funcion_code=tipo_prueba.nomenclatura,
+                        version_code=str(tipo_prueba.id),
                         cliente_code=cliente.nomenclatura,
                         proyecto_code=proyecto.codigo,
                         consecutivo=consecutivo_num
                     ).exists()
                     
                     if existe:
-                        messages.error(request, f'Ya existe un ticket con consecutivo {consecutivo_num:03d}')
+                        messages.error(request, f'Ya existe un ticket con consecutivo {consecutivo_num:03d} para esta combinación')
                         return redirect('extractor:ticket_create_simple')
                     
-                    consecutivo_str = f"{consecutivo_num:03d}"
-                    
                 except ValueError:
-                    messages.error(request, 'El consecutivo debe ser un número')
+                    messages.error(request, 'El consecutivo debe ser un número válido')
                     return redirect('extractor:ticket_create_simple')
             else:
-                # AUTO-GENERAR CONSECUTIVO
+                # Auto-generar consecutivo
                 tickets_existentes = Ticket.objects.filter(
                     empresa_code="BID",
-                    tipo_servicio_code=tipo_servicio.nomenclatura,
-                    funcion_code=tipo_servicio.nomenclatura,
-                    version_code=str(tipo_servicio.id),
+                    tipo_servicio_code=tipo_servicio_code,
+                    funcion_code=tipo_prueba.nomenclatura,
+                    version_code=str(tipo_prueba.id),
                     cliente_code=cliente.nomenclatura,
                     proyecto_code=proyecto.codigo
                 )
@@ -1678,35 +1709,38 @@ def ticket_create_simple(request):
                     consecutivo_num = (max_consecutivo or 0) + 1
                 else:
                     consecutivo_num = 1
-                
-                consecutivo_str = f"{consecutivo_num:03d}"
             
-            # 5. GENERAR CÓDIGO DEL TICKET
-            ticket_code = f"BID-{tipo_servicio.nomenclatura}-{tipo_servicio.nomenclatura}-{tipo_servicio.id}-{cliente.nomenclatura}-{proyecto.codigo}-{consecutivo_str}"
+            consecutivo_str = f"{consecutivo_num:03d}"
             
-            # 6. CREAR TICKET
+            # ===== GENERAR CÓDIGO DEL TICKET =====
+            # Formato: BID-PRU-C&REG-7-TEL-ONL-001
+            ticket_code = f"BID-{tipo_servicio_code}-{tipo_prueba.nomenclatura}-{tipo_prueba.id}-{cliente.nomenclatura}-{proyecto.codigo}-{consecutivo_str}"
+            
+            print(f"🎫 Código generado: {ticket_code}")
+            
+            # ===== CREAR TICKET =====
             ticket = Ticket.objects.create(
                 codigo=ticket_code,
                 empresa_code="BID",
-                tipo_servicio_code=tipo_servicio.nomenclatura,
-                funcion_code=tipo_servicio.nomenclatura,
-                version_code=str(tipo_servicio.id),
+                tipo_servicio_code=tipo_servicio_code,
+                funcion_code=tipo_prueba.nomenclatura,
+                version_code=str(tipo_prueba.id),
                 cliente_code=cliente.nomenclatura,
                 proyecto_code=proyecto.codigo,
                 consecutivo=consecutivo_num,
                 cliente=cliente,
                 proyecto=proyecto,
-                tipo_servicio=tipo_servicio,
+                tipo_servicio=tipo_prueba,
                 responsable_solicitud=request.POST.get('responsable_solicitud', '')[:255],
                 lider_proyecto=request.POST.get('lider_proyecto', '')[:255],
                 numero_version=request.POST.get('numero_version', '')[:255],
-                estado='ABIERTO',  # Cambiado de GENERADO a ABIERTO
-                creado_por=request.user,  # NUEVO
-                asignado_a=request.user,  # NUEVO - Asignado al creador por defecto
+                estado='GENERADO',
+                creado_por=request.user,
+                asignado_a=request.user,
                 comentarios_seguimiento=f"Ticket creado manualmente por {request.user.get_full_name() or request.user.username}"
             )
             
-            # 7. CREAR DATOS EXCEL ASOCIADOS (si hay información adicional)
+            # ===== CREAR EXCELDATA ASOCIADO (opcional) =====
             if any([
                 request.POST.get('funcionalidad_liberacion'),
                 request.POST.get('detalle_cambios'),
@@ -1715,8 +1749,8 @@ def ticket_create_simple(request):
                 excel_data = ExcelData.objects.create(
                     cliente=str(cliente.id),
                     proyecto=str(proyecto.id),
-                    tipo_pruebas=str(tipo_servicio.id),
-                    tipo_servicio=tipo_servicio.nomenclatura,
+                    tipo_pruebas=str(tipo_prueba.id),
+                    tipo_servicio=tipo_servicio_code,
                     responsable_solicitud=request.POST.get('responsable_solicitud', ''),
                     lider_proyecto=request.POST.get('lider_proyecto', ''),
                     numero_version=request.POST.get('numero_version', ''),
@@ -1728,18 +1762,13 @@ def ticket_create_simple(request):
                 ticket.excel_data = excel_data
                 ticket.save()
             
-            # 8. MENSAJE DE ÉXITO
             messages.success(request, f'✅ Ticket creado exitosamente: {ticket_code}')
-            
-            # Redirigir al detalle o al listado
             return redirect('extractor:ticket_detail', id=ticket.id)
             
         except Exception as e:
-            # CAPTURAR CUALQUIER ERROR
             import traceback
-            print(f"ERROR EN TICKET CREATE SIMPLE: {str(e)}")
+            print(f"❌ ERROR: {str(e)}")
             print(traceback.format_exc())
-            
             messages.error(request, f'Error al crear ticket: {str(e)}')
             return redirect('extractor:ticket_create_simple')
 

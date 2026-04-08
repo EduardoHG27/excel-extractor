@@ -28,34 +28,48 @@
                         <!-- CAMPOS BÁSICOS OBLIGATORIOS -->
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="cliente_simple" class="form-label fw-bold">Cliente *</label>
-                                <select name="cliente" id="cliente_simple" class="form-select" required>
-                                    <option value="">-- Seleccione un cliente --</option>
-                                    {% for cliente in clientes %}
-                                        <option value="{{ cliente.id }}">{{ cliente.nombre }} ({{ cliente.nomenclatura }})</option>
-                                    {% endfor %}
+                                <label for="tipo_servicio_simple" class="form-label fw-bold">Tipo de Servicio *</label>
+                                <select name="tipo_servicio_code" id="tipo_servicio_simple" class="form-select" required>
+                                    <option value="">-- Seleccione tipo --</option>
+                                    <option value="PRU">Pruebas (PRU)</option>
+                                    <option value="EST">Estimación (EST)</option>
+                                    <option value="G&A">Gestión y Administración (G&A)</option>
                                 </select>
+                                <small class="text-muted">Código que aparecerá en el ticket: PRU, EST o G&amp;A</small>
                             </div>
                             
                             <div class="col-md-6">
-                                <label for="tipo_servicio_simple" class="form-label fw-bold">Tipo de Servicio *</label>
-                                <select name="tipo_servicio" id="tipo_servicio_simple" class="form-select" required>
-                                    <option value="">-- Seleccione tipo --</option>
+                                <label for="tipo_prueba_simple" class="form-label fw-bold">Tipo de Prueba</label>
+                                <select name="tipo_prueba" id="tipo_prueba_simple" class="form-select" required>
+                                    <option value="">-- Primero seleccione tipo de servicio --</option>
                                     {% for tipo in tipos_servicio %}
-                                        <option value="{{ tipo.id }}">{{ tipo.nombre }} ({{ tipo.nomenclatura }})</option>
+                                        <option value="{{ tipo.id }}" data-nomenclatura="{{ tipo.nomenclatura }}">{{ tipo.nombre }} ({{ tipo.nomenclatura }})</option>
                                     {% endfor %}
                                 </select>
+                                <small class="text-muted">Define la nomenclatura de función (ej: C&amp;REG, FUN, etc.)</small>
                             </div>
                         </div>
                         
                         <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="cliente_simple" class="form-label fw-bold">Cliente *</label>
+                                <select name="cliente" id="cliente_simple" class="form-select" required>
+                                    <option value="">-- Seleccione un cliente --</option>
+                                    {% for cliente in clientes %}
+                                        <option value="{{ cliente.id }}" data-nomenclatura="{{ cliente.nomenclatura }}">{{ cliente.nombre }} ({{ cliente.nomenclatura }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
                             <div class="col-md-6">
                                 <label for="proyecto_simple" class="form-label fw-bold">Proyecto *</label>
                                 <select name="proyecto" id="proyecto_simple" class="form-select" required disabled>
                                     <option value="">-- Primero seleccione cliente --</option>
                                 </select>
                             </div>
-                            
+                        </div>
+                        
+                        <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="consecutivo_simple" class="form-label">Consecutivo (opcional)</label>
                                 <input type="number" 
@@ -65,7 +79,17 @@
                                        placeholder="Ej: 001" 
                                        min="1" 
                                        max="999">
-                                <small class="text-muted">Dejar vacío para auto-generar</small>
+                                <small class="text-muted">Dejar vacío para auto-generar (sugerido)</small>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="version_code_simple" class="form-label">Versión (auto)</label>
+                                <input type="text" 
+                                       id="version_code_simple" 
+                                       class="form-control" 
+                                       readonly 
+                                       disabled>
+                                <small class="text-muted">Se usará el ID del tipo de prueba</small>
                             </div>
                         </div>
                         
@@ -116,10 +140,13 @@
                             </div>
                         </div>
                         
-                        <!-- PREVIEW SIMPLE DEL CÓDIGO -->
+                        <!-- PREVIEW DEL CÓDIGO SEGÚN NOMENCLATURA CORRECTA -->
                         <div class="alert alert-info">
-                            <strong>Código de ticket:</strong> 
-                            <span id="codigo_preview_simple" class="font-monospace">BID-???-???-???-???-???-XXX</span>
+                            <strong>Formato del ticket:</strong> 
+                            <code class="font-monospace">BID-[TIPO_SERVICIO]-[FUNCION]-[VERSION]-[CLIENTE]-[PROYECTO]-[CONSECUTIVO]</code>
+                            <hr>
+                            <strong>Código generado:</strong> 
+                            <span id="codigo_preview_simple" class="font-monospace fs-5 fw-bold">BID-???-???-???-???-???-XXX</span>
                         </div>
                         
                         <hr>
@@ -139,8 +166,11 @@
     </div>
 </div>
 
-<!-- JAVASCRIPT SIMPLIFICADO -->
+<!-- JAVASCRIPT MEJORADO CON NOMENCLATURA CORRECTA -->
 <script>
+// Variables globales para datos
+let proyectosCache = {};
+
 // Función para cargar proyectos
 function cargarProyectos(clienteId, selectElement) {
     if (!clienteId) {
@@ -181,83 +211,99 @@ function cargarProyectos(clienteId, selectElement) {
         });
 }
 
-// Event listener para cliente
+// Función principal para actualizar el preview del código
+// Formato: BID-PRU-C&REG-7-TEL-ONL-004
+function actualizarPreview() {
+    // Obtener elementos
+    const tipoServicioSelect = document.getElementById('tipo_servicio_simple');
+    const tipoPruebaSelect = document.getElementById('tipo_prueba_simple');
+    const clienteSelect = document.getElementById('cliente_simple');
+    const proyectoSelect = document.getElementById('proyecto_simple');
+    const consecutivoInput = document.getElementById('consecutivo_simple');
+    
+    // Construir código: BID es fijo
+    let codigo = 'BID';
+    
+    // 1. Tipo de Servicio (PRU, EST, G&A)
+    if (tipoServicioSelect.value) {
+        codigo += '-' + tipoServicioSelect.value;
+    } else {
+        codigo += '-???';
+    }
+    
+    // 2. Función (nomenclatura del tipo de prueba)
+    if (tipoPruebaSelect.selectedIndex > 0 && tipoPruebaSelect.value) {
+        const option = tipoPruebaSelect.options[tipoPruebaSelect.selectedIndex];
+        const nomenclatura = option.dataset.nomenclatura || '???';
+        codigo += '-' + nomenclatura;
+    } else {
+        codigo += '-???';
+    }
+    
+    // 3. Versión (ID del tipo de prueba)
+    if (tipoPruebaSelect.value) {
+        codigo += '-' + tipoPruebaSelect.value;
+    } else {
+        codigo += '-???';
+    }
+    
+    // 4. Cliente (nomenclatura)
+    if (clienteSelect.selectedIndex > 0 && clienteSelect.value) {
+        const option = clienteSelect.options[clienteSelect.selectedIndex];
+        const nomenclatura = option.dataset.nomenclatura || '???';
+        codigo += '-' + nomenclatura;
+    } else {
+        codigo += '-???';
+    }
+    
+    // 5. Proyecto (código)
+    if (proyectoSelect.selectedIndex > 0 && !proyectoSelect.disabled && proyectoSelect.value) {
+        const option = proyectoSelect.options[proyectoSelect.selectedIndex];
+        const codigoProyecto = option.dataset.codigo || '???';
+        codigo += '-' + codigoProyecto;
+    } else {
+        codigo += '-???';
+    }
+    
+    // 6. Consecutivo (3 dígitos)
+    if (consecutivoInput.value) {
+        const cons = parseInt(consecutivoInput.value);
+        if (!isNaN(cons) && cons >= 1 && cons <= 999) {
+            codigo += '-' + cons.toString().padStart(3, '0');
+        } else {
+            codigo += '-???';
+        }
+    } else {
+        codigo += '-XXX';
+    }
+    
+    // Mostrar preview
+    document.getElementById('codigo_preview_simple').textContent = codigo;
+}
+
+// Event Listeners
+document.getElementById('tipo_servicio_simple').addEventListener('change', function() {
+    actualizarPreview();
+});
+
+document.getElementById('tipo_prueba_simple').addEventListener('change', function() {
+    // Mostrar el ID como versión
+    const versionField = document.getElementById('version_code_simple');
+    if (this.value) {
+        versionField.value = this.value;
+    } else {
+        versionField.value = '';
+    }
+    actualizarPreview();
+});
+
 document.getElementById('cliente_simple').addEventListener('change', function() {
     const proyectoSelect = document.getElementById('proyecto_simple');
     cargarProyectos(this.value, proyectoSelect);
     actualizarPreview();
 });
 
-// Actualizar preview
-function actualizarPreview() {
-    const cliente = document.getElementById('cliente_simple');
-    const proyecto = document.getElementById('proyecto_simple');
-    const tipo = document.getElementById('tipo_servicio_simple');
-    const consecutivo = document.getElementById('consecutivo_simple');
-    
-    let preview = 'BID-';
-    
-    // Tipo servicio
-    if (tipo.selectedIndex > 0) {
-        const tipoText = tipo.options[tipo.selectedIndex].text;
-        const match = tipoText.match(/\(([^)]+)\)/);
-        preview += (match ? match[1] : '???') + '-';
-    } else {
-        preview += '???-';
-    }
-    
-    // Función (misma nomenclatura)
-    if (tipo.selectedIndex > 0) {
-        const tipoText = tipo.options[tipo.selectedIndex].text;
-        const match = tipoText.match(/\(([^)]+)\)/);
-        preview += (match ? match[1] : '???') + '-';
-    } else {
-        preview += '???-';
-    }
-    
-    // Versión (ID del tipo)
-    if (tipo.value) {
-        preview += tipo.value + '-';
-    } else {
-        preview += '???-';
-    }
-    
-    // Cliente
-    if (cliente.selectedIndex > 0) {
-        const clienteText = cliente.options[cliente.selectedIndex].text;
-        const match = clienteText.match(/\(([^)]+)\)/);
-        preview += (match ? match[1] : '???') + '-';
-    } else {
-        preview += '???-';
-    }
-    
-    // Proyecto
-    if (proyecto.selectedIndex > 0 && !proyecto.disabled) {
-        const option = proyecto.options[proyecto.selectedIndex];
-        preview += (option.dataset.codigo || '???') + '-';
-    } else {
-        preview += '???-';
-    }
-    
-    // Consecutivo
-    if (consecutivo.value) {
-        const cons = parseInt(consecutivo.value);
-        if (!isNaN(cons) && cons >= 1 && cons <= 999) {
-            preview += cons.toString().padStart(3, '0');
-        } else {
-            preview += '???';
-        }
-    } else {
-        preview += 'XXX';
-    }
-    
-    document.getElementById('codigo_preview_simple').textContent = preview;
-}
-
-// Agregar event listeners
-document.getElementById('cliente_simple').addEventListener('change', actualizarPreview);
 document.getElementById('proyecto_simple').addEventListener('change', actualizarPreview);
-document.getElementById('tipo_servicio_simple').addEventListener('change', actualizarPreview);
 document.getElementById('consecutivo_simple').addEventListener('input', actualizarPreview);
 
 // Inicializar
@@ -285,6 +331,11 @@ document.addEventListener('DOMContentLoaded', function() {
     .font-monospace {
         font-family: 'Courier New', monospace;
         font-weight: bold;
+    }
+    code {
+        background-color: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
     }
 </style>
 {% endblock %}
