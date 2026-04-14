@@ -10,7 +10,9 @@
         </div>
         <div>
             <a href="{% url 'extractor:usuario_edit' usuario.id %}" class="btn btn-warning">✏️ Editar Perfil</a>
-            <a href="{% url 'extractor:usuarios_list' %}" class="btn btn-secondary">← Volver</a>
+            {% if request.user.is_superuser %}
+                <a href="{% url 'extractor:usuarios_list' %}" class="btn btn-secondary">← Volver</a>
+            {% endif %}
         </div>
     </div>
 </div>
