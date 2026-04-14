@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import ExcelData, Cliente ,TipoServicio, Proyecto, Ticket, Usuario
+from django.views.decorators.http import require_http_methods, require_POST
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseServerError, JsonResponse
 from django.db import models
 from openpyxl import Workbook
@@ -2538,6 +2539,40 @@ def crear_ticket_manual(request):
     return render(request, 'extractor/crear_solicitud.html', context)
 
 @login_required
+@require_http_methods(["POST"])
+def ticket_cambiar_nombre(request, ticket_id):
+    """Vista para cambiar el nombre de un ticket"""
+    try:
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Datos inválidos'}, status=400)
+        
+        nuevo_nombre = data.get('nombre', '').strip()
+        
+        # Actualizar solo el campo nombre
+        if nuevo_nombre:
+            ticket.nombre = nuevo_nombre
+        else:
+            ticket.nombre = None
+        
+        ticket.save(update_fields=['nombre'])
+        
+        return JsonResponse({
+            'success': True,
+            'nombre': ticket.nombre
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False, 
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
 def export_all_tables_backup(request):
     """
     Exporta todas las tablas como CSV en un archivo ZIP
@@ -3755,13 +3790,20 @@ def subir_evidencia(request, id):
 
 
 # ==================== ELIMINAR ARCHIVO ====================
-@login_required
 def eliminar_archivo_cloudinary(request, id, tipo):
-    """Eliminar archivo de Cloudinary"""
+    """
+    Eliminar archivo (dictamen o evidencia) de Cloudinary y de la BD
+    """
     ticket = get_object_or_404(Ticket, id=id)
     
+    # Validar que el ticket esté en estado COMPLETADO
     if ticket.estado != 'COMPLETADO':
         messages.error(request, 'Solo se pueden eliminar archivos de tickets COMPLETADOS')
+        return redirect('extractor:ticket_detail', id=ticket.id)
+    
+    # Validar que el usuario tenga permisos (opcional, solo admin o creador)
+    if not request.user.is_superuser and ticket.creado_por != request.user:
+        messages.error(request, 'No tienes permiso para eliminar este archivo')
         return redirect('extractor:ticket_detail', id=ticket.id)
     
     try:
@@ -3772,48 +3814,93 @@ def eliminar_archivo_cloudinary(request, id, tipo):
         ahora_local = timezone.localtime(timezone.now())
         fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
         comentario = None
+        archivo_a_borrar = None
+        public_id_original = None
         
+        # Determinar qué archivo eliminar
         if tipo == 'dictamen' and ticket.dictamen_pdf:
-            # Obtener el public_id correctamente
-            if hasattr(ticket.dictamen_pdf, 'public_id'):
-                public_id = ticket.dictamen_pdf.public_id
-                result = cloudinary.uploader.destroy(public_id, resource_type="auto")
-                
-                if result.get('result') == 'ok':
-                    ticket.dictamen_pdf = None
-                    ticket.fecha_subida_dictamen = None
-                    comentario = f"[{fecha_hora}] {usuario} eliminó el dictamen"
-                    messages.success(request, '✅ Dictamen eliminado de Cloudinary')
-                else:
-                    messages.warning(request, f'⚠️ No se pudo eliminar: {result.get("result")}')
-                    
+            archivo_a_borrar = ticket.dictamen_pdf
+            public_id_original = archivo_a_borrar.public_id
+            print(f"📄 Eliminando dictamen - Public ID original: '{public_id_original}'")
         elif tipo == 'evidencia' and ticket.evidencia_pdf:
-            if hasattr(ticket.evidencia_pdf, 'public_id'):
-                public_id = ticket.evidencia_pdf.public_id
-                result = cloudinary.uploader.destroy(public_id, resource_type="auto")
-                
-                if result.get('result') == 'ok':
-                    ticket.evidencia_pdf = None
-                    ticket.fecha_subida_evidencia = None
-                    comentario = f"[{fecha_hora}] {usuario} eliminó la evidencia"
-                    messages.success(request, '✅ Evidencia eliminada de Cloudinary')
-                else:
-                    messages.warning(request, f'⚠️ No se pudo eliminar: {result.get("result")}')
+            archivo_a_borrar = ticket.evidencia_pdf
+            public_id_original = archivo_a_borrar.public_id
+            print(f"📄 Eliminando evidencia - Public ID original: '{public_id_original}'")
         else:
             messages.error(request, 'Archivo no encontrado')
             return redirect('extractor:ticket_detail', id=ticket.id)
         
-        ticket.save()
+        # ===== CORRECCIÓN 1: Asegurar que el public_id tenga la extensión .pdf =====
+        # Para archivos 'raw' en Cloudinary, el public_id DEBE incluir la extensión
+        public_id_con_extension = public_id_original
         
-        if comentario:
-            if ticket.comentarios_seguimiento:
-                ticket.comentarios_seguimiento += f"\n{comentario}"
+        # Si no termina en .pdf, agregarlo
+        if not public_id_con_extension.lower().endswith('.pdf'):
+            public_id_con_extension += '.pdf'
+            print(f"✅ Public ID corregido con extensión: '{public_id_con_extension}'")
+        
+        # ===== CORRECCIÓN 2: Especificar resource_type="raw" =====
+        # Los PDFs son tipo 'raw', no 'image'
+        result = cloudinary.uploader.destroy(
+            public_id_con_extension,
+            resource_type="raw",  # ← CRUCIAL: Especificar el tipo correcto
+            invalidate=True        # ← Opcional: Invalidar caché CDN
+        )
+        
+        print(f"📡 Respuesta de Cloudinary: {result}")
+        
+        # ===== PROCESAR RESPUESTA =====
+        if result.get('result') == 'ok':
+            # Éxito: Limpiar el campo del modelo
+            if tipo == 'dictamen':
+                ticket.dictamen_pdf = None
+                ticket.fecha_subida_dictamen = None
+                comentario = f"[{fecha_hora}] {usuario} eliminó el dictamen"
+                messages.success(request, '✅ Dictamen eliminado exitosamente')
             else:
-                ticket.comentarios_seguimiento = comentario
+                ticket.evidencia_pdf = None
+                ticket.fecha_subida_evidencia = None
+                comentario = f"[{fecha_hora}] {usuario} eliminó la evidencia"
+                messages.success(request, '✅ Evidencia eliminada exitosamente')
+            
+            ticket.subido_por = None
             ticket.save()
-        
+            
+            # Agregar comentario a la bitácora
+            if comentario:
+                if ticket.comentarios_seguimiento:
+                    ticket.comentarios_seguimiento += f"\n{comentario}"
+                else:
+                    ticket.comentarios_seguimiento = comentario
+                ticket.save()
+                
+        elif result.get('result') == 'not found':
+            # El archivo no existe en Cloudinary, igual limpiamos la BD
+            print(f"⚠️ Archivo no encontrado en Cloudinary. Limpiando referencia en BD...")
+            
+            if tipo == 'dictamen':
+                ticket.dictamen_pdf = None
+                ticket.fecha_subida_dictamen = None
+                messages.warning(request, '⚠️ El archivo no existía en Cloudinary, pero se eliminó la referencia local')
+            else:
+                ticket.evidencia_pdf = None
+                ticket.fecha_subida_evidencia = None
+                messages.warning(request, '⚠️ El archivo no existía en Cloudinary, pero se eliminó la referencia local')
+            
+            ticket.subido_por = None
+            ticket.save()
+            
+        else:
+            # Otro error
+            error_msg = result.get('error', {}).get('message', result.get('result', 'Error desconocido'))
+            messages.error(request, f'Error al eliminar en Cloudinary: {error_msg}')
+            print(f"❌ Error Cloudinary: {result}")
+            
     except Exception as e:
-        messages.error(request, f'Error al eliminar: {str(e)}')
+        print(f"❌ Error en eliminar_archivo_cloudinary: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        messages.error(request, f'Error al eliminar archivo: {str(e)}')
     
     return redirect('extractor:ticket_detail', id=ticket.id)
 

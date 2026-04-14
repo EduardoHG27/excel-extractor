@@ -144,6 +144,15 @@ class Ticket(models.Model):
     codigo = models.CharField(max_length=100, unique=True, verbose_name="Código del Ticket")
     
     # Relaciones con los modelos existentes
+
+    nombre = models.CharField(
+        max_length=200, 
+        blank=True, 
+        null=True,
+        verbose_name="Nombre del Ticket",
+        help_text="Nombre descriptivo para identificar fácilmente el ticket"
+    )
+
     excel_data = models.OneToOneField(
         ExcelData, 
         on_delete=models.CASCADE, 

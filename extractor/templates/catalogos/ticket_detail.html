@@ -341,7 +341,7 @@
             {% endfor %}
         {% endif %}
         
-    <div class="ticket-hero">
+<div class="ticket-hero">
     <div class="row align-items-center">
         <div class="col-lg-8">
             <div class="ticket-code">
@@ -350,6 +350,41 @@
                     <i class="bi bi-clipboard"></i> Copiar
                 </button>
             </div>
+            
+            <!-- NUEVO: Campo de nombre del ticket -->
+            <div class="mt-3">
+                <div id="nombreContainer">
+                    <!-- Display del nombre - MÁS GRANDE -->
+                    <div id="nombreDisplay" class="d-flex align-items-center gap-3">
+                        <i class="bi bi-tag fs-3"></i>
+                        {% if ticket.nombre %}
+                            <span class="fw-bold fs-2" style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">{{ ticket.nombre }}</span>
+                        {% else %}
+                            <span class="text-white-50 fst-italic fs-4">Sin nombre asignado</span>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-light" onclick="editarNombre()" style="border-radius: 50px; padding: 0.5rem 1rem;">
+                            <i class="bi bi-pencil"></i> Editar
+                        </button>
+                    </div>
+                    
+                    <!-- Formulario de edición (oculto inicialmente) -->
+                    <div id="nombreForm" style="display: none;" class="mt-2">
+                        <div class="input-group" style="max-width: 500px;">
+                            <input type="text" id="nombreInput" class="form-control form-control-lg" 
+                                placeholder="Nombre descriptivo del ticket..."
+                                value="{{ ticket.nombre|default:'' }}"
+                                style="font-size: 1.25rem;">
+                            <button class="btn btn-light" type="button" onclick="guardarNombre({{ ticket.id }})" style="font-size: 1rem;">
+                                <i class="bi bi-check-lg"></i> Guardar
+                            </button>
+                            <button class="btn btn-outline-light" type="button" onclick="cancelarEditarNombre()" style="font-size: 1rem;">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="d-flex gap-3 mt-3 flex-wrap">
                 <span class="badge-modern">
                     <i class="bi bi-calendar3 me-2"></i>Creado: {{ ticket.fecha_creacion|date:"d/m/Y H:i" }}
@@ -627,8 +662,7 @@ Saludos.
                 </div>
             </div> 
         </div>      
-    </div>          
-</div>
+    </div>      
     
  {% if ticket.estado == 'COMPLETADO' %}
 <div class="row g-4 mb-4">
@@ -673,9 +707,6 @@ Saludos.
                                         <div class="btn-group">
                                             <a href="{{ ticket.dictamen_pdf.url }}" class="btn btn-sm btn-success" target="_blank">
                                                 <i class="bi bi-eye"></i> Ver
-                                            </a>
-                                            <a href="{{ ticket.dictamen_pdf.url }}" download class="btn btn-sm btn-primary">
-                                                <i class="bi bi-download"></i> Descargar
                                             </a>
                                             <button type="button" class="btn btn-sm btn-danger" 
                                                     onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'dictamen')">
@@ -1007,27 +1038,37 @@ Saludos.
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        let plantillaActual = 'generico';
+         let plantillaActual = 'generico';
 
-function seleccionarPlantilla(tipo) {
-    plantillaActual = tipo;
-    
-    document.querySelectorAll('.template-pill').forEach(card => {
-        card.classList.remove('selected');
-    });
-    event.currentTarget.classList.add('selected');
-    
-    const plantillas = {
-        generico: `Buen día estimados:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
-        
-        funcionalidad: `Buen día estimados:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nDetalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.`,
-        
-        completado: `Buen día estimados:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.`
-    };
-    //en negritas el numero del ticket
-    const preview = document.getElementById('emailPreview');
-    preview.textContent = plantillas[tipo].replace(/{{ ticket.codigo }}/g, '{{ ticket.codigo|escapejs }}');
-}
+        // --- BLOQUE DE FIRMA PERSONAL (Usando tu modelo Usuario) ---
+        // Los datos se obtienen directamente del contexto de Django
+        const firmaPersonal = `\n\n-- \n{{ user.get_full_name|default:user.username }}\nQA\n{{ user.telefono|default:"Teléfono no registrado" }}\n{{ user.email }}`;
+
+        function seleccionarPlantilla(tipo) {
+            plantillaActual = tipo;
+            
+            // Remover la clase 'selected' de todas las plantillas
+            document.querySelectorAll('.template-pill').forEach(card => {
+                card.classList.remove('selected');
+            });
+            // Añadir la clase 'selected' a la que se clickeó
+            if(event && event.currentTarget) {
+                event.currentTarget.classList.add('selected');
+            }
+            
+            const plantillas = {
+                generico: `Buen día estimados:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                
+                funcionalidad: `Buen día estimados:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nDetalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                
+                completado: `Buen día estimados:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
+            };
+            
+            const preview = document.getElementById('emailPreview');
+            // Reemplazar placeholders de Django y mostrar
+            let contenidoFinal = plantillas[tipo].replace(/{{ ticket.codigo }}/g, '{{ ticket.codigo|escapejs }}');
+            preview.textContent = contenidoFinal;
+        }
 
         function copiarAlPortapapeles(elementId) {
             const element = document.getElementById(elementId);
@@ -1040,25 +1081,30 @@ function seleccionarPlantilla(tipo) {
                 setTimeout(() => {
                     btn.innerHTML = originalHtml;
                 }, 2000);
+            }).catch(() => {
+                alert('No se pudo copiar el texto');
             });
         }
 
         function enviarCorreo() {
             const destinatario = document.getElementById('emailDestinatario').value;
-                const asunto = document.getElementById('emailAsunto').value;
-                const contenido = document.getElementById('emailPreview').textContent;
-                
-                if (!destinatario) {
-                    alert('Por favor ingrese al menos un destinatario');
-                    return;
-                }
-                
-                const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(contenido)}`;
-                window.location.href = mailtoLink;
-                
-                // Opcional: cerrar el panel
-                bootstrap.Collapse.getInstance(document.getElementById('emailTemplates')).hide();
+            const asunto = document.getElementById('emailAsunto').value;
+            const contenido = document.getElementById('emailPreview').textContent;
+            
+            if (!destinatario) {
+                alert('Por favor ingrese al menos un destinatario');
+                return;
             }
+            
+            const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(contenido)}`;
+            window.location.href = mailtoLink;
+            
+            // Opcional: cerrar el panel
+            const collapseElement = document.getElementById('emailTemplates');
+            if (collapseElement) {
+                bootstrap.Collapse.getInstance(collapseElement).hide();
+            }
+        }
 
         function limpiarSeleccion() {
             document.querySelectorAll('.template-pill').forEach(card => {
@@ -1069,262 +1115,373 @@ function seleccionarPlantilla(tipo) {
             seleccionarPlantilla('generico');
         }
 
-    function toggleText(element, type) {
-        const container = document.getElementById(`${type}-container`);
-        const wrapper = container.querySelector('.text-full-wrapper');
-        const preview = container.querySelector('.text-preview');
-        const icon = element.querySelector('i');
-        const label = element.querySelector('.toggle-label');
+        // --- FUNCIONES EXISTENTES (Mantén las que ya tenías) ---
         
-        if (!wrapper.classList.contains('expanded')) {
-            // Expandir
-            wrapper.classList.add('expanded');
-            icon.classList.add('rotated');
-            label.textContent = 'ver menos';
+        function toggleText(element, type) {
+            const container = document.getElementById(`${type}-container`);
+            if (!container) return;
             
-            // Ocultar preview con fade
-            preview.style.transition = 'opacity 0.2s ease';
-            preview.style.opacity = '0.5';
+            const wrapper = container.querySelector('.text-full-wrapper');
+            const preview = container.querySelector('.text-preview');
+            const icon = element.querySelector('i');
+            const label = element.querySelector('.toggle-label');
             
-            // Scroll suave hacia el contenido expandido
-            setTimeout(() => {
-                container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 150);
-        } else {
-            // Contraer
-            wrapper.classList.remove('expanded');
-            icon.classList.remove('rotated');
-            label.textContent = 'ver más';
-            
-            // Restaurar preview
-            preview.style.opacity = '1';
-        }
-    }
-
-function eliminarArchivoCloudinary(ticketId, tipo) {
-    if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
-        // Construir la URL correctamente
-        const url = `/extractor/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
-        
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken(),
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => {
-            if (response.redirected) {
-                // Si hay redirección, recargar la página
-                window.location.href = response.url;
-            } else if (response.ok) {
-                // Recargar la página para mostrar cambios
-                location.reload();
+            if (!wrapper.classList.contains('expanded')) {
+                wrapper.classList.add('expanded');
+                if (icon) icon.classList.add('rotated');
+                if (label) label.textContent = 'ver menos';
+                if (preview) preview.style.opacity = '0.5';
+                
+                setTimeout(() => {
+                    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 150);
             } else {
-                return response.json().then(data => {
-                    alert('Error: ' + (data.error || 'No se pudo eliminar el archivo'));
+                wrapper.classList.remove('expanded');
+                if (icon) icon.classList.remove('rotated');
+                if (label) label.textContent = 'ver más';
+                if (preview) preview.style.opacity = '1';
+            }
+        }
+
+        function eliminarArchivoCloudinary(ticketId, tipo) {
+            if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
+                const url = `/extractor/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
+                
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else if (response.ok) {
+                        location.reload();
+                    } else {
+                        return response.json().then(data => {
+                            alert('Error: ' + (data.error || 'No se pudo eliminar el archivo'));
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al eliminar el archivo. Por favor, intenta de nuevo.');
                 });
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al eliminar el archivo. Por favor, intenta de nuevo.');
+        }
+
+        function cambiarEstado(nuevoEstado, ticketId) {
+            const select = document.getElementById('estadoSelect');
+            const url = select.getAttribute('data-url');
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ estado: nuevoEstado })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `Estado cambiado a ${data.estado_display} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cambiar el estado');
+            });
+        }
+
+        function getCsrfToken() {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 10) === 'csrftoken=') {
+                        cookieValue = decodeURIComponent(cookie.substring(10));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function agregarComentario(ticketId) {
+            const comentario = document.getElementById('comentarioInput').value.trim();
+            if (!comentario) {
+                alert('Por favor escribe un comentario');
+                return;
+            }
+            
+            const url = "{% url 'extractor:ticket_agregar_comentario' ticket.id %}";
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ comentario: comentario })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const comentariosLista = document.getElementById('comentariosLista');
+                    const nuevoComentario = document.createElement('div');
+                    nuevoComentario.className = 'alert alert-light border-start border-primary border-3 mb-2';
+                    nuevoComentario.innerHTML = `<small class="text-muted">${data.comentario_formateado}</small>`;
+                    comentariosLista.appendChild(nuevoComentario);
+                    document.getElementById('comentarioInput').value = '';
+                    comentariosLista.scrollTop = comentariosLista.scrollHeight;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al agregar comentario');
+            });
+        }
+
+        let asignadoOriginalHtml = '';
+
+        function mostrarSelectorAsignado() {
+            const displayDiv = document.getElementById('asignadoDisplay');
+            const selectorDiv = document.getElementById('selectorAsignado');
+            const btnEditar = document.getElementById('btnEditarAsignado');
+            
+            asignadoOriginalHtml = displayDiv.innerHTML;
+            displayDiv.style.display = 'none';
+            selectorDiv.style.display = 'block';
+            btnEditar.style.display = 'none';
+        }
+
+        function cancelarEdicionAsignado() {
+            const displayDiv = document.getElementById('asignadoDisplay');
+            const selectorDiv = document.getElementById('selectorAsignado');
+            const btnEditar = document.getElementById('btnEditarAsignado');
+            
+            displayDiv.innerHTML = asignadoOriginalHtml;
+            displayDiv.style.display = 'block';
+            selectorDiv.style.display = 'none';
+            btnEditar.style.display = 'inline-block';
+        }
+
+        function guardarAsignado(ticketId) {
+            const select = document.getElementById('asignadoSelect');
+            const usuarioId = select.value;
+            
+            const url = `/ticket/${ticketId}/cambiar-asignado/`;
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ asignado_a_id: usuarioId || null })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const displayDiv = document.getElementById('asignadoDisplay');
+                    if (data.asignado_nombre) {
+                        displayDiv.innerHTML = `<strong>${data.asignado_nombre}</strong>
+                                                <span class="badge bg-secondary ms-2">${data.asignado_username}</span>`;
+                    } else {
+                        displayDiv.innerHTML = '<span class="text-muted">No asignado</span>';
+                    }
+                    
+                    select.value = usuarioId;
+                    
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `✅ Asignado actualizado: ${data.asignado_nombre || 'Sin asignar'} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+                    
+                    cancelarEdicionAsignado();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cambiar el asignado');
+            });
+        }
+
+    document.addEventListener('DOMContentLoaded', function() {
+    const emailCollapse = document.getElementById('emailTemplates');
+    if (emailCollapse) {
+        emailCollapse.addEventListener('show.bs.collapse', function () {
+            // Seleccionar la plantilla genérica automáticamente
+            seleccionarPlantilla('generico');
+            
+            // También marcar visualmente el pill correspondiente
+            document.querySelectorAll('.template-pill').forEach(card => {
+                card.classList.remove('selected');
+            });
+            const genericPill = document.querySelector('.template-pill[onclick*="generico"]');
+            if (genericPill) {
+                genericPill.classList.add('selected');
+            }
         });
     }
-}
-
-function cambiarEstado(nuevoEstado, ticketId) {
-    // Obtener la URL del atributo data-url
-    const select = document.getElementById('estadoSelect');
-    const url = select.getAttribute('data-url');
     
-    // CORREGIDO: Usar el estado directamente sin mapeo
-    let estadoBackend = nuevoEstado;
-    
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCsrfToken()
-        },
-        body: JSON.stringify({ estado: estadoBackend })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
-            alertDiv.innerHTML = `Estado cambiado a ${data.estado_display} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cambiar el estado');
-    });
-}
-
-function getCsrfToken() {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 10) === 'csrftoken=') {
-                cookieValue = decodeURIComponent(cookie.substring(10));
-                break;
-            }
+    // También asegurar que si el panel ya está visible al cargar la página, se seleccione
+    if (emailCollapse && emailCollapse.classList.contains('show')) {
+        seleccionarPlantilla('generico');
+        const genericPill = document.querySelector('.template-pill[onclick*="generico"]');
+        if (genericPill) {
+            genericPill.classList.add('selected');
         }
     }
-    return cookieValue;
+});
+
+function editarNombre() {
+    const displayDiv = document.getElementById('nombreDisplay');
+    const formDiv = document.getElementById('nombreForm');
+    const input = document.getElementById('nombreInput');
+    
+    if (displayDiv && formDiv) {
+        displayDiv.style.display = 'none';
+        formDiv.style.display = 'block';
+        if (input) input.focus();
+    }
 }
 
+function cancelarEditarNombre() {
+    const displayDiv = document.getElementById('nombreDisplay');
+    const formDiv = document.getElementById('nombreForm');
+    
+    if (displayDiv && formDiv) {
+        displayDiv.style.display = 'flex';
+        formDiv.style.display = 'none';
+    }
+}
 
-function agregarComentario(ticketId) {
-    const comentario = document.getElementById('comentarioInput').value.trim();
-    if (!comentario) {
-        alert('Por favor escribe un comentario');
+function guardarNombre(ticketId) {
+    const nombreInput = document.getElementById('nombreInput');
+    const nuevoNombre = nombreInput.value.trim();
+    
+    // Buscar el botón de guardar de manera más confiable
+    const guardarBtn = document.querySelector('#nombreForm .btn-light');
+    if (!guardarBtn) {
+        console.error('No se encontró el botón de guardar');
         return;
     }
     
-    // ✅ Usar la URL generada por Django
-    const url = "{% url 'extractor:ticket_agregar_comentario' ticket.id %}";
+    const originalText = guardarBtn.innerHTML;
+    guardarBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    guardarBtn.disabled = true;
     
-    fetch(url, {
+    fetch(`/ticket/${ticketId}/cambiar-nombre/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCsrfToken()
         },
-        body: JSON.stringify({ comentario: comentario })
+        body: JSON.stringify({ nombre: nuevoNombre })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            // Agregar comentario a la lista
-            const comentariosLista = document.getElementById('comentariosLista');
-            const nuevoComentario = document.createElement('div');
-            nuevoComentario.className = 'alert alert-light border-start border-primary border-3 mb-2';
-            nuevoComentario.innerHTML = `<small class="text-muted">${data.comentario_formateado}</small>`;
-            comentariosLista.appendChild(nuevoComentario);
-            
-            // Limpiar textarea
-            document.getElementById('comentarioInput').value = '';
-            
-            // Scroll al final
-            comentariosLista.scrollTop = comentariosLista.scrollHeight;
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al agregar comentario');
-    });
-}
-
-function getCsrfToken() {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 10) === 'csrftoken=') {
-                cookieValue = decodeURIComponent(cookie.substring(10));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-
-let asignadoOriginalHtml = '';
-
-function mostrarSelectorAsignado() {
-    const displayDiv = document.getElementById('asignadoDisplay');
-    const selectorDiv = document.getElementById('selectorAsignado');
-    const btnEditar = document.getElementById('btnEditarAsignado');
-    
-    // Guardar el HTML original
-    asignadoOriginalHtml = displayDiv.innerHTML;
-    
-    // Ocultar display y mostrar selector
-    displayDiv.style.display = 'none';
-    selectorDiv.style.display = 'block';
-    btnEditar.style.display = 'none';
-}
-
-function cancelarEdicionAsignado() {
-    const displayDiv = document.getElementById('asignadoDisplay');
-    const selectorDiv = document.getElementById('selectorAsignado');
-    const btnEditar = document.getElementById('btnEditarAsignado');
-    
-    // Restaurar HTML original
-    displayDiv.innerHTML = asignadoOriginalHtml;
-    
-    // Mostrar display y ocultar selector
-    displayDiv.style.display = 'block';
-    selectorDiv.style.display = 'none';
-    btnEditar.style.display = 'inline-block';
-}
-
-function guardarAsignado(ticketId) {
-    const select = document.getElementById('asignadoSelect');
-    const usuarioId = select.value;
-    const usuarioNombre = select.options[select.selectedIndex]?.text || 'Sin asignar';
-    
-    // ✅ CORREGIDO: Usar la URL correcta sin el prefijo 'extractor'
-    const url = `/ticket/${ticketId}/cambiar-asignado/`;
-    
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCsrfToken()
-        },
-        body: JSON.stringify({ asignado_a_id: usuarioId || null })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Actualizar el display con el nuevo valor
-            const displayDiv = document.getElementById('asignadoDisplay');
-            if (data.asignado_nombre) {
-                displayDiv.innerHTML = `<strong>${data.asignado_nombre}</strong>
-                                        <span class="badge bg-secondary ms-2">${data.asignado_username}</span>`;
+            // Actualizar el display
+            const displayDiv = document.getElementById('nombreDisplay');
+            if (nuevoNombre) {
+                displayDiv.innerHTML = `
+                    <i class="bi bi-tag"></i>
+                    <span class="fw-semibold fs-5">${escapeHtml(nuevoNombre)}</span>
+                    <button class="btn btn-sm btn-outline-light" onclick="editarNombre()">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                `;
             } else {
-                displayDiv.innerHTML = '<span class="text-muted">No asignado</span>';
+                displayDiv.innerHTML = `
+                    <i class="bi bi-tag"></i>
+                    <span class="text-white-50 fst-italic">Sin nombre asignado</span>
+                    <button class="btn btn-sm btn-outline-light" onclick="editarNombre()">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                `;
             }
-            
-            // Actualizar el selector con el nuevo valor seleccionado
-            select.value = usuarioId;
-            
-            // Recargar la página para actualizar la bitácora
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
             
             // Mostrar mensaje de éxito
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
-            alertDiv.innerHTML = `✅ Asignado actualizado: ${data.asignado_nombre || 'Sin asignar'} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+            mostrarMensaje('Nombre actualizado correctamente', 'success');
             
-            // Cancelar edición
-            cancelarEdicionAsignado();
+            // Cerrar formulario
+            cancelarEditarNombre();
         } else {
-            alert('Error: ' + data.error);
+            mostrarMensaje(data.error || 'Error al guardar', 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al cambiar el asignado');
+        mostrarMensaje(error.error || 'Error al guardar el nombre', 'danger');
+    })
+    .finally(() => {
+        guardarBtn.innerHTML = originalText;
+        guardarBtn.disabled = false;
     });
 }
+
+function mostrarMensaje(mensaje, tipo) {
+    // Eliminar mensajes anteriores
+    const existingAlerts = document.querySelectorAll('.alert-floating');
+    existingAlerts.forEach(alert => alert.remove());
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${tipo} alert-dismissible fade show alert-floating`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.left = '50%';
+    alertDiv.style.transform = 'translateX(-50%)';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.style.textAlign = 'center';
+    alertDiv.innerHTML = `
+        <i class="bi bi-${tipo === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill'} me-2"></i> 
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto-cerrar después de 3 segundos
+    setTimeout(() => {
+        if (alertDiv) alertDiv.remove();
+    }, 3000);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Guardar valor original del nombre al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    const nombreInput = document.getElementById('nombreInput');
+    if (nombreInput) {
+        nombreInput.setAttribute('data-original-value', nombreInput.value);
+    }
+});
     </script>
 
     <style>
