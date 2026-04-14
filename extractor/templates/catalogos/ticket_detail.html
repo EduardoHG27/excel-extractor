@@ -1072,14 +1072,31 @@ Saludos.
             const text = element.textContent;
             
             navigator.clipboard.writeText(text).then(() => {
-                const btn = event.currentTarget;
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="bi bi-check-circle"></i> Copiado!';
-                setTimeout(() => {
-                    btn.innerHTML = originalHtml;
-                }, 2000);
+                // Buscar el botón que activó la función (el que fue clickeado)
+                const btn = document.activeElement;
+                if (btn && btn.tagName === 'BUTTON') {
+                    const originalHtml = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Copiado!';
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                    }, 2000);
+                } else {
+                    // Fallback: mostrar mensaje flotante
+                    mostrarMensaje('Texto copiado al portapapeles', 'success');
+                }
             }).catch(() => {
-                alert('No se pudo copiar el texto');
+                // Fallback para navegadores que no soportan clipboard API
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    mostrarMensaje('Texto copiado al portapapeles', 'success');
+                } catch (err) {
+                    alert('No se pudo copiar el texto. Por favor, selecciona manualmente.');
+                }
+                document.body.removeChild(textarea);
             });
         }
 
