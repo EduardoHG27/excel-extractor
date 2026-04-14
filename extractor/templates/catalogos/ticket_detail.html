@@ -706,7 +706,7 @@ Saludos.
                                         </div>
                                         <div class="btn-group">
                                             <a href="{{ ticket.dictamen_pdf.url }}" class="btn btn-sm btn-success" target="_blank">
-                                                <i class="bi bi-eye"></i> Ver
+                                                <i class="bi bi-download"></i> Ver/Descargar
                                             </a>
                                             <button type="button" class="btn btn-sm btn-danger" 
                                                     onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'dictamen')">
@@ -766,10 +766,7 @@ Saludos.
                                         </div>
                                         <div class="btn-group">
                                             <a href="{{ ticket.evidencia_pdf.url }}" class="btn btn-sm btn-success" target="_blank">
-                                                <i class="bi bi-eye"></i> Ver
-                                            </a>
-                                            <a href="{{ ticket.evidencia_pdf.url }}" download class="btn btn-sm btn-primary">
-                                                <i class="bi bi-download"></i> Descargar
+                                                <i class="bi bi-download"></i> Ver/Descargar
                                             </a>
                                             <button type="button" class="btn btn-sm btn-danger" 
                                                     onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'evidencia')">
