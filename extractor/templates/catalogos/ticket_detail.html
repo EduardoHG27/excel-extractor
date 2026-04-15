@@ -1041,32 +1041,41 @@ Saludos.
         // Los datos se obtienen directamente del contexto de Django
         const firmaPersonal = `\n\n-- \n{{ user.get_full_name|default:user.username }}\nQA\n{{ user.telefono|default:"Teléfono no registrado" }}\n{{ user.email }}`;
 
+        function obtenerSaludoPorHora() {
+            const hora = new Date().getHours();
+            
+            if (hora >= 6 && hora < 12) {
+                return "Buenos días estimados";
+            } else if (hora >= 12 && hora < 19) {
+                return "Buenas tardes estimados";
+            } else {
+                return "Buenas noches estimados";
+            }
+        }
+
         function seleccionarPlantilla(tipo) {
             plantillaActual = tipo;
             
-            // Remover la clase 'selected' de todas las plantillas
             document.querySelectorAll('.template-pill').forEach(card => {
                 card.classList.remove('selected');
             });
-            // Añadir la clase 'selected' a la que se clickeó
             if(event && event.currentTarget) {
                 event.currentTarget.classList.add('selected');
             }
             
             const plantillas = {
-                generico: `Buen día estimados:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                generico: `${obtenerSaludoPorHora()}:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\n{% if ticket.nombre %}📌 **Nombre del ticket:** {{ ticket.nombre }}\n\n{% endif %}Quedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
                 
-                funcionalidad: `Buen día estimados:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\nDetalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                funcionalidad: `${obtenerSaludoPorHora()}:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\n{% if ticket.nombre %}📌 **Nombre del ticket:** {{ ticket.nombre }}\n\n{% endif %}Detalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
                 
-                completado: `Buen día estimados:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
+                completado: `${obtenerSaludoPorHora()}:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\n{% if ticket.nombre %}📌 **Nombre del ticket:** {{ ticket.nombre }}\n\n{% endif %}Cualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
             };
             
             const preview = document.getElementById('emailPreview');
-            // Reemplazar placeholders de Django y mostrar
-            let contenidoFinal = plantillas[tipo].replace(/{{ ticket.codigo }}/g, '{{ ticket.codigo|escapejs }}');
-            preview.textContent = contenidoFinal;
+            // ⚠️ IMPORTANTE: NO reemplazar nada, el servidor ya lo hizo
+            preview.textContent = plantillas[tipo];
         }
-
+        
         function copiarAlPortapapeles(elementId) {
             const element = document.getElementById(elementId);
             const text = element.textContent;
