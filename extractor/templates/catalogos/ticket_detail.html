@@ -1197,14 +1197,15 @@ Saludos.
             }
         }
 
-        function eliminarArchivoCloudinary(ticketId, tipo, event) {
+        function eliminarArchivoCloudinary(ticketId, tipo) {
             if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
-                // Mostrar indicador de carga
+                // Mostrar estado de carga
                 const btn = event.currentTarget;
                 const originalHtml = btn.innerHTML;
                 btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
                 btn.disabled = true;
                 
+                // IMPORTANTE: Usar la URL correcta sin 'extractor/'
                 const url = `/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
                 
                 fetch(url, {
@@ -1214,33 +1215,22 @@ Saludos.
                         'Content-Type': 'application/json'
                     }
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(data => {
-                            throw new Error(data.error || 'Error al eliminar');
-                        });
-                    }
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Mostrar mensaje de éxito
-                        mostrarMensaje(data.message || 'Archivo eliminado correctamente', 'success');
-                        // Recargar después de 1.5 segundos
+                        mostrarMensaje(data.message, 'success');
                         setTimeout(() => {
                             location.reload();
                         }, 1500);
                     } else {
-                        mostrarMensaje(data.error || 'Error al eliminar el archivo', 'danger');
-                        // Restaurar botón
+                        mostrarMensaje(data.error, 'danger');
                         btn.innerHTML = originalHtml;
                         btn.disabled = false;
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    mostrarMensaje(error.message || 'Error al eliminar el archivo', 'danger');
-                    // Restaurar botón
+                    mostrarMensaje('Error al eliminar el archivo', 'danger');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 });
@@ -1248,30 +1238,22 @@ Saludos.
         }
 
         function mostrarMensaje(mensaje, tipo) {
-    // Eliminar mensajes anteriores
-            const existingAlerts = document.querySelectorAll('.alert-floating');
-            existingAlerts.forEach(alert => alert.remove());
-            
             const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${tipo} alert-dismissible fade show alert-floating`;
+            alertDiv.className = `alert alert-${tipo} alert-dismissible fade show`;
             alertDiv.style.position = 'fixed';
             alertDiv.style.top = '20px';
             alertDiv.style.left = '50%';
             alertDiv.style.transform = 'translateX(-50%)';
             alertDiv.style.zIndex = '9999';
             alertDiv.style.minWidth = '300px';
-            alertDiv.style.textAlign = 'center';
-            alertDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
             alertDiv.innerHTML = `
-                <i class="bi bi-${tipo === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill'} me-2"></i> 
                 ${mensaje}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
             document.body.appendChild(alertDiv);
             
-            // Auto-cerrar después de 3 segundos
             setTimeout(() => {
-                if (alertDiv) alertDiv.remove();
+                alertDiv.remove();
             }, 3000);
         }
 
