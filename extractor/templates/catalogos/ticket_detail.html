@@ -1198,7 +1198,10 @@ Saludos.
         }
 
         function eliminarArchivoCloudinary(ticketId, tipo) {
-            if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
+            const tipoTexto = tipo === 'dictamen' ? 'dictamen' : 'evidencia';
+            const confirmMsg = `¿Estás seguro de eliminar este ${tipoTexto} permanentemente?`;
+            
+            if (confirm(confirmMsg)) {
                 const url = `/extractor/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
                 
                 fetch(url, {
@@ -1210,12 +1213,19 @@ Saludos.
                 })
                 .then(response => {
                     if (response.redirected) {
+                        // Si la vista redirige, seguir la redirección
                         window.location.href = response.url;
                     } else if (response.ok) {
-                        location.reload();
+                        return response.json().then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Error: ' + (data.error || 'No se pudo eliminar'));
+                            }
+                        });
                     } else {
                         return response.json().then(data => {
-                            alert('Error: ' + (data.error || 'No se pudo eliminar el archivo'));
+                            alert('Error: ' + (data.error || 'Error al eliminar'));
                         });
                     }
                 })
