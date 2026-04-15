@@ -37,6 +37,8 @@ import re
 import cloudinary.uploader
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from openpyxl.styles import Border, Side
+
 
 logger = logging.getLogger(__name__)
 
@@ -328,48 +330,41 @@ def extract_excel_data(file_path):
         # Extraer detalle_cambios (a partir de D22)
         try:
             detalle_cambios = ""
-            row = 21  # Fila 22 (0-indexed)
-            while row < 30 and pd.notna(df.iat[row, 3]):
+            row = 21  # Fila 22 (0-indexed) - "Detalle de los cambios"
+            
+            # Leer mientras haya contenido y no encontremos la siguiente sección
+            while row < 40:  # Límite superior seguro
                 cell_value = clean_value(df.iat[row, 3])
-                # Ignorar si es el texto de encabezado repetido
-                if "📝 Descripción de Cambios" not in cell_value and "Funcionalidad de la liberación:" not in cell_value:
-                    detalle_cambios += cell_value + "\n"
-                row += 1
-            extracted_data['detalle_cambios'] = detalle_cambios.strip()
-        except:
-            extracted_data['detalle_cambios'] = ""
-        
-        # 🔧 CORRECCIÓN: Extraer justificacion_cambio (fila 24)
-        try:
-            justificacion = ""
-            
-            # Buscar la fila de justificación - en tu Excel está en fila 23 (0-indexed)
-            # Observando tu archivo, la justificación está en D24 (row=23)
-            if pd.notna(df.iat[23, 3]):  # D24
-                cell_value = clean_value(df.iat[23, 3])
-                # Ignorar si es el texto de encabezado
-                if "📝 Descripción de Cambios" not in cell_value and "Funcionalidad de la liberación:" not in cell_value:
-                    justificacion = cell_value
-            
-            # Si no hay texto en D24, intentar buscar por el encabezado "Justificación"
-            if not justificacion:
-                justificacion_row = None
-                for row in range(21, 30):
-                    if pd.notna(df.iat[row, 2]) and "Justificación" in str(df.iat[row, 2]):
-                        justificacion_row = row
-                        break
                 
-                if justificacion_row is not None:
-                    content_row = justificacion_row + 1
-                    while content_row < 40 and pd.notna(df.iat[content_row, 3]):
-                        justificacion += clean_value(df.iat[content_row, 3]) + "\n"
-                        content_row += 1
+                # Verificar si la celda está vacía
+                if not cell_value:
+                    row += 1
+                    continue
+                
+                # DETENER si encontramos "Justificación" (es la siguiente sección)
+                if "Justificación" in cell_value or "Justificacion" in cell_value:
+                    print(f"🛑 Deteniendo lectura de detalle_cambios en fila {row} por encontrar: {cell_value[:50]}")
+                    break
+                
+                # DETENER si encontramos "Puntos a Considerar" (por si acaso)
+                if "Puntos a Considerar" in cell_value:
+                    print(f"🛑 Deteniendo lectura de detalle_cambios en fila {row} por encontrar: {cell_value[:50]}")
+                    break
+                
+                # Ignorar encabezados que no queremos incluir
+                if "📝 Descripción de Cambios" not in cell_value and \
+                "Funcionalidad de la liberación:" not in cell_value and \
+                "Detalle de los cambios" not in cell_value:
+                    detalle_cambios += cell_value + "\n"
+                
+                row += 1
             
-            extracted_data['justificacion_cambio'] = justificacion.strip()
+            extracted_data['detalle_cambios'] = detalle_cambios.strip()
+            print(f"✅ detalle_cambios extraído: {len(detalle_cambios)} caracteres")
             
         except Exception as e:
-            print(f"⚠️ Error extrayendo justificación: {e}")
-            extracted_data['justificacion_cambio'] = ""
+            print(f"⚠️ Error extrayendo detalle_cambios: {e}")
+            extracted_data['detalle_cambios'] = ""
         
         # DEPURACIÓN: Mostrar valores extraídos
         print("\n=== VALORES EXTRAÍDOS DEL EXCEL ===")
@@ -1976,9 +1971,20 @@ def generar_excel_dictamen(request, ticket_id):
         
         # ===== SOLO CAMPOS QUE DEBEN MODIFICARSE =====
         # NOTA: E6, B24, H24 NO se modifican para mantener sus textos originales
+
+        nombre_proyecto = ticket.proyecto.nombre if ticket.proyecto else ''
+        if ticket.nombre:
+            # Limpiar el nombre y dividir por guiones
+            nombre_limpio = ticket.nombre.replace(" - ", "-")
+            partes = [p.strip() for p in nombre_limpio.split('-') if p.strip()]
+            nombre_formateado = " - ".join(partes)
+            proyecto_final = f"{nombre_proyecto} - {nombre_formateado}"
+        else:
+            proyecto_final = nombre_proyecto
+
         campos = [
             ('B5', ticket.cliente.nombre if ticket.cliente else ''),
-            ('B6', ticket.proyecto.nombre if ticket.proyecto else ''),
+            ('B6', proyecto_final),  # ← Aquí va el proyecto + nombre del ticket
             ('C7', ticket.tipo_servicio.nombre if ticket.tipo_servicio else ''),
         ]
         
@@ -2004,6 +2010,14 @@ def generar_excel_dictamen(request, ticket_id):
         except:
             pass
         
+
+        try:
+            restaurar_borde_completo(ws, 'K5')
+            restaurar_borde_completo(ws, 'K6')
+            restaurar_borde_completo(ws, 'C9')
+            print("✅ Bordes restaurados correctamente")
+        except Exception as e:
+            print(f"⚠️ Error al restaurar bordes: {e}")
         # Guardar en buffer
         buffer = io.BytesIO()
         wb.save(buffer)
@@ -2023,6 +2037,30 @@ def generar_excel_dictamen(request, ticket_id):
         traceback.print_exc()
         messages.error(request, f"Error al generar dictamen: {str(e)}")
         return redirect('extractor:ticket_detail', id=ticket.id)
+
+full_border = Border(
+    left=Side(style='thin', color='000000'),
+    right=Side(style='thin', color='000000'),
+    top=Side(style='thin', color='000000'),
+    bottom=Side(style='thin', color='000000')
+)
+
+def restaurar_borde_completo(sheet, celda):
+    """Restaura todos los bordes de una celda o rango fusionado"""
+    try:
+        # Verificar si la celda está fusionada
+        for merged_range in sheet.merged_cells.ranges:
+            if celda in merged_range:
+                # Aplicar borde a TODAS las celdas del rango fusionado
+                for row in range(merged_range.min_row, merged_range.max_row + 1):
+                    for col in range(merged_range.min_col, merged_range.max_col + 1):
+                        sheet.cell(row=row, column=col).border = full_border
+                return
+        # Si no está fusionada, aplicar borde directamente
+        sheet[celda].border = full_border
+    except Exception as e:
+        print(f"⚠️ No se pudo restaurar borde en {celda}: {e}")
+
 
 def verificar_plantilla(request):
     import os
