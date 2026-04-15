@@ -1063,19 +1063,50 @@ Saludos.
                 event.currentTarget.classList.add('selected');
             }
             
-            const plantillas = {
-                generico: `${obtenerSaludoPorHora()}:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\n{% if ticket.nombre %}📌 **Nombre del ticket:** {{ ticket.nombre }}\n\n{% endif %}Quedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
-                
-                funcionalidad: `${obtenerSaludoPorHora()}:\n\nPor medio del presente, en continuidad a la solicitud de {{ ticket.tipo_servicio.nombre }} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: {{ ticket.codigo }}\n\n{% if ticket.nombre %}📌 **Nombre del ticket:** {{ ticket.nombre }}\n\n{% endif %}Detalle de la solicitud:\n- Cliente: {{ ticket.cliente.nombre|default:ticket.cliente_code }}\n- Proyecto: {{ ticket.proyecto.nombre|default:ticket.proyecto_code }}\n- Tipo de pruebas: {{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code }}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
-                
-                completado: `${obtenerSaludoPorHora()}:\n\nPor medio del presente, con referencia al ticket {{ ticket.codigo }} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\n{% if ticket.nombre %}📌 **Nombre del ticket:** {{ ticket.nombre }}\n\n{% endif %}Cualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
-            };
+            // Obtener valores de Django (ya renderizados por el servidor)
+            const saludo = obtenerSaludoPorHora();
+            const codigo = "{{ ticket.codigo|escapejs }}";
+            const tipoServicio = "{{ ticket.tipo_servicio.nombre|default:''|escapejs }}";
+            const cliente = "{{ ticket.cliente.nombre|default:ticket.cliente_code|escapejs }}";
+            const proyecto = "{{ ticket.proyecto.nombre|default:ticket.proyecto_code|escapejs }}";
+            const tipoPruebas = "{{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code|escapejs }}";
+            const nombreTicket = "{{ ticket.nombre|default:''|escapejs }}";
+            
+            // Construir la línea del nombre SOLO si existe (con comillas incluidas)
+            let nombreLine = '';
+            let nombreLineCompleta = '';
+            if (nombreTicket && nombreTicket.trim() !== '' && nombreTicket !== 'None') {
+                nombreLine = nombreTicket;
+                nombreLineCompleta = ` "${nombreLine}"`;  // Con espacio inicial y comillas
+            }
+            
+            // Plantillas con formato condicional
+            let plantillas;
+            
+            if (nombreTicket && nombreTicket.trim() !== '' && nombreTicket !== 'None') {
+                // Plantillas cuando SÍ tiene nombre
+                plantillas = {
+                    generico: `${saludo}:\n\nPor medio del presente, en continuidad a la solicitud de pruebas${nombreLineCompleta}, hacemos llegar el número de ticket con el cual podrás darle seguimiento: ${codigo}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                    
+                    funcionalidad: `${saludo}:\n\nPor medio del presente, en continuidad a la solicitud de ${tipoServicio}${nombreLineCompleta}, hacemos llegar el número de ticket con el cual podrás darle seguimiento: ${codigo}\n\nDetalle de la solicitud:\n- Cliente: ${cliente}\n- Proyecto: ${proyecto}\n- Tipo de pruebas: ${tipoPruebas}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                    
+                    completado: `${saludo}:\n\nPor medio del presente, con referencia a la solicitud${nombreLineCompleta} con el ticket ${codigo} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
+                };
+            } else {
+                // Plantillas cuando NO tiene nombre
+                plantillas = {
+                    generico: `${saludo}:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: ${codigo}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                    
+                    funcionalidad: `${saludo}:\n\nPor medio del presente, en continuidad a la solicitud de ${tipoServicio} con respecto al flujo solicitado, hacemos llegar el número de ticket con el cual podrás darle seguimiento: ${codigo}\n\nDetalle de la solicitud:\n- Cliente: ${cliente}\n- Proyecto: ${proyecto}\n- Tipo de pruebas: ${tipoPruebas}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
+                    
+                    completado: `${saludo}:\n\nPor medio del presente, con referencia al ticket ${codigo} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
+                };
+            }
             
             const preview = document.getElementById('emailPreview');
-            // ⚠️ IMPORTANTE: NO reemplazar nada, el servidor ya lo hizo
             preview.textContent = plantillas[tipo];
         }
-        
+
         function copiarAlPortapapeles(elementId) {
             const element = document.getElementById(elementId);
             const text = element.textContent;
