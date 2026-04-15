@@ -709,7 +709,7 @@ Saludos.
                                                 <i class="bi bi-download"></i> Ver/Descargar
                                             </a>
                                             <button type="button" class="btn btn-sm btn-danger" 
-                                                    onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'dictamen')">
+                                                    onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'dictamen', event)">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -1197,9 +1197,14 @@ Saludos.
             }
         }
 
-        function eliminarArchivoCloudinary(ticketId, tipo) {
+        function eliminarArchivoCloudinary(ticketId, tipo, event) {
             if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
-                // ✅ CORREGIDO: Quitar 'extractor/' porque no está en los urlpatterns
+                // Mostrar indicador de carga
+                const btn = event.currentTarget;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
+                btn.disabled = true;
+                
                 const url = `/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
                 
                 fetch(url, {
@@ -1210,26 +1215,64 @@ Saludos.
                     }
                 })
                 .then(response => {
-                    if (response.redirected) {
-                        window.location.href = response.url;
-                    } else if (response.ok) {
-                        return response.json();
-                    } else {
+                    if (!response.ok) {
                         return response.json().then(data => {
                             throw new Error(data.error || 'Error al eliminar');
                         });
                     }
+                    return response.json();
                 })
                 .then(data => {
-                    if (data && data.success) {
-                        location.reload();
+                    if (data.success) {
+                        // Mostrar mensaje de éxito
+                        mostrarMensaje(data.message || 'Archivo eliminado correctamente', 'success');
+                        // Recargar después de 1.5 segundos
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        mostrarMensaje(data.error || 'Error al eliminar el archivo', 'danger');
+                        // Restaurar botón
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error: ' + error.message);
+                    mostrarMensaje(error.message || 'Error al eliminar el archivo', 'danger');
+                    // Restaurar botón
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
                 });
             }
+        }
+
+        function mostrarMensaje(mensaje, tipo) {
+    // Eliminar mensajes anteriores
+            const existingAlerts = document.querySelectorAll('.alert-floating');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${tipo} alert-dismissible fade show alert-floating`;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.left = '50%';
+            alertDiv.style.transform = 'translateX(-50%)';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.minWidth = '300px';
+            alertDiv.style.textAlign = 'center';
+            alertDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            alertDiv.innerHTML = `
+                <i class="bi bi-${tipo === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill'} me-2"></i> 
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // Auto-cerrar después de 3 segundos
+            setTimeout(() => {
+                if (alertDiv) alertDiv.remove();
+            }, 3000);
         }
 
         function cambiarEstado(nuevoEstado, ticketId) {

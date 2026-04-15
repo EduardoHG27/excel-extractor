@@ -3798,101 +3798,114 @@ def eliminar_archivo_cloudinary(request, ticket_id, tipo_archivo):
     Elimina un archivo de Cloudinary y actualiza el modelo Ticket
     tipo_archivo puede ser 'dictamen' o 'evidencia'
     """
-    ticket = get_object_or_404(Ticket, id=ticket_id)
+    ticket = get_object_or_404(Token, id=ticket_id)
     
     # Verificar según el tipo de archivo
     if tipo_archivo == 'dictamen':
         campo_url = ticket.dictamen_pdf
-        campo_fecha = 'fecha_subida_dictamen'
     elif tipo_archivo == 'evidencia':
         campo_url = ticket.evidencia_pdf
-        campo_fecha = 'fecha_subida_evidencia'
     else:
-        messages.error(request, 'Tipo de archivo no válido')
-        return redirect('extractor:ticket_detail', id=ticket.id)
+        return JsonResponse({'success': False, 'error': 'Tipo de archivo no válido'}, status=400)
     
     # Verificar que existe el archivo
     if not campo_url:
-        messages.error(request, f'No hay {tipo_archivo} para eliminar')
-        return redirect('extractor:ticket_detail', id=ticket.id)
+        return JsonResponse({'success': False, 'error': f'No hay {tipo_archivo} para eliminar'}, status=404)
     
     try:
         # Extraer public_id de Cloudinary desde la URL
-        public_id = extraer_public_id_cloudinary(str(campo_url))
+        url_str = str(campo_url)
+        public_id = extraer_public_id_cloudinary(url_str)
         
-        if public_id:
-            # Eliminar de Cloudinary
-            result = cloudinary.uploader.destroy(public_id, resource_type="auto")
-            
-            if result.get('result') == 'ok':
-                # Limpiar los campos en el modelo
-                if tipo_archivo == 'dictamen':
-                    ticket.dictamen_pdf = None
-                    ticket.fecha_subida_dictamen = None
+        print(f"URL original: {url_str}")  # Log para debugging
+        print(f"Public ID extraído: {public_id}")  # Log para debugging
+        
+        if not public_id:
+            return JsonResponse({'success': False, 'error': 'No se pudo identificar el archivo en Cloudinary'}, status=400)
+        
+        # Intentar eliminar con diferentes resource_types
+        eliminado = False
+        resource_types = ["image", "raw", "upload", "auto"]
+        last_error = None
+        
+        for resource_type in resource_types:
+            try:
+                result = cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+                print(f"Intentando con {resource_type}: {result}")
+                
+                if result.get('result') == 'ok':
+                    eliminado = True
+                    break
+                elif result.get('result') == 'not found':
+                    last_error = f'Archivo no encontrado en Cloudinary (tipo: {resource_type})'
                 else:
-                    ticket.evidencia_pdf = None
-                    ticket.fecha_subida_evidencia = None
-                
-                ticket.subido_por = None
-                
-                # Agregar comentario de seguimiento
-                from django.utils import timezone
-                usuario = request.user.get_full_name() or request.user.username
-                ahora_local = timezone.localtime(timezone.now())
-                fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
-                comentario = f"[{fecha_hora}] {usuario} eliminó el {tipo_archivo}"
-                
-                if ticket.comentarios_seguimiento:
-                    ticket.comentarios_seguimiento += f"\n{comentario}"
-                else:
-                    ticket.comentarios_seguimiento = comentario
-                
-                ticket.save()
-                
-                messages.success(request, f'✅ {tipo_archivo.capitalize()} eliminado exitosamente')
-                
+                    last_error = result.get('error', {}).get('message', 'Error desconocido')
+            except Exception as e:
+                last_error = str(e)
+                continue
+        
+        if eliminado:
+            # Limpiar los campos en el modelo
+            if tipo_archivo == 'dictamen':
+                ticket.dictamen_pdf = None
+                ticket.fecha_subida_dictamen = None
             else:
-                error_msg = result.get('error', {}).get('message', 'Error desconocido')
-                messages.error(request, f'Error al eliminar de Cloudinary: {error_msg}')
+                ticket.evidencia_pdf = None
+                ticket.fecha_subida_evidencia = None
+            
+            ticket.subido_por = None
+            
+            # Agregar comentario de seguimiento
+            usuario = request.user.get_full_name() or request.user.username
+            ahora_local = timezone.localtime(timezone.now())
+            fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
+            comentario = f"[{fecha_hora}] {usuario} eliminó el {tipo_archivo}"
+            
+            if ticket.comentarios_seguimiento:
+                ticket.comentarios_seguimiento += f"\n{comentario}"
+            else:
+                ticket.comentarios_seguimiento = comentario
+            
+            ticket.save()
+            
+            return JsonResponse({'success': True, 'message': f'{tipo_archivo.capitalize()} eliminado exitosamente'})
         else:
-            messages.error(request, 'No se pudo identificar el archivo en Cloudinary')
+            return JsonResponse({'success': False, 'error': last_error or 'No se pudo eliminar el archivo de Cloudinary'}, status=500)
             
     except Exception as e:
-        messages.error(request, f'Error al eliminar: {str(e)}')
-    
-    return redirect('extractor:ticket_detail', id=ticket.id)
+        print(f"Error general: {str(e)}")  # Log para debugging
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 def extraer_public_id_cloudinary(url):
     """
     Extrae el public_id de una URL de Cloudinary
-    Ejemplo URL: https://res.cloudinary.com/dsrmafezb/image/upload/v1776205445/tickets/dictamenes/qdcadk1xnoeuzt4agrpv.pdf
-    Retorna: tickets/dictamenes/qdcadk1xnoeuzt4agrpv
     """
     try:
         # Método 1: Buscar patrón después de /upload/ y antes de la extensión
-        # Eliminar la versión (v123456789) y la extensión
         pattern = r'/upload/(?:v\d+/)?(.+?)\.\w+$'
         match = re.search(pattern, url)
         
         if match:
             return match.group(1)
         
-        # Método 2: Método alternativo más robusto
-        # Buscar la parte después de 'upload/' y quitar la extensión
+        # Método 2: Método alternativo
         if '/upload/' in url:
+            # Obtener todo después de '/upload/'
             parts = url.split('/upload/')
             if len(parts) > 1:
-                # Obtener la parte después de /upload/
                 path_part = parts[1]
                 # Si hay versión (v123456789), eliminarla
                 if path_part.startswith('v') and '/' in path_part:
                     path_part = path_part.split('/', 1)[1]
                 # Eliminar la extensión del archivo
                 public_id = re.sub(r'\.\w+$', '', path_part)
+                # Eliminar parámetros de consulta si existen
+                public_id = public_id.split('?')[0]
                 return public_id
         
         return None
-    except Exception:
+    except Exception as e:
+        print(f"Error extrayendo public_id: {str(e)}")
         return None
 
 @login_required
