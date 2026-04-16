@@ -249,6 +249,7 @@ def extract_excel_data(file_path):
     """
     Extrae las celdas específicas según las reglas dadas
     AHORA SOPORTA NOMBRES DIRECTOS (no solo IDs)
+    Y EXTRAE CORRECTAMENTE D20, D22, D24
     """
     try:
         # Verificar que la hoja existe
@@ -270,7 +271,7 @@ def extract_excel_data(file_path):
                 return ""
             return str(value).strip()
         
-        # Extraer CLIENTE (C5) - AHORA PUEDE SER NOMBRE O ID
+        # Extraer CLIENTE (C5)
         try:
             cliente_valor = clean_value(df.iat[4, 2])
             extracted_data['cliente'] = cliente_valor
@@ -278,7 +279,7 @@ def extract_excel_data(file_path):
         except:
             extracted_data['cliente'] = ""
         
-        # Extraer PROYECTO (H5) - AHORA PUEDE SER NOMBRE O ID
+        # Extraer PROYECTO (H5)
         try:
             proyecto_valor = clean_value(df.iat[4, 7])
             extracted_data['proyecto'] = proyecto_valor
@@ -286,7 +287,7 @@ def extract_excel_data(file_path):
         except:
             extracted_data['proyecto'] = ""
         
-        # Extraer TIPO DE PRUEBAS (D8) - AHORA PUEDE SER NOMBRE O ID
+        # Extraer TIPO DE PRUEBAS (D8)
         try:
             tipo_pruebas_valor = clean_value(df.iat[7, 3])
             extracted_data['tipo_pruebas'] = tipo_pruebas_valor
@@ -318,58 +319,43 @@ def extract_excel_data(file_path):
         except:
             extracted_data['numero_version'] = ""
         
-        # Extraer funcionalidad_liberacion (D20)
+        # ===== NUEVO: Extraer FUNCIONALIDAD (D20) =====
         try:
+            # D20 está en fila 20 (índice 19), columna D (índice 3)
             funcionalidad = clean_value(df.iat[19, 3])
-            if pd.notna(df.iat[20, 3]):
-                funcionalidad += "\n" + clean_value(df.iat[20, 3])
             extracted_data['funcionalidad_liberacion'] = funcionalidad
-        except:
+            print(f"📌 Funcionalidad extraída (D20): '{funcionalidad[:100]}...'")
+        except Exception as e:
+            print(f"⚠️ Error extrayendo funcionalidad_liberacion: {e}")
             extracted_data['funcionalidad_liberacion'] = ""
         
-        # Extraer detalle_cambios (a partir de D22)
+        # ===== NUEVO: Extraer DETALLE DE CAMBIOS (D22) =====
         try:
-            detalle_cambios = ""
-            row = 21  # Fila 22 (0-indexed) - "Detalle de los cambios"
-            
-            # Leer mientras haya contenido y no encontremos la siguiente sección
-            while row < 40:  # Límite superior seguro
-                cell_value = clean_value(df.iat[row, 3])
-                
-                # Verificar si la celda está vacía
-                if not cell_value:
-                    row += 1
-                    continue
-                
-                # DETENER si encontramos "Justificación" (es la siguiente sección)
-                if "Justificación" in cell_value or "Justificacion" in cell_value:
-                    print(f"🛑 Deteniendo lectura de detalle_cambios en fila {row} por encontrar: {cell_value[:50]}")
-                    break
-                
-                # DETENER si encontramos "Puntos a Considerar" (por si acaso)
-                if "Puntos a Considerar" in cell_value:
-                    print(f"🛑 Deteniendo lectura de detalle_cambios en fila {row} por encontrar: {cell_value[:50]}")
-                    break
-                
-                # Ignorar encabezados que no queremos incluir
-                if "📝 Descripción de Cambios" not in cell_value and \
-                "Funcionalidad de la liberación:" not in cell_value and \
-                "Detalle de los cambios" not in cell_value:
-                    detalle_cambios += cell_value + "\n"
-                
-                row += 1
-            
-            extracted_data['detalle_cambios'] = detalle_cambios.strip()
-            print(f"✅ detalle_cambios extraído: {len(detalle_cambios)} caracteres")
-            
+            # D22 está en fila 22 (índice 21), columna D (índice 3)
+            detalle_cambios = clean_value(df.iat[21, 3])
+            extracted_data['detalle_cambios'] = detalle_cambios
+            print(f"📌 Detalle de cambios extraído (D22): '{detalle_cambios[:100]}...'")
         except Exception as e:
             print(f"⚠️ Error extrayendo detalle_cambios: {e}")
             extracted_data['detalle_cambios'] = ""
         
+        # ===== NUEVO: Extraer JUSTIFICACIÓN (D24) =====
+        try:
+            # D24 está en fila 24 (índice 23), columna D (índice 3)
+            justificacion = clean_value(df.iat[23, 3])
+            extracted_data['justificacion_cambio'] = justificacion
+            print(f"📌 Justificación extraída (D24): '{justificacion[:100]}...'")
+        except Exception as e:
+            print(f"⚠️ Error extrayendo justificacion_cambio: {e}")
+            extracted_data['justificacion_cambio'] = ""
+        
         # DEPURACIÓN: Mostrar valores extraídos
         print("\n=== VALORES EXTRAÍDOS DEL EXCEL ===")
         for key, value in extracted_data.items():
-            print(f"{key}: '{value}'")
+            if key in ['funcionalidad_liberacion', 'detalle_cambios', 'justificacion_cambio']:
+                print(f"{key}: '{value[:150]}...' (primeros 150 chars)")
+            else:
+                print(f"{key}: '{value}'")
         print("=====================================\n")
         
         return extracted_data
