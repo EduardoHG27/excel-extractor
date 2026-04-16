@@ -629,8 +629,9 @@
             </li>
         {% else %}
             <!-- Menú para usuarios NO autenticados -->
+            <li><a href="{% url 'extractor:consultar_ticket' %}" class="{% if request.resolver_match.url_name == 'consultar_ticket' %}active{% endif %}" style="background-color: #8e44ad; color: white;">🔍 Consultar Ticket</a></li>
             <li><a href="{% url 'extractor:crear_solicitud' %}" class="{% if request.resolver_match.url_name == 'crear_solicitud' %}active{% endif %}">📝 Nueva Solicitud</a></li>
-            <li><a href="{% url 'extractor:login' %}?next={{ request.path }}">🔐 Iniciar Sesión</a></li>
+            <li><a href="{% url 'extractor:login' %}?next={% url 'extractor:upload_excel' %}">🔐 Iniciar Sesión</a></li>
         {% endif %}
                 </ul>
             </nav>

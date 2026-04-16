@@ -83,4 +83,6 @@ urlpatterns = [
     path('ticket/<int:id>/subir-evidencia/', views.subir_evidencia, name='subir_evidencia'),
     path('ticket/<int:ticket_id>/eliminar-archivo/<str:tipo_archivo>/',views.eliminar_archivo_cloudinary,name='eliminar_archivo_cloudinary'),
     path('ticket/<int:ticket_id>/cambiar-nombre/', views.ticket_cambiar_nombre, name='ticket_cambiar_nombre'),
+
+    path('consultar-ticket/', views.consultar_ticket, name='consultar_ticket'),
 ]

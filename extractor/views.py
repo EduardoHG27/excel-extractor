@@ -3972,3 +3972,44 @@ def verificar_archivo_cloudinary(request, id, tipo):
         info = {'tiene_archivo': False}
     
     return JsonResponse(info)
+
+def consultar_ticket(request):
+    """
+    Vista pública para consultar tickets (sin autenticación)
+    """
+    ticket = None
+    error = None
+    
+    if request.method == 'POST':
+        codigo_ticket = request.POST.get('codigo_ticket', '').strip().upper()
+        
+        if not codigo_ticket:
+            error = 'Por favor ingresa un código de ticket'
+        else:
+            try:
+                # Buscar el ticket por código
+                ticket = Ticket.objects.filter(codigo=codigo_ticket).first()
+                
+                if not ticket:
+                    error = f'No se encontró ningún ticket con el código "{codigo_ticket}"'
+                else:
+                    # Verificar que el ticket sea visible públicamente (estado no restringido)
+                    if ticket.estado in ['CANCELADO']:
+                        error = 'Este ticket no está disponible para consulta pública'
+                        ticket = None
+                        
+            except Exception as e:
+                error = f'Error al buscar el ticket: {str(e)}'
+    
+    # Obtener información de clientes y proyectos para estadísticas (opcional)
+    total_tickets = Ticket.objects.count()
+    tickets_abiertos = Ticket.objects.filter(estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO']).count()
+    
+    context = {
+        'ticket': ticket,
+        'error': error,
+        'total_tickets': total_tickets,
+        'tickets_abiertos': tickets_abiertos,
+        'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
+    }
+    return render(request, 'extractor/consultar_ticket.html', context)
