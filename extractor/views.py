@@ -3978,6 +3978,8 @@ def consultar_ticket(request):
     Vista pública para consultar tickets (sin autenticación)
     MODIFICADA: Incluye archivos adjuntos cuando el ticket está COMPLETADO
     """
+    from django.urls import reverse
+    
     ticket = None
     error = None
     
@@ -4003,16 +4005,17 @@ def consultar_ticket(request):
                         if ticket.estado == 'COMPLETADO':
                             ticket.archivos = []
                             
-                            # Verificar si tiene dictamen_pdf
-                            if ticket.dictamen_pdf and ticket.dictamen_pdf.name:
-                                # Obtener el nombre del archivo desde la URL o path
-                                nombre_dictamen = ticket.dictamen_pdf.name.split('/')[-1]
+                            # Verificar si tiene dictamen_pdf (Cloudinary)
+                            if ticket.dictamen_pdf and str(ticket.dictamen_pdf):
+                                # Obtener el nombre del archivo desde la URL
+                                url_dictamen = str(ticket.dictamen_pdf.url) if hasattr(ticket.dictamen_pdf, 'url') else str(ticket.dictamen_pdf)
+                                nombre_dictamen = url_dictamen.split('/')[-1].split('?')[0]
                                 extension = nombre_dictamen.split('.')[-1].lower() if '.' in nombre_dictamen else 'pdf'
                                 
                                 ticket.archivos.append({
                                     'nombre': f"Dictamen - {nombre_dictamen}",
                                     'tipo': extension,
-                                    'tamanio': None,  # Podrías calcularlo si es necesario
+                                    'tamanio': None,
                                     'fecha_subida': ticket.fecha_subida_dictamen,
                                     'url_descarga': reverse('extractor:descargar_archivo_publico', kwargs={
                                         'ticket_id': ticket.id, 
@@ -4020,9 +4023,10 @@ def consultar_ticket(request):
                                     })
                                 })
                             
-                            # Verificar si tiene evidencia_pdf
-                            if ticket.evidencia_pdf and ticket.evidencia_pdf.name:
-                                nombre_evidencia = ticket.evidencia_pdf.name.split('/')[-1]
+                            # Verificar si tiene evidencia_pdf (Cloudinary)
+                            if ticket.evidencia_pdf and str(ticket.evidencia_pdf):
+                                url_evidencia = str(ticket.evidencia_pdf.url) if hasattr(ticket.evidencia_pdf, 'url') else str(ticket.evidencia_pdf)
+                                nombre_evidencia = url_evidencia.split('/')[-1].split('?')[0]
                                 extension = nombre_evidencia.split('.')[-1].lower() if '.' in nombre_evidencia else 'pdf'
                                 
                                 ticket.archivos.append({
@@ -4049,7 +4053,7 @@ def consultar_ticket(request):
         'error': error,
         'total_tickets': total_tickets,
         'tickets_abiertos': tickets_abiertos,
-        'tickets_completados': tickets_completados,  # ← NUEVO
+        'tickets_completados': tickets_completados,
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }
     return render(request, 'extractor/consultar_ticket.html', context)
