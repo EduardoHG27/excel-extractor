@@ -85,4 +85,5 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/cambiar-nombre/', views.ticket_cambiar_nombre, name='ticket_cambiar_nombre'),
 
     path('consultar-ticket/', views.consultar_ticket, name='consultar_ticket'),
+    path('consultar/descargar/<int:ticket_id>/<str:tipo>/', descargar_archivo_publico, name='descargar_archivo_publico'),
 ]

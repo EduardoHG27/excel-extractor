@@ -3976,6 +3976,7 @@ def verificar_archivo_cloudinary(request, id, tipo):
 def consultar_ticket(request):
     """
     Vista pública para consultar tickets (sin autenticación)
+    MODIFICADA: Incluye archivos adjuntos cuando el ticket está COMPLETADO
     """
     ticket = None
     error = None
@@ -3997,6 +3998,43 @@ def consultar_ticket(request):
                     if ticket.estado in ['CANCELADO']:
                         error = 'Este ticket no está disponible para consulta pública'
                         ticket = None
+                    else:
+                        # ===== NUEVO: Cargar archivos si el ticket está COMPLETADO =====
+                        if ticket.estado == 'COMPLETADO':
+                            ticket.archivos = []
+                            
+                            # Verificar si tiene dictamen_pdf
+                            if ticket.dictamen_pdf and ticket.dictamen_pdf.name:
+                                # Obtener el nombre del archivo desde la URL o path
+                                nombre_dictamen = ticket.dictamen_pdf.name.split('/')[-1]
+                                extension = nombre_dictamen.split('.')[-1].lower() if '.' in nombre_dictamen else 'pdf'
+                                
+                                ticket.archivos.append({
+                                    'nombre': f"Dictamen - {nombre_dictamen}",
+                                    'tipo': extension,
+                                    'tamanio': None,  # Podrías calcularlo si es necesario
+                                    'fecha_subida': ticket.fecha_subida_dictamen,
+                                    'url_descarga': reverse('extractor:descargar_archivo_publico', kwargs={
+                                        'ticket_id': ticket.id, 
+                                        'tipo': 'dictamen'
+                                    })
+                                })
+                            
+                            # Verificar si tiene evidencia_pdf
+                            if ticket.evidencia_pdf and ticket.evidencia_pdf.name:
+                                nombre_evidencia = ticket.evidencia_pdf.name.split('/')[-1]
+                                extension = nombre_evidencia.split('.')[-1].lower() if '.' in nombre_evidencia else 'pdf'
+                                
+                                ticket.archivos.append({
+                                    'nombre': f"Evidencia - {nombre_evidencia}",
+                                    'tipo': extension,
+                                    'tamanio': None,
+                                    'fecha_subida': ticket.fecha_subida_evidencia,
+                                    'url_descarga': reverse('extractor:descargar_archivo_publico', kwargs={
+                                        'ticket_id': ticket.id, 
+                                        'tipo': 'evidencia'
+                                    })
+                                })
                         
             except Exception as e:
                 error = f'Error al buscar el ticket: {str(e)}'
@@ -4004,12 +4042,53 @@ def consultar_ticket(request):
     # Obtener información de clientes y proyectos para estadísticas (opcional)
     total_tickets = Ticket.objects.count()
     tickets_abiertos = Ticket.objects.filter(estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO']).count()
+    tickets_completados = Ticket.objects.filter(estado='COMPLETADO').count()
     
     context = {
         'ticket': ticket,
         'error': error,
         'total_tickets': total_tickets,
         'tickets_abiertos': tickets_abiertos,
+        'tickets_completados': tickets_completados,  # ← NUEVO
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }
     return render(request, 'extractor/consultar_ticket.html', context)
+
+def descargar_archivo_publico(request, ticket_id, tipo):
+    """
+    Vista PÚBLICA para descargar archivos de un ticket completado
+    No requiere autenticación, solo validación de que el ticket esté COMPLETADO
+    """
+    from django.http import Http404, HttpResponse
+    
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    
+    # Solo permitir descarga si el ticket está COMPLETADO
+    if ticket.estado != 'COMPLETADO':
+        raise Http404("Este ticket no tiene archivos disponibles para descarga")
+    
+    # Obtener el archivo según el tipo
+    if tipo == 'dictamen':
+        archivo = ticket.dictamen_pdf
+        nombre_base = "Dictamen"
+    elif tipo == 'evidencia':
+        archivo = ticket.evidencia_pdf
+        nombre_base = "Evidencia"
+    else:
+        raise Http404("Tipo de archivo no válido")
+    
+    if not archivo:
+        raise Http404("Archivo no encontrado")
+    
+    # Obtener el nombre del archivo
+    nombre_archivo = archivo.name.split('/')[-1]
+    nombre_final = f"{ticket.codigo} - {nombre_base} - {nombre_archivo}"
+    
+    # Redirigir a la URL de Cloudinary con flag de descarga
+    url = archivo.url
+    if '?' in url:
+        url += '&flags=attachment'
+    else:
+        url += '?flags=attachment'
+    
+    return redirect(url)

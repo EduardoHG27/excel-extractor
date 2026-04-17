@@ -269,6 +269,69 @@
         background: var(--primary-color);
         border-radius: 10px;
     }
+
+    /* Estilos para la sección de archivos */
+    .file-card {
+        background: #f8fafc;
+        border: 1px solid #e9ecef;
+        border-radius: 14px;
+        padding: 1rem;
+        transition: all 0.2s;
+        margin-bottom: 0.75rem;
+    }
+
+    .file-card:hover {
+        border-color: var(--primary-color);
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .file-icon {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border-radius: 12px;
+        font-size: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .file-info {
+        flex: 1;
+    }
+
+    .file-name {
+        font-weight: 600;
+        color: #1e293b;
+        word-break: break-all;
+    }
+
+    .file-meta {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    .btn-download {
+        background: var(--primary-color);
+        border: none;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        color: white;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-download:hover {
+        background: #5a67d8;
+        transform: translateY(-1px);
+    }
+
+    .files-section {
+        border-top: 2px dashed #e9ecef;
+        margin-top: 0.5rem;
+    }
 </style>
 {% endblock %}
 
@@ -519,6 +582,73 @@
                 </div>
                 {% endif %}
             </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SECCIÓN DE ARCHIVOS ADJUNTOS (solo si el ticket está completado y tiene archivos) -->
+    {% if ticket.estado == 'COMPLETADO' and ticket.archivos %}
+    <div class="modern-card mb-4">
+        <div class="card-header-modern">
+            <h5><i class="bi bi-paperclip text-success"></i> Archivos Adjuntos</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row">
+                <div class="col-12">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i> 
+                        Este ticket ha sido completado. Puedes descargar los siguientes archivos:
+                    </p>
+                    <div class="files-section pt-2">
+                        {% for archivo in ticket.archivos %}
+                        <div class="file-card d-flex align-items-center gap-3">
+                            <div class="file-icon">
+                                {% if archivo.tipo == 'pdf' %}
+                                    <i class="bi bi-filetype-pdf text-danger"></i>
+                                {% elif archivo.tipo == 'xlsx' or archivo.tipo == 'xls' %}
+                                    <i class="bi bi-file-earmark-excel text-success"></i>
+                                {% elif archivo.tipo == 'docx' or archivo.tipo == 'doc' %}
+                                    <i class="bi bi-file-earmark-word text-primary"></i>
+                                {% elif archivo.tipo == 'zip' or archivo.tipo == 'rar' %}
+                                    <i class="bi bi-file-earmark-zip text-secondary"></i>
+                                {% elif archivo.tipo == 'jpg' or archivo.tipo == 'jpeg' or archivo.tipo == 'png' or archivo.tipo == 'gif' %}
+                                    <i class="bi bi-file-earmark-image text-info"></i>
+                                {% else %}
+                                    <i class="bi bi-file-earmark text-secondary"></i>
+                                {% endif %}
+                            </div>
+                            <div class="file-info">
+                                <div class="file-name">{{ archivo.nombre }}</div>
+                                <div class="file-meta">
+                                    {% if archivo.tamanio %}
+                                        <i class="bi bi-hdd-stack"></i> {{ archivo.tamanio }}
+                                    {% endif %}
+                                    {% if archivo.fecha_subida %}
+                                        <i class="bi bi-calendar ms-2"></i> {{ archivo.fecha_subida|date:"d/m/Y H:i" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <a href="{{ archivo.url_descarga }}" 
+                               class="btn btn-download"
+                               download="{{ archivo.nombre }}"
+                               title="Descargar {{ archivo.nombre }}">
+                                <i class="bi bi-download me-1"></i> Descargar
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif ticket.estado == 'COMPLETADO' and not ticket.archivos %}
+    <div class="modern-card mb-4">
+        <div class="card-header-modern">
+            <h5><i class="bi bi-paperclip text-success"></i> Archivos Adjuntos</h5>
+        </div>
+        <div class="card-body p-4 text-center">
+            <i class="bi bi-folder2-open fs-1 text-muted"></i>
+            <p class="text-muted mt-2 mb-0">Este ticket no tiene archivos adjuntos disponibles.</p>
         </div>
     </div>
     {% endif %}
