@@ -1,0 +1,122 @@
+"""
+Vistas para CRUD de Tickets
+"""
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse
+from django.utils import timezone
+import json
+
+from extractor.models import Ticket, Cliente, Proyecto, TipoServicio
+
+
+@login_required
+def ticket_list(request):
+    """Listado de tickets con filtros y paginación"""
+    tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio')
+
+    # Filtros
+    estado = request.GET.get('estado')
+    cliente_id = request.GET.get('cliente')
+    proyecto_id = request.GET.get('proyecto')
+    busqueda = request.GET.get('q')
+    por_pagina = request.GET.get('por_pagina', 20)
+
+    if estado:
+        tickets = tickets.filter(estado=estado)
+    if cliente_id:
+        tickets = tickets.filter(cliente_id=cliente_id)
+    if proyecto_id:
+        tickets = tickets.filter(proyecto_id=proyecto_id)
+    if busqueda:
+        tickets = tickets.filter(
+            Q(codigo__icontains=busqueda) |
+            Q(responsable_solicitud__icontains=busqueda) |
+            Q(lider_proyecto__icontains=busqueda)
+        )
+
+    orden = request.GET.get('orden', '-fecha_creacion')
+    tickets = tickets.order_by(orden)
+
+    # Paginación
+    try:
+        por_pagina = int(por_pagina)
+        if por_pagina not in [10, 20, 50, 100]:
+            por_pagina = 20
+    except ValueError:
+        por_pagina = 20
+    
+    paginator = Paginator(tickets, por_pagina)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Estadísticas
+    tickets_generados = Ticket.objects.filter(estado='GENERADO').count()
+    tickets_abiertos = Ticket.objects.filter(estado='ABIERTO').count()
+    tickets_proceso = Ticket.objects.filter(estado='EN_PROCESO').count()
+    tickets_completados = Ticket.objects.filter(estado='COMPLETADO').count()
+    tickets_cancelados = Ticket.objects.filter(estado='CANCELADO').count()
+    
+    context = {
+        'tickets': page_obj,
+        'page_obj': page_obj,
+        'total_tickets': Ticket.objects.count(),
+        'tickets_generados': tickets_generados + tickets_abiertos,
+        'tickets_proceso': tickets_proceso,
+        'tickets_completados': tickets_completados,
+        'tickets_cancelados': tickets_cancelados,
+        'clientes': Cliente.objects.filter(activo=True),
+        'tipos_servicio': TipoServicio.objects.filter(activo=True),
+        'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
+        'estados_disponibles': Ticket.ESTADOS_TICKET,
+        'estado_selected': estado,
+        'cliente_selected': int(cliente_id) if cliente_id else 0,
+        'proyecto_selected': int(proyecto_id) if proyecto_id else 0,
+        'busqueda': busqueda or '',
+        'orden_actual': orden,
+        'por_pagina': por_pagina,
+        'tickets_count': tickets.count(),
+    }
+    return render(request, 'catalogos/ticket_list.html', context)
+
+
+@login_required
+def ticket_detail(request, id):
+    """Detalle de un ticket"""
+    ticket = get_object_or_404(Ticket, id=id)
+    
+    comentarios_lista = []
+    if ticket.comentarios_seguimiento:
+        comentarios_lista = ticket.comentarios_seguimiento.split('\n')
+        comentarios_lista = [c for c in comentarios_lista if c.strip()]
+    
+    from extractor.models import Usuario
+    usuarios_disponibles = Usuario.objects.filter(is_active=True).order_by('first_name', 'username')
+    
+    context = {
+        'ticket': ticket,
+        'comentarios_lista': comentarios_lista,
+        'usuarios_disponibles': usuarios_disponibles,
+    }
+    return render(request, 'catalogos/ticket_detail.html', context)
+
+
+@login_required
+def ticket_delete(request, id):
+    """Eliminar un ticket"""
+    ticket = get_object_or_404(Ticket, id=id)
+    
+    if request.method == 'POST':
+        try:
+            codigo = ticket.codigo
+            ticket.delete()
+            messages.success(request, f'✅ Ticket "{codigo}" eliminado exitosamente')
+            return redirect('extractor:ticket_list')
+        except Exception as e:
+            messages.error(request, f'Error al eliminar ticket: {str(e)}')
+            return redirect('extractor:ticket_list')
+    
+    return render(request, 'catalogos/ticket_confirm_delete.html', {'ticket': ticket})

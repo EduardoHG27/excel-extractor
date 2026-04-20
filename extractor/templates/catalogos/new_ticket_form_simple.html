@@ -182,7 +182,8 @@ function cargarProyectos(clienteId, selectElement) {
     selectElement.innerHTML = '<option value="">-- Cargando proyectos... --</option>';
     selectElement.disabled = true;
     
-    fetch(`/catalogos/proyectos/por-cliente/${clienteId}/`)
+    // ✅ URL CORREGIDA
+    fetch(`/api/proyectos-por-cliente/${clienteId}/`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Error en la respuesta del servidor');

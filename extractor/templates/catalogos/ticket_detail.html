@@ -434,11 +434,11 @@
 
                <!-- Quick Actions - Barra de acciones rápidas -->
         <div class="quick-actions">
-            <a href="{% url 'extractor:generar_dictamen' ticket.id %}" class="quick-action-item">
+            <a href="{% url 'extractor:generar_excel_dictamen' ticket.id %}" class="quick-action-item">
                 <i class="fa fa-file-pdf text-danger"></i>
                 <span>Descargar Dictamen</span>
             </a>
-            <a href="{% url 'extractor:generar_resultados' ticket.id %}" class="quick-action-item">
+            <a href="{% url 'extractor:generar_excel_resultados' ticket.id %}" class="quick-action-item">
                 <i class="fa fa-file-excel text-success"></i>
                 <span>Resultados Pruebas</span>
             </a>            
@@ -705,7 +705,7 @@ Saludos.
                                             </small>
                                         </div>
                                         <div class="btn-group">
-                                            <a href="{{ ticket.dictamen_pdf.url }}" class="btn btn-sm btn-success" target="_blank">
+                                            <a href="{{ ticket.descargar_archivo_cloudinary.url }}" class="btn btn-sm btn-success" target="_blank">
                                                 <i class="bi bi-download"></i> Ver/Descargar
                                             </a>
                                             <button type="button" class="btn btn-sm btn-danger" 
@@ -1367,7 +1367,7 @@ Saludos.
             const select = document.getElementById('asignadoSelect');
             const usuarioId = select.value;
             
-            const url = `/ticket/${ticketId}/cambiar-asignado/`;
+            const url = `/api/ticket/${ticketId}/cambiar-asignado/`;
             
             fetch(url, {
                 method: 'POST',

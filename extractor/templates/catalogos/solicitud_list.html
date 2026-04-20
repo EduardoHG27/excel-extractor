@@ -182,12 +182,12 @@
                     <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
                         <a href="{% url 'extractor:solicitud_detail' solicitud.id %}" class="btn btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">👁️ Ver</a>
                         {% if solicitud.ticket %}
-                        <a href="{% url 'extractor:imprimir_solicitud' solicitud.id %}" class="btn btn-sm" style="background-color: #9b59b6; color: white; padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
+                        <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-sm" style="background-color: #9b59b6; color: white; padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
                             📝 BID-PMC
                         </a>
                         {% endif %}
                         {% if not solicitud.ticket %}
-                            <a href="{% url 'extractor:imprimir_solicitud' solicitud.id %}" class="btn btn-success btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
+                            <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success btn-sm" style="padding: 5px 10px; font-size: 0.9rem; white-space: nowrap;">
                                 🖨️ Descargar
                             </a>
                         {% endif %}
