@@ -169,6 +169,7 @@ def usuario_create(request):
             usuario.is_superuser = request.POST.get('is_superuser', 'off') == 'on'
             usuario.puede_generar_tickets = request.POST.get('puede_generar_tickets', 'on') == 'on'
             usuario.puede_ver_todos_tickets = request.POST.get('puede_ver_todos_tickets', 'off') == 'on'
+            usuario.es_lider_pruebas = request.POST.get('es_lider_pruebas', 'off') == 'on'
             usuario.save()
             
             messages.success(request, f'✅ Usuario "{usuario.username}" creado exitosamente')
@@ -213,6 +214,7 @@ def usuario_edit(request, id):
                 usuario.is_superuser = request.POST.get('is_superuser', 'off') == 'on'
                 usuario.puede_generar_tickets = request.POST.get('puede_generar_tickets', 'off') == 'on'
                 usuario.puede_ver_todos_tickets = request.POST.get('puede_ver_todos_tickets', 'off') == 'on'
+                usuario.es_lider_pruebas = request.POST.get('es_lider_pruebas', 'off') == 'on' 
             
             nueva_password = request.POST.get('new_password')
             if nueva_password:
@@ -373,3 +375,30 @@ def export_usuarios_csv(request):
         logger.error(f"Error exportando usuarios: {str(e)}")
         messages.error(request, "Error al exportar usuarios")
         return redirect('extractor:usuarios_list')
+    
+
+@login_required
+def usuario_cambiar_lider(request, id):
+    """Alternar rol de líder de pruebas (AJAX)"""
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'})
+    
+    if request.method == 'POST':
+        try:
+            from extractor.models import Usuario
+            usuario = get_object_or_404(Usuario, id=id)
+            
+            # Alternar el valor
+            usuario.es_lider_pruebas = not usuario.es_lider_pruebas
+            usuario.save()
+            
+            return JsonResponse({
+                'success': True,
+                'es_lider': usuario.es_lider_pruebas,
+                'message': f'Rol de líder de pruebas {"asignado" if usuario.es_lider_pruebas else "quitado"} a {usuario.get_full_name() or usuario.username}'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})

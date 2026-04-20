@@ -90,4 +90,7 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/dictamen/', views.generar_excel_dictamen, name='generar_excel_dictamen'),
     path('ticket/<int:ticket_id>/resultados/', views.generar_excel_resultados, name='generar_excel_resultados'),
     path('verificar-plantilla/', views.verificar_plantilla, name='verificar_plantilla'),
+
+    path('dashboard-lider/', views.dashboard_lider, name='dashboard_lider'),
+    path('api/usuario/<int:id>/cambiar-lider/', views.usuario_cambiar_lider, name='usuario_cambiar_lider'),
 ]

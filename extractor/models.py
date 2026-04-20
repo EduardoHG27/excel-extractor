@@ -21,6 +21,7 @@ class Usuario(AbstractUser):
     # Permisos personalizados
     puede_generar_tickets = models.BooleanField(default=True)
     puede_ver_todos_tickets = models.BooleanField(default=False)
+    es_lider_pruebas = models.BooleanField(default=False, verbose_name="¿Es líder de pruebas?")
     
     class Meta:
         verbose_name = "Usuario"

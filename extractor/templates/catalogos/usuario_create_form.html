@@ -81,35 +81,46 @@
             </div>
         </div>
         
-        <!-- Permisos -->
-        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-            <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                ⚙️ Permisos y Roles
-            </h3>
+    <!-- Permisos -->
+    <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+            ⚙️ Permisos y Roles
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="is_active" checked>
+                <span>✅ Usuario Activo</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="is_staff">
+                <span>👔 Es Staff (acceso al admin)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="is_superuser">
+                <span>👑 Superusuario (todos los permisos)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="puede_generar_tickets" checked>
+                <span>🎫 Puede generar tickets</span>
+            </label>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="es_lider_pruebas">
+                <span>⭐ Líder de Pruebas</span>
+            </label>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" name="is_active" checked>
-                    <span>✅ Usuario Activo</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" name="is_staff">
-                    <span>👔 Es Staff (acceso al admin)</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" name="is_superuser">
-                    <span>👑 Superusuario (todos los permisos)</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" name="puede_generar_tickets" checked>
-                    <span>🎫 Puede generar tickets</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" name="puede_ver_todos_tickets">
-                    <span>👁️ Puede ver todos los tickets</span>
-                </label>
-            </div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="puede_ver_todos_tickets">
+                <span>👁️ Puede ver todos los tickets</span>
+            </label>
+            <!-- 👇 NUEVO CAMPO: Líder de Pruebas -->
+            
         </div>
+        <small class="text-muted" style="display: block; margin-top: 10px;">
+            Los líderes de pruebas tienen acceso al dashboard especial con métricas y gráficos
+        </small>
+    </div>
         
         <!-- Botones -->
         <div style="display: flex; gap: 15px; margin-top: 20px;">

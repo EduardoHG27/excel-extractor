@@ -19,7 +19,7 @@ from apps.catalogos.views.tipos_servicio import (
 )
 from apps.catalogos.views.usuarios import (
     usuarios_list, usuario_detail, usuario_create, usuario_edit,
-    usuario_delete, usuario_activar, usuario_cambiar_rol, export_usuarios_csv
+    usuario_delete, usuario_activar, usuario_cambiar_rol, usuario_cambiar_lider, export_usuarios_csv  # 👈 Agrega usuario_cambiar_lider
 )
 from apps.catalogos.views.solicitudes import (
     solicitud_list, solicitud_detail, solicitud_generar_ticket,
@@ -51,3 +51,7 @@ from apps.excel_processor.views.export import export_table_csv, export_all_table
 from apps.excel_processor.services.extractor_service import find_object_by_name_or_id
 from apps.excel_processor.services.ticket_generator import generate_and_save_ticket
 from apps.excel_processor.utils.helpers import generate_ticket_parts, calcular_dias_habiles, sanitizar_public_id, extraer_public_id_cloudinary
+
+# ===== DASHBOARD =====
+from apps.dashboard.views.lider_dashboard import dashboard_lider
+

@@ -1,0 +1,503 @@
+{% extends "extractor/base_general.html" %}
+{% load static %}
+
+{% block title %}📊 Dashboard - Líder de Pruebas{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover { transform: translateY(-5px); }
+    
+    .stat-card.primary { background: linear-gradient(135deg, #3498db, #2980b9); }
+    .stat-card.warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
+    .stat-card.success { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .stat-card.danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .stat-card.info { background: linear-gradient(135deg, #1abc9c, #16a085); }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .dashboard-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-bar {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 140px;
+    }
+    
+    .filter-group label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+    
+    .filter-group select, .filter-group input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-container {
+        height: 280px;
+        position: relative;
+    }
+    
+    .table-tickets {
+        width: 100%;
+        font-size: 0.85rem;
+    }
+    
+    .table-tickets th, .table-tickets td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .table-tickets th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .badge-estado {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .badge-ABIERTO, .badge-GENERADO {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .badge-EN_PROCESO {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    .badge-COMPLETADO {
+        background: #d4edda;
+        color: #155724;
+    }
+    .badge-CANCELADO {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .servicio-list {
+        list-style: none;
+        padding: 0;
+    }
+    .servicio-list li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        background: #3498db;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+    .btn-sm:hover { background: #2980b9; color: white; }
+    
+    .periodo-info {
+        background: #e8f4fd;
+        border-left: 4px solid #3498db;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .periodo-badge {
+        background: #3498db;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+    
+    @media (max-width: 768px) {
+        .charts-grid { grid-template-columns: 1fr; }
+        .stats-grid { gap: 1rem; }
+        .stat-number { font-size: 1.8rem; }
+    }
+
+    /* Centrar gráficos de pastel */
+    .pie-chart-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 300px;
+    }
+
+    .pie-chart-wrapper {
+        max-width: 300px;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .pie-chart-wrapper canvas {
+        max-width: 100%;
+        height: auto !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Dashboard Informativo</h1>
+    <p>Vista general de tickets, métricas y rendimiento del equipo</p>
+</div>
+
+<!-- Filtros -->
+<div class="filter-bar">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 1rem; width: 100%;">
+        <div class="filter-group">
+            <label>🏢 Cliente</label>
+            <select name="cliente">
+                <option value="">Todos</option>
+                {% for cliente in clientes %}
+                    <option value="{{ cliente.id }}" {% if cliente.id|stringformat:"s" == cliente_selected|stringformat:"s" %}selected{% endif %}>
+                        {{ cliente.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>📁 Proyecto</label>
+            <select name="proyecto">
+                <option value="">Todos</option>
+                {% for proyecto in proyectos %}
+                    <option value="{{ proyecto.id }}" {% if proyecto.id|stringformat:"s" == proyecto_selected|stringformat:"s" %}selected{% endif %}>
+                        {{ proyecto.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>📌 Estado</label>
+            <select name="estado">
+                <option value="">Todos</option>
+                {% for codigo, nombre in estados_disponibles %}
+                    <option value="{{ codigo }}" {% if codigo == estado_selected %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>📅 Período</label>
+            <select name="periodo" onchange="this.form.submit()">
+                {% for value, label in periodos_disponibles %}
+                    <option value="{{ value }}" {% if periodo_actual == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>📅 Fecha desde</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+        </div>
+        <div class="filter-group">
+            <label>📅 Fecha hasta</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+        </div>
+        <div class="filter-group">
+            <button type="submit" class="btn" style="margin-top: 1.5rem;">🔍 Filtrar</button>
+            <a href="{% url 'extractor:dashboard_lider' %}" class="btn btn-secondary" style="margin-top: 1.5rem; background:#6c757d;">🗑️ Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Información del período seleccionado -->
+<div class="periodo-info">
+    <div>
+        <strong>📊 Período seleccionado:</strong> {{ periodo_nombre }}
+        <span class="periodo-badge" style="margin-left: 10px;">{{ periodo_fecha_inicio }} al {{ periodo_fecha_fin }}</span>
+    </div>
+    <div>
+        <strong>🎫 Tickets en este período:</strong> {{ total_tickets_periodo }}
+        <strong style="margin-left: 15px;">✅ Completados en período:</strong> {{ tickets_completados_periodo }}
+    </div>
+</div>
+
+<!-- Tarjetas de métricas -->
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-number">{{ total_tickets }}</div>
+        <div class="stat-label">🎫 Tickets totales</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-number">{{ tickets_activos }}</div>
+        <div class="stat-label">🟡 Activos (Abiertos + En Proceso)</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-number">{{ tickets_completados_periodo }}</div>
+        <div class="stat-label">✅ Completados en período</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-number">{{ tickets_sin_asignar }}</div>
+        <div class="stat-label">👤 Tickets sin asignar</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-number">{{ usuarios_activos }}</div>
+        <div class="stat-label">👥 Usuarios activos</div>
+    </div>
+</div>
+
+<!-- Dos gráficos de pastel: General y por período -->
+<div class="charts-grid">
+    <div class="dashboard-card">
+        <h3 style="text-align: center;">📊 Tickets por Estado (General)</h3>
+        <div class="pie-chart-container">
+            <div class="pie-chart-wrapper">
+                <canvas id="estadosGeneralChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="dashboard-card">
+        <h3 style="text-align: center;">📈 Tickets por Estado ({{ periodo_nombre }})</h3>
+        <div class="pie-chart-container">
+            <div class="pie-chart-wrapper">
+                <canvas id="estadosPeriodoChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico: Tickets por Cliente -->
+<div class="dashboard-card">
+    <h3>🏢 Tickets por Cliente (Top 10)</h3>
+    <div class="chart-container" style="height: 320px;">
+        <canvas id="clientesChart"></canvas>
+    </div>
+</div>
+
+<!-- Gráfico de tendencia -->
+<div class="dashboard-card">
+    <h3>📈 Tendencia de tickets (últimos 30 días)</h3>
+    <div class="chart-container" style="height: 320px;">
+        <canvas id="tendenciasChart"></canvas>
+    </div>
+</div>
+
+<!-- Tablas informativas -->
+<div class="charts-grid">
+    <div class="dashboard-card">
+        <h3>🕐 Últimos 10 Tickets</h3>
+        <div style="overflow-x: auto;">
+            <table class="table-tickets">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Cliente</th>
+                        <th>Estado</th>
+                        <th>Asignado a</th>
+                        <th>Fecha</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in ultimos_tickets %}
+                    <tr>
+                        <td><strong>{{ ticket.codigo|truncatechars:25 }}</strong></td>
+                        <td>{{ ticket.cliente.nombre|default:"-"|truncatechars:15 }}</td>
+                        <td><span class="badge-estado badge-{{ ticket.estado }}">{{ ticket.get_estado_display }}</span></td>
+                        <td>{{ ticket.asignado_a.get_full_name|default:"No asignado"|truncatechars:15 }}</td>
+                        <td>{{ ticket.fecha_creacion|date:"d/m/Y" }}</td>
+                        <td><a href="{% url 'extractor:ticket_detail' ticket.id %}" class="btn-sm">Ver</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No hay tickets registrados</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <h3>🔧 Tickets por Tipo de Servicio</h3>
+        {% if tickets_por_servicio %}
+        <ul class="servicio-list">
+            {% for item in tickets_por_servicio %}
+            <li>
+                <span>{{ item.tipo_servicio__nombre|default:"Sin tipo" }}</span>
+                <span class="badge" style="background:#3498db; color:white; padding:2px 8px; border-radius:20px;">{{ item.total }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No hay datos disponibles</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Gráfico de estados GENERAL (Pastel)
+// Gráfico de estados GENERAL (Pastel centrado)
+const ctxGeneral = document.getElementById('estadosGeneralChart').getContext('2d');
+    new Chart(ctxGeneral, {
+        type: 'pie',
+        data: {
+            labels: {{ chart_data.estados_general_labels|safe }},
+            datasets: [{
+                data: {{ chart_data.estados_general_data|safe }},
+                backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { 
+                    position: 'bottom',
+                    align: 'center',
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: { enabled: true }
+            },
+            layout: {
+                padding: 10
+            }
+        }
+    });
+
+    // Gráfico de estados por PERÍODO (Pastel centrado)
+    const ctxPeriodo = document.getElementById('estadosPeriodoChart').getContext('2d');
+    new Chart(ctxPeriodo, {
+        type: 'pie',
+        data: {
+            labels: {{ chart_data.estados_periodo_labels|safe }},
+            datasets: [{
+                data: {{ chart_data.estados_periodo_data|safe }},
+                backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { 
+                    position: 'bottom',
+                    align: 'center',
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: { enabled: true }
+            },
+            layout: {
+                padding: 10
+            }
+        }
+    });
+    // Gráfico de clientes (Barras)
+    const ctxClientes = document.getElementById('clientesChart').getContext('2d');
+    new Chart(ctxClientes, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_data.clientes_labels|safe }},
+            datasets: [{
+                label: 'Cantidad de tickets',
+                data: {{ chart_data.clientes_data|safe }},
+                backgroundColor: '#3498db',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Gráfico de tendencias (Línea)
+    const ctxTendencias = document.getElementById('tendenciasChart').getContext('2d');
+    new Chart(ctxTendencias, {
+        type: 'line',
+        data: {
+            labels: {{ chart_data.tendencias_labels|safe }},
+            datasets: [{
+                label: 'Tickets creados',
+                data: {{ chart_data.tendencias_data|safe }},
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46,204,113,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointBackgroundColor: '#27ae60'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+</script>
+{% endblock %}
