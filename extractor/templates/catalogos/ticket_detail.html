@@ -1380,22 +1380,22 @@ Saludos.
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Actualizar el display
                     const displayDiv = document.getElementById('asignadoDisplay');
                     if (data.asignado_nombre) {
-                        displayDiv.innerHTML = `<strong>${data.asignado_nombre}</strong>
-                                                <span class="badge bg-secondary ms-2">${data.asignado_username}</span>`;
+                        displayDiv.innerHTML = `
+                            <strong>${data.asignado_nombre}</strong>
+                            <span class="badge bg-secondary ms-2">${data.asignado_username}</span>
+                        `;
                     } else {
                         displayDiv.innerHTML = '<span class="text-muted">No asignado</span>';
                     }
                     
-                    select.value = usuarioId;
-                    
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
-                    alertDiv.innerHTML = `✅ Asignado actualizado: ${data.asignado_nombre || 'Sin asignar'} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-                    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
-                    
+                    // Cerrar el selector
                     cancelarEdicionAsignado();
+                    
+                    // Mensaje de éxito
+                    alert(`✅ Asignado actualizado: ${data.asignado_nombre || 'Sin asignar'}`);
                 } else {
                     alert('Error: ' + data.error);
                 }

@@ -111,6 +111,7 @@
                     <th style="padding: 10px; text-align: left;">Proyecto</th>
                     <th style="padding: 10px; text-align: center;">Estado</th>
                     <th style="padding: 10px; text-align: center;">Fecha</th>
+                    <th style="padding: 10px; text-align: left;">Asignado a</th>
                     <th style="padding: 10px; text-align: center;">Acciones</th>
                 </tr>
             </thead>
@@ -132,6 +133,13 @@
                         {% endif %}
                     </td>
                     <td style="padding: 10px; text-align: center;">{{ ticket.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td style="padding: 10px;">
+                        {% if ticket.asignado_a %}
+                            {{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}
+                        {% else %}
+                            <span style="color: #999;">No asignado</span>
+                        {% endif %}
+                    </td>
                     <td style="padding: 10px; text-align: center;">
                         <a href="{% url 'extractor:ticket_detail' ticket.id %}" class="btn-sm btn-info" style="background-color: #17a2b8; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none;">Ver</a>
                     </td>
@@ -159,6 +167,7 @@
                     <th style="padding: 10px; text-align: left;">Proyecto</th>
                     <th style="padding: 10px; text-align: center;">Estado</th>
                     <th style="padding: 10px; text-align: center;">Fecha</th>
+                    <th style="padding: 10px; text-align: left;">Creado por</th>
                     <th style="padding: 10px; text-align: center;">Acciones</th>
                 </tr>
             </thead>
@@ -180,6 +189,13 @@
                         {% endif %}
                     </td>
                     <td style="padding: 10px; text-align: center;">{{ ticket.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td style="padding: 10px;">
+                        {% if ticket.creado_por %}
+                            {{ ticket.creado_por.get_full_name|default:ticket.creado_por.username }}
+                        {% else %}
+                            <span style="color: #999;">Desconocido</span>
+                        {% endif %}
+                    </td>
                     <td style="padding: 10px; text-align: center;">
                         <a href="{% url 'extractor:ticket_detail' ticket.id %}" class="btn-sm btn-info" style="background-color: #17a2b8; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none;">Ver</a>
                     </td>
