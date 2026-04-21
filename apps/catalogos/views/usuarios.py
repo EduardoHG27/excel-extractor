@@ -96,22 +96,80 @@ def usuarios_list(request):
 
 @login_required
 def usuario_detail(request, id):
-    """Ver detalle de un usuario específico"""
+    """Ver detalle de un usuario específico con filtro por mes/año"""
     if not request.user.is_superuser and request.user.id != id:
         messages.error(request, 'No tienes permiso para ver este perfil')
         return redirect('extractor:usuarios_list')
     
     usuario = get_object_or_404(Usuario, id=id)
     
-    tickets_creados = Ticket.objects.filter(creado_por=usuario).order_by('-fecha_creacion')[:10]
-    tickets_asignados = Ticket.objects.filter(asignado_a=usuario).order_by('-fecha_creacion')[:10]
+    # ========== NUEVO: Obtener parámetros de filtro ==========
+    from datetime import datetime
+    from calendar import month_name
+    
+    mes = request.GET.get('mes')
+    año = request.GET.get('año')
+    
+    # Base de querysets (sin límite de 10)
+    tickets_creados_base = Ticket.objects.filter(creado_por=usuario)
+    tickets_asignados_base = Ticket.objects.filter(asignado_a=usuario)
+    
+    # Aplicar filtros de fecha si existen
+    if mes and año:
+        tickets_creados_filtrados = tickets_creados_base.filter(
+            fecha_creacion__year=año,
+            fecha_creacion__month=mes
+        )
+        tickets_asignados_filtrados = tickets_asignados_base.filter(
+            fecha_creacion__year=año,
+            fecha_creacion__month=mes
+        )
+        mes_seleccionado = int(mes)
+        año_seleccionado = int(año)
+    else:
+        # Por defecto: mes actual
+        ahora = datetime.now()
+        tickets_creados_filtrados = tickets_creados_base.filter(
+            fecha_creacion__year=ahora.year,
+            fecha_creacion__month=ahora.month
+        )
+        tickets_asignados_filtrados = tickets_asignados_base.filter(
+            fecha_creacion__year=ahora.year,
+            fecha_creacion__month=ahora.month
+        )
+        mes_seleccionado = ahora.month
+        año_seleccionado = ahora.year
+    
+    # Ordenar por fecha descendente
+    tickets_creados_filtrados = tickets_creados_filtrados.order_by('-fecha_creacion')
+    tickets_asignados_filtrados = tickets_asignados_filtrados.order_by('-fecha_creacion')
+    
+    # Obtener años disponibles para el filtro (desde el primer ticket hasta ahora)
+    años_disponibles = Ticket.objects.filter(
+        Q(creado_por=usuario) | Q(asignado_a=usuario)
+    ).dates('fecha_creacion', 'year', order='DESC')
+    
+    # Si no hay años disponibles, usar el año actual
+    if not años_disponibles:
+        años_disponibles = [datetime.now()]
+    
+    # Preparar lista de meses
+    meses_disponibles = [
+        {'numero': i, 'nombre': month_name[i]} 
+        for i in range(1, 13)
+    ]
     
     context = {
         'usuario': usuario,
-        'tickets_creados': tickets_creados,
-        'tickets_asignados': tickets_asignados,
-        'total_tickets_creados': Ticket.objects.filter(creado_por=usuario).count(),
-        'total_tickets_asignados': Ticket.objects.filter(asignado_a=usuario).count(),
+        'tickets_creados': tickets_creados_filtrados,  # Filtrados
+        'tickets_asignados': tickets_asignados_filtrados,  # Filtrados
+        'total_tickets_creados': tickets_creados_base.count(),  # Total histórico
+        'total_tickets_asignados': tickets_asignados_base.count(),  # Total histórico
+        # Nuevos campos para el filtro
+        'mes_seleccionado': mes_seleccionado,
+        'año_seleccionado': año_seleccionado,
+        'años_disponibles': años_disponibles,
+        'meses_disponibles': meses_disponibles,
     }
     return render(request, 'catalogos/usuario_detail.html', context)
 
@@ -402,3 +460,5 @@ def usuario_cambiar_lider(request, id):
             return JsonResponse({'success': False, 'error': str(e)})
     
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
+
+

@@ -9,9 +9,9 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 import json
+from datetime import datetime
 
 from extractor.models import Ticket, Cliente, Proyecto, TipoServicio
-
 
 @login_required
 def ticket_list(request):
@@ -24,19 +24,50 @@ def ticket_list(request):
     proyecto_id = request.GET.get('proyecto')
     busqueda = request.GET.get('q')
     por_pagina = request.GET.get('por_pagina', 20)
+    
+    # 🆕 NUEVOS FILTROS DE FECHA
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    
+    # 🆕 FILTRO POR NOMBRE DE CLIENTE (desde el dashboard)
+    cliente_nombre = request.GET.get('cliente_nombre')
 
+    # Aplicar filtros
     if estado:
         tickets = tickets.filter(estado=estado)
+    
     if cliente_id:
         tickets = tickets.filter(cliente_id=cliente_id)
+    
+    if cliente_nombre:
+        tickets = tickets.filter(cliente__nombre__icontains=cliente_nombre)
+    
     if proyecto_id:
         tickets = tickets.filter(proyecto_id=proyecto_id)
+    
     if busqueda:
         tickets = tickets.filter(
             Q(codigo__icontains=busqueda) |
+            Q(nombre__icontains=busqueda) |  # 🔥 Agregar búsqueda por nombre del ticket
             Q(responsable_solicitud__icontains=busqueda) |
             Q(lider_proyecto__icontains=busqueda)
         )
+    
+    # 🆕 Aplicar filtros de fecha
+    if fecha_desde:
+        try:
+            # Convertir a fecha si viene en formato string
+            fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+            tickets = tickets.filter(fecha_creacion__date__gte=fecha_desde_obj)
+        except (ValueError, TypeError):
+            pass
+    
+    if fecha_hasta:
+        try:
+            fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+            tickets = tickets.filter(fecha_creacion__date__lte=fecha_hasta_obj)
+        except (ValueError, TypeError):
+            pass
 
     orden = request.GET.get('orden', '-fecha_creacion')
     tickets = tickets.order_by(orden)
@@ -53,17 +84,21 @@ def ticket_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Estadísticas
+    # Estadísticas (considerando también los filtros de fecha para mostrar en tarjetas)
     tickets_generados = Ticket.objects.filter(estado='GENERADO').count()
     tickets_abiertos = Ticket.objects.filter(estado='ABIERTO').count()
     tickets_proceso = Ticket.objects.filter(estado='EN_PROCESO').count()
     tickets_completados = Ticket.objects.filter(estado='COMPLETADO').count()
     tickets_cancelados = Ticket.objects.filter(estado='CANCELADO').count()
     
+    # 🆕 Estadísticas filtradas por fecha (para mostrar en el indicador)
+    tickets_filtrados_count = tickets.count()
+    
     context = {
         'tickets': page_obj,
         'page_obj': page_obj,
         'total_tickets': Ticket.objects.count(),
+        'tickets_filtrados': tickets_filtrados_count,  # 🆕 Total con filtros aplicados
         'tickets_generados': tickets_generados + tickets_abiertos,
         'tickets_proceso': tickets_proceso,
         'tickets_completados': tickets_completados,
@@ -79,6 +114,10 @@ def ticket_list(request):
         'orden_actual': orden,
         'por_pagina': por_pagina,
         'tickets_count': tickets.count(),
+        # 🆕 Pasar fechas al template
+        'fecha_desde': fecha_desde or '',
+        'fecha_hasta': fecha_hasta or '',
+        'cliente_nombre': cliente_nombre or '',
     }
     return render(request, 'catalogos/ticket_list.html', context)
 
@@ -103,6 +142,23 @@ def ticket_detail(request, id):
     }
     return render(request, 'catalogos/ticket_detail.html', context)
 
+
+@login_required
+def ticket_delete(request, id):
+    """Eliminar un ticket"""
+    ticket = get_object_or_404(Ticket, id=id)
+    
+    if request.method == 'POST':
+        try:
+            codigo = ticket.codigo
+            ticket.delete()
+            messages.success(request, f'✅ Ticket "{codigo}" eliminado exitosamente')
+            return redirect('extractor:ticket_list')
+        except Exception as e:
+            messages.error(request, f'Error al eliminar ticket: {str(e)}')
+            return redirect('extractor:ticket_list')
+    
+    return render(request, 'catalogos/ticket_confirm_delete.html', {'ticket': ticket})
 
 @login_required
 def ticket_delete(request, id):

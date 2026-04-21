@@ -170,60 +170,100 @@
 
         <!-- Filtros básicos -->
         <div class="filter-section">
-            <form method="get" id="filterForm">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Buscar ticket</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" name="q" value="{{ busqueda }}" 
-                                placeholder="Código del ticket...">
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">Estado</label>
-                        <select class="form-select" name="estado">
-                            <option value="">Todos los estados</option>
-                            <option value="GENERADO" {% if estado_selected == 'GENERADO' %}selected{% endif %}>Generado</option>
-                            <option value="EN_PROCESO" {% if estado_selected == 'EN_PROCESO' %}selected{% endif %}>En Proceso</option>
-                            <option value="COMPLETADO" {% if estado_selected == 'COMPLETADO' %}selected{% endif %}>Completado</option>
-                            <option value="CANCELADO" {% if estado_selected == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+    <form method="get" id="filterForm">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Buscar ticket</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="q" value="{{ busqueda }}" 
+                        placeholder="Código o nombre...">
+                </div>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Estado</label>
+                <select class="form-select" name="estado">
+                    <option value="">Todos los estados</option>
+                    <option value="GENERADO" {% if estado_selected == 'GENERADO' %}selected{% endif %}>Generado</option>
+                    <option value="EN_PROCESO" {% if estado_selected == 'EN_PROCESO' %}selected{% endif %}>En Proceso</option>
+                    <option value="COMPLETADO" {% if estado_selected == 'COMPLETADO' %}selected{% endif %}>Completado</option>
+                    <option value="CANCELADO" {% if estado_selected == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Cliente</label>
+                <select class="form-select" name="cliente">
+                    <option value="">Todos los clientes</option>
+                    {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente_selected == cliente.id %}selected{% endif %}>
+                            {{ cliente.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- 🆕 NUEVOS FILTROS DE FECHA -->
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Fecha desde</label>
+                <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde|default:'' }}">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Fecha hasta</label>
+                <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta|default:'' }}">
+            </div>
+            
+            <div class="col-md-1">
+                <div class="row">
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Mostrar</label>
+                        <select class="form-select" name="por_pagina" onchange="this.form.submit()">
+                            <option value="10" {% if por_pagina == '10' %}selected{% endif %}>10</option>
+                            <option value="20" {% if por_pagina == '20' or not por_pagina %}selected{% endif %}>20</option>
+                            <option value="50" {% if por_pagina == '50' %}selected{% endif %}>50</option>
+                            <option value="100" {% if por_pagina == '100' %}selected{% endif %}>100</option>
                         </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">Cliente</label>
-                        <select class="form-select" name="cliente">
-                            <option value="">Todos los clientes</option>
-                            {% for cliente in clientes %}
-                                <option value="{{ cliente.id }}" {% if cliente_selected == cliente.id %}selected{% endif %}>
-                                    {{ cliente.nombre }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Mostrar</label>
-                                <select class="form-select" name="por_pagina" onchange="this.form.submit()">
-                                    <option value="10" {% if por_pagina == '10' %}selected{% endif %}>10</option>
-                                    <option value="20" {% if por_pagina == '20' or not por_pagina %}selected{% endif %}>20</option>
-                                    <option value="50" {% if por_pagina == '50' %}selected{% endif %}>50</option>
-                                    <option value="100" {% if por_pagina == '100' %}selected{% endif %}>100</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold">&nbsp;</label>
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-funnel"></i> Filtrar
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
-            </form>
+            </div>
+            
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <a href="{% url 'extractor:ticket_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar filtros
+                </a>
+            </div>
         </div>
+    </form>
+</div>
+
+<!-- Indicador de filtros activos -->
+{% if request.GET.estado or request.GET.cliente or request.GET.q or request.GET.fecha_desde or request.GET.fecha_hasta %}
+<div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+    <i class="bi bi-funnel-fill"></i>
+    <strong>Filtros activos:</strong>
+    {% if request.GET.q %}
+        <span class="badge bg-secondary">Búsqueda: {{ request.GET.q }}</span>
+    {% endif %}
+    {% if request.GET.estado %}
+        <span class="badge bg-info">Estado: {{ request.GET.estado }}</span>
+    {% endif %}
+    {% if request.GET.cliente %}
+        <span class="badge bg-primary">Cliente ID: {{ request.GET.cliente }}</span>
+    {% endif %}
+    {% if request.GET.fecha_desde %}
+        <span class="badge bg-success">Desde: {{ request.GET.fecha_desde }}</span>
+    {% endif %}
+    {% if request.GET.fecha_hasta %}
+        <span class="badge bg-success">Hasta: {{ request.GET.fecha_hasta }}</span>
+    {% endif %}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
 
         <!-- SECCIÓN DE DESCARGAS - EN COLLAPSE (CERRADO POR DEFECTO) -->
         <div class="card mt-4 mb-4 shadow-sm">

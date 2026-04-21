@@ -35,7 +35,7 @@ def dashboard_lider(request):
     periodo = request.GET.get('periodo', 'mes_actual')  # mes_actual, mes_anterior, trimestre, semestre, año
     
     # ========== OBTENER TODOS LOS TICKETS ==========
-    tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio', 'asignado_a')
+    tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio', 'asignado_a', 'creado_por')
     
     # ========== APLICAR FILTROS MANUALMENTE ==========
     tickets_list = list(tickets)
@@ -85,23 +85,31 @@ def dashboard_lider(request):
     
     # ========== GRÁFICO 1: TICKETS POR ESTADO (GENERAL) ==========
     conteo_estados_general = defaultdict(int)
+    estado_codigos = {}  # Para mapear nombre a código
+    
     for ticket in tickets_generales:
         for codigo, nombre in Ticket.ESTADOS_TICKET:
             if ticket.estado == codigo:
                 conteo_estados_general[nombre] += 1
+                estado_codigos[nombre] = codigo
                 break
     
-    tickets_por_estado_general = [{'estado': k, 'total': v} for k, v in conteo_estados_general.items()]
+    tickets_por_estado_general = [{'estado': k, 'total': v, 'codigo': estado_codigos.get(k, k)} 
+                                   for k, v in conteo_estados_general.items()]
     
     # ========== GRÁFICO 2: TICKETS POR ESTADO (PERÍODO) ==========
     conteo_estados_periodo = defaultdict(int)
+    estado_codigos_periodo = {}
+    
     for ticket in tickets_periodo:
         for codigo, nombre in Ticket.ESTADOS_TICKET:
             if ticket.estado == codigo:
                 conteo_estados_periodo[nombre] += 1
+                estado_codigos_periodo[nombre] = codigo
                 break
     
-    tickets_por_estado_periodo = [{'estado': k, 'total': v} for k, v in conteo_estados_periodo.items()]
+    tickets_por_estado_periodo = [{'estado': k, 'total': v, 'codigo': estado_codigos_periodo.get(k, k)} 
+                                   for k, v in conteo_estados_periodo.items()]
     
     # ========== GRÁFICO: TICKETS POR CLIENTE ==========
     conteo_clientes = defaultdict(int)
@@ -141,6 +149,177 @@ def dashboard_lider(request):
     
     tickets_por_proyecto = [{'proyecto__nombre': k, 'total': v} for k, v in sorted(conteo_proyecto.items(), key=lambda x: x[1], reverse=True)[:5]]
     
+    # ========== NUEVO: DATOS PARA TABLAS DE GRÁFICAS ==========
+    # Datos para gráfica general
+    datos_graficas_general = []
+    total_general = sum(item['total'] for item in tickets_por_estado_general)
+    
+    for item in tickets_por_estado_general:
+        porcentaje = (item['total'] / total_general * 100) if total_general > 0 else 0
+        datos_graficas_general.append({
+            'nombre': item['estado'],
+            'codigo': item['codigo'],
+            'cantidad': item['total'],
+            'porcentaje': porcentaje
+        })
+    
+    # Datos para gráfica por período
+    datos_graficas_periodo = []
+    total_periodo = sum(item['total'] for item in tickets_por_estado_periodo)
+    
+    for item in tickets_por_estado_periodo:
+        porcentaje = (item['total'] / total_periodo * 100) if total_periodo > 0 else 0
+        datos_graficas_periodo.append({
+            'nombre': item['estado'],
+            'codigo': item['codigo'],
+            'cantidad': item['total'],
+            'porcentaje': porcentaje
+        })
+    
+    # ========== NUEVO: RESUMEN DE USUARIOS CON TICKETS POR MES ==========
+    from django.db.models import Count, Q
+    from django.db.models.functions import TruncMonth
+    
+    resumen_usuarios = []
+    top_usuarios_por_mes = {}
+    
+    # Obtener todos los usuarios activos
+    usuarios_activos_qs = Usuario.objects.filter(is_active=True)
+    
+    for usuario in usuarios_activos_qs:
+        # Tickets del usuario (asignados o creados por él)
+        tickets_usuario = Ticket.objects.filter(
+            Q(asignado_a=usuario) | Q(creado_por=usuario)
+        )
+        
+        # Aplicar los mismos filtros de cliente, proyecto, etc. a los tickets del usuario
+        tickets_usuario_list = list(tickets_usuario)
+        
+        if cliente_id and cliente_id != '':
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.cliente_id == int(cliente_id)]
+        
+        if proyecto_id and proyecto_id != '':
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.proyecto_id == int(proyecto_id)]
+        
+        if estado and estado != '':
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.estado == estado]
+        
+        if fecha_desde:
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.fecha_creacion and t.fecha_creacion.date() >= fecha_desde_obj] if 'fecha_desde_obj' in locals() else tickets_usuario_list
+        
+        if fecha_hasta:
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.fecha_creacion and t.fecha_creacion.date() <= fecha_hasta_obj] if 'fecha_hasta_obj' in locals() else tickets_usuario_list
+        
+        # Tickets por mes (usando los tickets filtrados)
+        tickets_por_mes = defaultdict(int)
+        for ticket in tickets_usuario_list:
+            if ticket.fecha_creacion:
+                mes_key = ticket.fecha_creacion.strftime('%B %Y')
+                tickets_por_mes[mes_key] += 1
+        
+        # Obtener últimos 6 meses
+        meses_ordenados = sorted(tickets_por_mes.items(), key=lambda x: datetime.strptime(x[0], '%B %Y'), reverse=True)[:6]
+        
+        tickets_mes_list = []
+        for mes_nombre, cantidad in meses_ordenados:
+            tickets_mes_list.append({
+                'mes_nombre': mes_nombre,
+                'cantidad': cantidad
+            })
+        
+        total_tickets_usuario = len(tickets_usuario_list)
+        promedio = total_tickets_usuario / 6 if len(tickets_por_mes) > 0 else 0
+        
+        # Verificar si el usuario es líder (ajusta según tu modelo)
+        es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
+        
+        resumen_usuarios.append({
+            'id': usuario.id,
+            'nombre_completo': usuario.get_full_name() or usuario.username,
+            'es_lider': es_lider,
+            'total_tickets': total_tickets_usuario,
+            'tickets_por_mes': tickets_mes_list,
+            'promedio_mensual': promedio
+        })
+        
+        # Para top usuarios por mes
+        for ticket in tickets_usuario_list:
+            if ticket.fecha_creacion:
+                mes_key = ticket.fecha_creacion.strftime('%B %Y')
+                if mes_key not in top_usuarios_por_mes:
+                    top_usuarios_por_mes[mes_key] = {}
+                
+                nombre_usuario = usuario.get_full_name() or usuario.username
+                if nombre_usuario not in top_usuarios_por_mes[mes_key]:
+                    top_usuarios_por_mes[mes_key][nombre_usuario] = {
+                        'nombre': nombre_usuario,
+                        'total': 0,
+                        'es_lider': es_lider
+                    }
+                top_usuarios_por_mes[mes_key][nombre_usuario]['total'] += 1
+    
+    # Convertir top usuarios por mes a lista ordenada
+    top_usuarios_por_mes_ordenado = {}
+    for mes, usuarios_dict in top_usuarios_por_mes.items():
+        usuarios_list = list(usuarios_dict.values())
+        usuarios_list.sort(key=lambda x: x['total'], reverse=True)
+        top_usuarios_por_mes_ordenado[mes] = usuarios_list[:5]
+    
+    # Ordenar resumen de usuarios por total de tickets
+    resumen_usuarios.sort(key=lambda x: x['total_tickets'], reverse=True)
+    
+
+
+
+    resumen_estados_usuarios = []
+    
+    for usuario in usuarios_activos_qs:
+        # Tickets del usuario (asignados o creados por él)
+        tickets_usuario = Ticket.objects.filter(
+            Q(asignado_a=usuario) | Q(creado_por=usuario)
+        )
+        
+        # Aplicar filtros
+        tickets_usuario_list = list(tickets_usuario)
+        
+        if cliente_id and cliente_id != '':
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.cliente_id == int(cliente_id)]
+        
+        if proyecto_id and proyecto_id != '':
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.proyecto_id == int(proyecto_id)]
+        
+        # Contar por estado
+        abiertos = len([t for t in tickets_usuario_list if t.estado in ['ABIERTO', 'GENERADO']])
+        en_proceso = len([t for t in tickets_usuario_list if t.estado == 'EN_PROCESO'])
+        completados = len([t for t in tickets_usuario_list if t.estado == 'COMPLETADO'])
+        cancelados = len([t for t in tickets_usuario_list if t.estado == 'CANCELADO'])
+        total = len(tickets_usuario_list)
+        
+        # Tasa de éxito (completados / total de no cancelados)
+        tickets_evaluables = total - cancelados
+        tasa_exito = (completados / tickets_evaluables * 100) if tickets_evaluables > 0 else 0
+        
+        es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
+        
+        # Determinar rol
+        rol = "Líder de Pruebas" if es_lider else "Tester"
+        
+        resumen_estados_usuarios.append({
+            'id': usuario.id,
+            'nombre_completo': usuario.get_full_name() or usuario.username,
+            'es_lider': es_lider,
+            'rol': rol,
+            'total_tickets': total,
+            'abiertos': abiertos,
+            'en_proceso': en_proceso,
+            'completados': completados,
+            'cancelados': cancelados,
+            'tasa_exito': tasa_exito
+        })
+    
+    # Ordenar por total de tickets
+    resumen_estados_usuarios.sort(key=lambda x: x['total_tickets'], reverse=True)
+
     # ========== DATOS PARA GRÁFICOS (JSON) ==========
     chart_data = {
         # Gráfico general
@@ -179,6 +358,14 @@ def dashboard_lider(request):
         'tickets_por_servicio': tickets_por_servicio,
         'tickets_por_proyecto': tickets_por_proyecto,
         
+        # NUEVOS DATOS PARA TABLAS
+        'datos_graficas_general': datos_graficas_general,
+        'datos_graficas_periodo': datos_graficas_periodo,
+        'resumen_usuarios': resumen_usuarios,
+        'top_usuarios_por_mes': top_usuarios_por_mes_ordenado,
+        
+         # NUEVO: Resumen de estados por usuario
+        'resumen_estados_usuarios': resumen_estados_usuarios,
         # Datos para gráficos (JSON)
         'chart_data': chart_data,
         

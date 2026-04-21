@@ -1,10 +1,9 @@
 {% extends "extractor/base_general.html" %}
 {% load static %}
 
-{% block title %}📊 Dashboard - Líder de Pruebas{% endblock %}
+{% block title %}📊 Dashboard - Información de pruebas{% endblock %}
 
 {% block extra_css %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     .stats-grid {
         display: grid;
@@ -201,11 +200,208 @@
     .pie-chart-wrapper canvas {
         max-width: 100%;
         height: auto !important;
+        cursor: pointer;
+    }
+
+    /* Nuevos estilos para tablas de datos */
+    .data-section {
+        margin-top: 2rem;
+    }
+
+    .data-tables-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .data-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .data-card-header {
+        background: #e8f4fd;  /* Mismo color que periodo-info */
+        color: #2c3e50;
+        border-left: 4px solid #3498db;
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.3s;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .data-card-header:hover {
+          background: #d4eaf8;
+    }
+
+    .data-card-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #2c3e50;
+    }
+
+    .toggle-icon {
+        font-size: 1.2rem;
+        transition: transform 0.3s;
+    }
+
+    .data-card-body {
+        padding: 1.5rem;
+        max-height: 400px;
+        overflow-y: auto;
+        display: block;
+    }
+
+    .data-card-body.collapsed {
+        display: none;
+    }
+
+    .data-table {
+        width: 100%;
+        font-size: 0.85rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .data-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .number-cell {
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .percentage-cell {
+        text-align: center;
+        color: #28a745;
+        font-weight: 500;
+    }
+
+    .usuario-card {
+        border-left: 4px solid #3498db;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+
+    .usuario-card:hover {
+        transform: translateX(5px);
+        background: #e8f4fd;
+    }
+
+    .usuario-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+    }
+
+    .usuario-nombre {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1rem;
+    }
+
+    .usuario-total {
+        background: #3498db;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .usuario-detalle {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .usuario-detalle.collapsed {
+        display: none;
+    }
+
+    .meses-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .mes-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        background: white;
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+
+    .mes-nombre {
+        color: #6c757d;
+    }
+
+    .mes-cantidad {
+        font-weight: 600;
+        color: #3498db;
+    }
+
+    .total-resumen {
+        background: #e9ecef;
+        padding: 0.5rem;
+        border-radius: 6px;
+        margin-top: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+        .data-tables-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<div data-ticket-list-url="{% url 'extractor:ticket_list' %}" style="display: none;"></div>
+<script id="chart-data" type="application/json">
+    {
+        "estados_general_labels": {{ chart_data.estados_general_labels|safe }},
+        "estados_general_data": {{ chart_data.estados_general_data|safe }},
+        "estados_periodo_labels": {{ chart_data.estados_periodo_labels|safe }},
+        "estados_periodo_data": {{ chart_data.estados_periodo_data|safe }},
+        "clientes_labels": {{ chart_data.clientes_labels|safe }},
+        "clientes_data": {{ chart_data.clientes_data|safe }},
+        "tendencias_labels": {{ chart_data.tendencias_labels|safe }},
+        "tendencias_data": {{ chart_data.tendencias_data|safe }}
+    }
+</script>
+
 <div class="page-header">
     <h1>📊 Dashboard Informativo</h1>
     <p>Vista general de tickets, métricas y rendimiento del equipo</p>
@@ -213,7 +409,7 @@
 
 <!-- Filtros -->
 <div class="filter-bar">
-    <form method="get" style="display: flex; flex-wrap: wrap; gap: 1rem; width: 100%;">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 1rem; width: 100%;" id="filterForm">
         <div class="filter-group">
             <label>🏢 Cliente</label>
             <select name="cliente">
@@ -324,30 +520,223 @@
     </div>
 </div>
 
-<div class="charts-grid">
-    <div class="dashboard-card">
-        <div class="dashboard-card">
-            <h3>🏢 Tickets por Cliente (Top 10)</h3>
-            <div class="chart-container" style="height: 320px;">
-                <canvas id="clientesChart"></canvas>
+<!-- SECCIÓN DE DATOS NUMÉRICOS Y RESUMEN DE USUARIOS -->
+<div class="data-section">
+    <h2 style="margin-bottom: 1.5rem;">📋 Datos Detallados</h2>
+    
+    <div class="data-tables-grid">
+        <!-- Tabla de datos de gráficos de pastel -->
+        <div class="data-card">
+            <div class="data-card-header" onclick="toggleCard(this)">
+                <h3>🥧 Datos de Gráficas de Pastel</h3>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="data-card-body">
+                <h4 style="margin-top: 0;">📊 Distribución General de Tickets</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th>Cantidad</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estado in datos_graficas_general %}
+                        <tr>
+                            <td>
+                                <span class="badge-estado badge-{{ estado.codigo }}">
+                                    {{ estado.nombre }}
+                                </span>
+                            </td>
+                            <td class="number-cell">{{ estado.cantidad }}</td>
+                            <td class="percentage-cell">{{ estado.porcentaje|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3">No hay datos disponibles</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <h4 style="margin-top: 1.5rem;">📈 Distribución por Período Seleccionado</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th>Cantidad</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estado in datos_graficas_periodo %}
+                        <tr>
+                            <td>
+                                <span class="badge-estado badge-{{ estado.codigo }}">
+                                    {{ estado.nombre }}
+                                </span>
+                            </td>
+                            <td class="number-cell">{{ estado.cantidad }}</td>
+                            <td class="percentage-cell">{{ estado.porcentaje|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3">No hay datos disponibles</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Resumen de Usuarios y Tickets por Mes -->
+        <div class="data-card">
+            <div class="data-card-header" onclick="toggleCard(this)">
+                <h3>👥 Usuarios y Tickets por Mes</h3>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="data-card-body">
+                {% if resumen_usuarios %}
+                    {% for usuario in resumen_usuarios %}
+                    <div class="usuario-card">
+                        <div class="usuario-header" onclick="toggleUsuarioDetalle(this)">
+                            <span class="usuario-nombre">
+                                👤 {{ usuario.nombre_completo }}
+                                {% if usuario.es_lider %}
+                                    <span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px;"></span>
+                                {% endif %}
+                            </span>
+                            <span class="usuario-total">Total: {{ usuario.total_tickets }} tickets</span>
+                        </div>
+                        <div class="usuario-detalle">
+                            <div class="meses-grid">
+                                {% for mes in usuario.tickets_por_mes %}
+                                <div class="mes-item">
+                                    <span class="mes-nombre">{{ mes.mes_nombre }}</span>
+                                    <span class="mes-cantidad">{{ mes.cantidad }} tickets</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="total-resumen">
+                                <span>Promedio mensual:</span>
+                                <span>{{ usuario.promedio_mensual|floatformat:1 }} tickets/mes</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No hay datos de usuarios disponibles</p>
+                {% endif %}
             </div>
         </div>
     </div>
-    <div class="dashboard-card">
-      <div class="dashboard-card">
-            <h3>📈 Tendencia de tickets (últimos 30 días)</h3>
-            <div class="chart-container" style="height: 320px;">
-                <canvas id="tendenciasChart"></canvas>
-            </div>
+    
+    <!-- Tabla adicional: Top usuarios por mes -->
+    <div class="data-card" style="margin-top: 1.5rem;">
+        <div class="data-card-header" onclick="toggleCard(this)">
+            <h3>🏆 Top Usuarios por Mes</h3>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div class="data-card-body">
+            {% if top_usuarios_por_mes %}
+                {% for mes, usuarios in top_usuarios_por_mes.items %}
+                <h4 style="margin-top: 1rem; color: #3498db;">{{ mes }}</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Usuario</th>
+                            <th>Tickets</th>
+                            <th>Rol</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                        <tr>
+                            <td class="number-cell">{{ forloop.counter }}</td>
+                            <td>{{ usuario.nombre }}</td>
+                            <td class="number-cell">{{ usuario.total }}</td>
+                            <td>{% if usuario.es_lider %}👑 {% else %}👤 Usuario{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No hay datos disponibles</p>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Gráfico: Tickets por Cliente -->
+<div class="data-card" style="margin-top: 1.5rem;">
+    <div class="data-card-header" onclick="toggleCard(this)">
+        <h3>📊 Resumen de Tickets por Usuario (Abiertos/En Proceso/Completados)</h3>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="data-card-body">
+        {% if resumen_estados_usuarios %}
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>🎫 Total</th>
+                            <th>🟡 Abiertos/Generados</th>
+                            <th>🟠 En Proceso</th>
+                            <th>✅ Completados</th>
+                            <th>❌ Cancelados</th>
+                            <th>Tasa Éxito</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in resumen_estados_usuarios %}
+                        <tr>
+                            <td>
+                                <strong>{{ usuario.nombre_completo }}</strong>
+                                {% if usuario.es_lider %}
+                                    <span style="background:#f39c12; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-left:5px;"></span>
+                                {% endif %}
+                            </td>
+                            <td>{{ usuario.rol|default:"Usuario" }}</td>
+                            <td class="number-cell">{{ usuario.total_tickets }}</td>
+                            <td class="number-cell" style="color:#856404;">{{ usuario.abiertos }}</td>
+                            <td class="number-cell" style="color:#0c5460;">{{ usuario.en_proceso }}</td>
+                            <td class="number-cell" style="color:#155724;">{{ usuario.completados }}</td>
+                            <td class="number-cell" style="color:#721c24;">{{ usuario.cancelados }}</td>
+                            <td class="percentage-cell">
+                                {% if usuario.total_tickets > 0 %}
+                                    {{ usuario.tasa_exito|floatformat:1 }}%
+                                    <div style="background:#e9ecef; border-radius:4px; height:4px; margin-top:4px;">
+                                        <div style="background:#28a745; width:{{ usuario.tasa_exito }}%; height:4px; border-radius:4px;"></div>
+                                    </div>
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No hay datos de usuarios disponibles</p>
+        {% endif %}
+    </div>
+</div>
 
-
-<!-- Gráfico de tendencia -->
-
+<div class="charts-grid">
+    <div class="dashboard-card">
+        <h3>🏢 Tickets por Cliente (Top 10)</h3>
+        <div class="chart-container" style="height: 320px;">
+            <canvas id="clientesChart"></canvas>
+        </div>
+    </div>
+    <div class="dashboard-card">
+        <h3>📈 Tendencia de tickets (últimos 30 días)</h3>
+        <div class="chart-container" style="height: 320px;">
+            <canvas id="tendenciasChart"></canvas>
+        </div>
+    </div>
+</div>
 
 <!-- Tablas informativas -->
 <div class="charts-grid">
@@ -400,113 +789,7 @@
     </div>
 </div>
 
-<script>
-    // Gráfico de estados GENERAL (Pastel)
-// Gráfico de estados GENERAL (Pastel centrado)
-const ctxGeneral = document.getElementById('estadosGeneralChart').getContext('2d');
-    new Chart(ctxGeneral, {
-        type: 'pie',
-        data: {
-            labels: {{ chart_data.estados_general_labels|safe }},
-            datasets: [{
-                data: {{ chart_data.estados_general_data|safe }},
-                backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { 
-                    position: 'bottom',
-                    align: 'center',
-                    labels: {
-                        boxWidth: 12,
-                        font: { size: 11 }
-                    }
-                },
-                tooltip: { enabled: true }
-            },
-            layout: {
-                padding: 10
-            }
-        }
-    });
-
-    // Gráfico de estados por PERÍODO (Pastel centrado)
-    const ctxPeriodo = document.getElementById('estadosPeriodoChart').getContext('2d');
-    new Chart(ctxPeriodo, {
-        type: 'pie',
-        data: {
-            labels: {{ chart_data.estados_periodo_labels|safe }},
-            datasets: [{
-                data: {{ chart_data.estados_periodo_data|safe }},
-                backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { 
-                    position: 'bottom',
-                    align: 'center',
-                    labels: {
-                        boxWidth: 12,
-                        font: { size: 11 }
-                    }
-                },
-                tooltip: { enabled: true }
-            },
-            layout: {
-                padding: 10
-            }
-        }
-    });
-    // Gráfico de clientes (Barras)
-    const ctxClientes = document.getElementById('clientesChart').getContext('2d');
-    new Chart(ctxClientes, {
-        type: 'bar',
-        data: {
-            labels: {{ chart_data.clientes_labels|safe }},
-            datasets: [{
-                label: 'Cantidad de tickets',
-                data: {{ chart_data.clientes_data|safe }},
-                backgroundColor: '#3498db',
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: { legend: { display: false } }
-        }
-    });
-
-    // Gráfico de tendencias (Línea)
-    const ctxTendencias = document.getElementById('tendenciasChart').getContext('2d');
-    new Chart(ctxTendencias, {
-        type: 'line',
-        data: {
-            labels: {{ chart_data.tendencias_labels|safe }},
-            datasets: [{
-                label: 'Tickets creados',
-                data: {{ chart_data.tendencias_data|safe }},
-                borderColor: '#2ecc71',
-                backgroundColor: 'rgba(46,204,113,0.1)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 3,
-                pointBackgroundColor: '#27ae60'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: { legend: { position: 'top' } }
-        }
-    });
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="{% static 'js/dashboard.min.js' %}"></script>
 {% endblock %}
