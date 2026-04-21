@@ -56,12 +56,11 @@ def ticket_list(request):
     # 🆕 Aplicar filtros de fecha
     if fecha_desde:
         try:
-            # Convertir a fecha si viene en formato string
             fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
             tickets = tickets.filter(fecha_creacion__date__gte=fecha_desde_obj)
         except (ValueError, TypeError):
             pass
-    
+
     if fecha_hasta:
         try:
             fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()

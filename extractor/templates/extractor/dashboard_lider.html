@@ -399,6 +399,8 @@
         "clientes_data": {{ chart_data.clientes_data|safe }},
         "tendencias_labels": {{ chart_data.tendencias_labels|safe }},
         "tendencias_data": {{ chart_data.tendencias_data|safe }}
+        "periodo_fecha_desde": "{{ periodo_fecha_desde_str }}",
+        "periodo_fecha_hasta": "{{ periodo_fecha_hasta_str }}"
     }
 </script>
 
@@ -531,7 +533,7 @@
                 <h3>🥧 Datos de Gráficas de Pastel</h3>
                 <span class="toggle-icon">▼</span>
             </div>
-            <div class="data-card-body">
+            <div class="data-card-body ">
                 <h4 style="margin-top: 0;">📊 Distribución General de Tickets</h4>
                 <table class="data-table">
                     <thead>
@@ -592,7 +594,7 @@
                 <h3>👥 Usuarios y Tickets por Mes</h3>
                 <span class="toggle-icon">▼</span>
             </div>
-            <div class="data-card-body">
+            <div class="data-card-body collapsed">
                 {% if resumen_usuarios %}
                     {% for usuario in resumen_usuarios %}
                     <div class="usuario-card">
@@ -600,7 +602,7 @@
                             <span class="usuario-nombre">
                                 👤 {{ usuario.nombre_completo }}
                                 {% if usuario.es_lider %}
-                                    <span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px;"></span>
+                                    <span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px;">Superusuario</span>
                                 {% endif %}
                             </span>
                             <span class="usuario-total">Total: {{ usuario.total_tickets }} tickets</span>
@@ -634,7 +636,7 @@
             <h3>🏆 Top Usuarios por Mes</h3>
             <span class="toggle-icon">▼</span>
         </div>
-        <div class="data-card-body">
+        <div class="data-card-body collapsed">
             {% if top_usuarios_por_mes %}
                 {% for mes, usuarios in top_usuarios_por_mes.items %}
                 <h4 style="margin-top: 1rem; color: #3498db;">{{ mes }}</h4>
@@ -653,7 +655,7 @@
                             <td class="number-cell">{{ forloop.counter }}</td>
                             <td>{{ usuario.nombre }}</td>
                             <td class="number-cell">{{ usuario.total }}</td>
-                            <td>{% if usuario.es_lider %}👑 {% else %}👤 Usuario{% endif %}</td>
+                            <td>{% if usuario.es_lider %} Superusuario {% else %}👤 Usuario{% endif %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -671,7 +673,7 @@
         <h3>📊 Resumen de Tickets por Usuario (Abiertos/En Proceso/Completados)</h3>
         <span class="toggle-icon">▼</span>
     </div>
-    <div class="data-card-body">
+    <div class="data-card-body collapsed">
         {% if resumen_estados_usuarios %}
             <div style="overflow-x: auto;">
                 <table class="data-table">
@@ -693,7 +695,7 @@
                             <td>
                                 <strong>{{ usuario.nombre_completo }}</strong>
                                 {% if usuario.es_lider %}
-                                    <span style="background:#f39c12; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-left:5px;"></span>
+                                    <span style="background:#f39c12; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-left:5px;">Superusuario</span>
                                 {% endif %}
                             </td>
                             <td>{{ usuario.rol|default:"Usuario" }}</td>

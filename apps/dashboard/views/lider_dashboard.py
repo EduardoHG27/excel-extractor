@@ -422,6 +422,8 @@ def dashboard_lider(request):
         'estado_selected': estado or '',
         'fecha_desde': fecha_desde or '',
         'fecha_hasta': fecha_hasta or '',
+        'periodo_fecha_desde_str': fechas_periodo['fecha_inicio'].strftime('%Y-%m-%d'),
+        'periodo_fecha_hasta_str': fechas_periodo['fecha_fin'].strftime('%Y-%m-%d'),
     }
     
     return render(request, 'extractor/dashboard_lider.html', context)
