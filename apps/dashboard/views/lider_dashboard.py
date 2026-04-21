@@ -9,14 +9,22 @@ from datetime import timedelta, datetime
 import json
 from collections import defaultdict
 import calendar
-
+from django.db import connections
+from django.db.utils import ProgrammingError
 from extractor.models import Ticket, Cliente, Proyecto, Usuario
 
 
 def es_lider_pruebas(user):
     """Verifica si el usuario es líder de pruebas"""
-    return user.is_authenticated and (user.is_superuser or getattr(user, 'es_lider_pruebas', False))
-
+    if not user.is_authenticated:
+        return False
+    
+    try:
+        return user.is_superuser or getattr(user, 'es_lider_pruebas', False) or user.groups.filter(name='Lideres').exists()
+    except ProgrammingError as e:
+        if 'relation "extractor_usuario_groups" does not exist' in str(e):
+            return user.is_superuser or getattr(user, 'es_lider_pruebas', False)
+        raise
 
 @login_required
 @user_passes_test(es_lider_pruebas, login_url='extractor:ticket_list')
@@ -25,7 +33,22 @@ def dashboard_lider(request):
     Dashboard para líder de pruebas.
     Versión compatible con SQLite.
     """
+    usuario = request.user
     
+    # Verificar si existe la tabla antes de usarla
+    es_lider = getattr(usuario, 'es_lider_pruebas', False)
+    
+    if not es_lider:
+        try:
+            # Intenta usar la relación groups
+            es_lider = usuario.groups.filter(name='Lideres').exists()
+        except ProgrammingError as e:
+            # Si la tabla no existe, intenta verificar por nombre de usuario o flag
+            if 'relation "extractor_usuario_groups" does not exist' in str(e):
+                # Fallback: verificar si es admin o tiene flag en el perfil
+                es_lider = usuario.is_superuser or getattr(usuario, 'es_lider', False)
+            else:
+                raise
     # ========== OBTENER PARÁMETROS ==========
     cliente_id = request.GET.get('cliente')
     proyecto_id = request.GET.get('proyecto')
@@ -231,8 +254,13 @@ def dashboard_lider(request):
         promedio = total_tickets_usuario / 6 if len(tickets_por_mes) > 0 else 0
         
         # Verificar si el usuario es líder (ajusta según tu modelo)
-        es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
-        
+        try:
+            es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
+        except ProgrammingError as e:
+            if 'relation "extractor_usuario_groups" does not exist' in str(e):
+                es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.is_superuser
+            else:
+                raise
         resumen_usuarios.append({
             'id': usuario.id,
             'nombre_completo': usuario.get_full_name() or usuario.username,
@@ -299,8 +327,13 @@ def dashboard_lider(request):
         tickets_evaluables = total - cancelados
         tasa_exito = (completados / tickets_evaluables * 100) if tickets_evaluables > 0 else 0
         
-        es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
-        
+        try:
+            es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
+        except ProgrammingError as e:
+            if 'relation "extractor_usuario_groups" does not exist' in str(e):
+                es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.is_superuser
+            else:
+                raise
         # Determinar rol
         rol = "Líder de Pruebas" if es_lider else "Tester"
         
