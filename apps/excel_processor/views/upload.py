@@ -5,7 +5,7 @@ Vistas para procesamiento de archivos Excel
 """
 import os
 import re
-import magic  # Instalar: pip install python-magic
+##import magic  # Instalar: pip install python-magic
 import hashlib
 from django.shortcuts import render, redirect
 from django.contrib import messages
