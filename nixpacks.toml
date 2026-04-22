@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python3", "libmagic"]
+
+[phases.build]
+cmds = [
+    "pip install -r requirements.txt",
+    "python manage.py collectstatic --noinput"
+]
+
+[start]
+cmd = "python manage.py migrate --noinput && gunicorn excel_extractor.wsgi --timeout 120 --workers 2"
