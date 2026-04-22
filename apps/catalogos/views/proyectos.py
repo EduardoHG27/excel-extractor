@@ -194,7 +194,7 @@ def export_proyectos_csv(request):
         return redirect('extractor:proyectos_list')
 
 
-@login_required
+
 def proyectos_por_cliente(request, cliente_id):
     """Obtener proyectos de un cliente específico (para AJAX)"""
     try:
