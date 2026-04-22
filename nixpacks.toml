@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python3", "libmagic"]
+nixPkgs = ["python3"]
 
 [phases.build]
 cmds = [
