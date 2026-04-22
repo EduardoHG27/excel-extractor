@@ -1,7 +1,8 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pip install --upgrade pip && pip install -r requirements.txt && npm install -g javascript-obfuscator && python obfuscate_js_production.py force && python manage.py collectstatic --noinput"  },
+    "buildCommand": "pip install --upgrade pip && pip install -r requirements.txt && python manage.py collectstatic --noinput"
+  },
   "deploy": {
     "startCommand": "python manage.py migrate --noinput && python create_superuser.py && gunicorn excel_extractor.wsgi --timeout 120 --workers 2",
     "restartPolicyType": "ON_FAILURE",
