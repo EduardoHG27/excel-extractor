@@ -1,11 +1,10 @@
-# ============ upload.py - VERSIÓN MEJORADA ============
+# ============ upload.py - VERSIÓN SIN MAGIC ============
 
 """
 Vistas para procesamiento de archivos Excel
 """
 import os
 import re
-##import magic  # Instalar: pip install python-magic
 import hashlib
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -28,12 +27,6 @@ import logging
 logger = logging.getLogger('security')
 
 # Configuración de seguridad
-ALLOWED_MIME_TYPES = [
-    'application/vnd.ms-excel',  # .xls
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
-    'application/octet-stream',  # Algunos sistemas usan este MIME para Excel
-]
-
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 MAX_FILENAME_LENGTH = 100
 
@@ -72,33 +65,37 @@ def validate_file_security(uploaded_file: UploadedFile) -> tuple[bool, str]:
     if file_extension not in ['.xlsx', '.xls']:
         return False, "Formato no válido. Solo se permiten archivos .xlsx o .xls"
     
-    # 4. Validar MIME type real (no solo extensión)
+    # 4. Leer primeros bytes para verificar firma de archivo Excel
     try:
-        # Leer primeros bytes para detectar MIME real
         file_content = uploaded_file.read(1024)
         uploaded_file.seek(0)  # Reiniciar puntero
         
-        mime = magic.from_buffer(file_content, mime=True)
+        # Verificar firma de archivo Excel
+        # Para .xlsx (PK signature - ZIP)
+        if file_extension == '.xlsx':
+            if not (file_content[:4] == b'PK\x03\x04' or file_content[:4] == b'PK\x05\x06'):
+                return False, "El archivo .xlsx no parece ser un Excel válido"
         
-        if mime not in ALLOWED_MIME_TYPES:
-            return False, f"Tipo de archivo no permitido: {mime}"
-            
+        # Para .xls (D0 CF 11 E0 signature - OLE)
+        elif file_extension == '.xls':
+            if not (file_content[:4] == b'\xD0\xCF\x11\xE0'):
+                return False, "El archivo .xls no parece ser un Excel válido"
+                
     except Exception as e:
-        logger.error(f"Error validando MIME del archivo: {e}")
+        logger.error(f"Error validando firma del archivo: {e}")
         return False, "No se pudo validar el tipo de archivo"
     
-    # 5. Detectar macros maliciosas (opcional, requiere análisis adicional)
-    # Verificar si el archivo contiene macros (VBA)
+    # 5. Detectar macros maliciosas
     if b'vbaProject' in file_content or b'_VBA_PROJECT' in file_content:
-        logger.warning(f"Archivo con macros detectado: {filename} por usuario {uploaded_file.name}")
-        # Puedes decidir si bloquear o permitir con advertencia
+        logger.warning(f"Archivo con macros detectado: {filename}")
         return False, "Los archivos con macros no están permitidos por razones de seguridad"
     
-    # 6. Generar hash del archivo para detección de duplicados
-    file_hash = hashlib.sha256(file_content + uploaded_file.read()).hexdigest()
+    # 6. Generar hash del archivo (opcional, para detección de duplicados)
+    uploaded_file.seek(0)
+    file_hash = hashlib.sha256(uploaded_file.read()).hexdigest()
     uploaded_file.seek(0)
     
-    # 7. Verificar si es un archivo Excel válido (sin errores de estructura)
+    # 7. Verificar si es un archivo Excel válido
     try:
         import openpyxl
         from openpyxl import load_workbook
@@ -106,6 +103,8 @@ def validate_file_security(uploaded_file: UploadedFile) -> tuple[bool, str]:
         # Intentar cargar para validar estructura
         wb = load_workbook(uploaded_file, data_only=True, read_only=True)
         wb.close()
+        uploaded_file.seek(0)  # Reiniciar puntero después de la validación
+        
     except Exception as e:
         return False, f"El archivo Excel parece estar dañado o corrupto: {str(e)[:100]}"
     
@@ -138,7 +137,7 @@ def upload_excel(request):
                 messages.error(request, 'Por favor selecciona un archivo Excel')
                 return render(request, 'extractor/upload.html')
             
-            # ⚠️ NUEVO: Validación de seguridad avanzada
+            # Validación de seguridad avanzada
             is_valid, error_msg = validate_file_security(excel_file)
             if not is_valid:
                 logger.warning(f"Archivo rechazado para usuario {request.user.username}: {error_msg}")
@@ -148,7 +147,7 @@ def upload_excel(request):
             # Sanitizar nombre del archivo
             safe_filename = re.sub(r'[^\w\-_\.]', '_', excel_file.name)
             
-            # Validar solicitud existente (sin cambios)
+            # Validar solicitud existente
             solicitud = SolicitudPruebas.objects.filter(
                 nombre_archivo=excel_file.name,
                 tiene_ticket=False
@@ -159,7 +158,7 @@ def upload_excel(request):
             filename = fs.save(safe_filename, excel_file)
             file_path = os.path.join(settings.MEDIA_ROOT, filename)
             
-            # Extraer datos (tu código existente)
+            # Extraer datos
             extracted_data = extract_excel_data(file_path)
             
             # Validar y sanitizar datos extraídos
@@ -172,7 +171,7 @@ def upload_excel(request):
             if campos_faltantes:
                 raise ValidationError(f"Faltan campos en el Excel: {', '.join(campos_faltantes)}")
             
-            # Buscar objetos (tu código existente)
+            # Buscar objetos
             cliente_obj = find_object_by_name_or_id(Cliente, extracted_data.get('cliente', ''), 'nombre')
             proyecto_obj = find_object_by_name_or_id(Proyecto, extracted_data.get('proyecto', ''), 'nombre')
             tipo_prueba_obj = find_object_by_name_or_id(TipoServicio, extracted_data.get('tipo_pruebas', ''), 'nombre')
@@ -193,7 +192,7 @@ def upload_excel(request):
             if proyecto_obj.cliente_id != cliente_obj.id:
                 raise ValidationError(f'El proyecto "{proyecto_obj.nombre}" no pertenece al cliente "{cliente_obj.nombre}"')
             
-            # Generar ticket (tu código existente)
+            # Generar ticket
             nomenclaturas = {
                 'cliente_nomenclatura': cliente_obj.nomenclatura,
                 'proyecto_nomenclatura': proyecto_obj.codigo,
@@ -215,7 +214,7 @@ def upload_excel(request):
                 request
             )
             
-            # Crear Jira issue (tu código existente)
+            # Crear Jira issue
             if ticket_obj:
                 _create_jira_issue(ticket_obj, extracted_data, cliente_obj, proyecto_obj, tipo_servicio_form, request)
             
@@ -285,7 +284,7 @@ def sanitize_extracted_data(data: dict) -> dict:
 
 
 def _create_jira_issue(ticket_obj, extracted_data, cliente_obj, proyecto_obj, tipo_servicio_form, request):
-    """Helper para crear issue en Jira (sin cambios)"""
+    """Helper para crear issue en Jira"""
     try:
         from extractor.jira_helper import JiraClient
         
