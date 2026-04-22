@@ -28,3 +28,4 @@ Thumbs.db
 # Railway / Producción
 *.env
 secrets.txt
+*.min.js

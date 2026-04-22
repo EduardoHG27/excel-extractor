@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 import logging
+from django.conf import settings
 
 from extractor.models import Usuario, Cliente, Ticket
 
@@ -90,6 +91,7 @@ def usuarios_list(request):
         'busqueda': search or '',
         'orden_actual': orden,
         'por_pagina': por_pagina,
+        'debug': settings.DEBUG,
     }
     return render(request, 'catalogos/usuarios_list.html', context)
 
@@ -170,6 +172,7 @@ def usuario_detail(request, id):
         'año_seleccionado': año_seleccionado,
         'años_disponibles': años_disponibles,
         'meses_disponibles': meses_disponibles,
+        'debug': settings.DEBUG,
     }
     return render(request, 'catalogos/usuario_detail.html', context)
 
@@ -239,6 +242,7 @@ def usuario_create(request):
     
     context = {
         'clientes': Cliente.objects.filter(activo=True),
+        'debug': settings.DEBUG,
     }
     return render(request, 'catalogos/usuario_create_form.html', context)
 
@@ -299,6 +303,7 @@ def usuario_edit(request, id):
         'usuario': usuario,
         'clientes': Cliente.objects.filter(activo=True),
         'es_superusuario': request.user.is_superuser,
+        'debug': settings.DEBUG,
     }
     return render(request, 'catalogos/usuario_form.html', context)
 

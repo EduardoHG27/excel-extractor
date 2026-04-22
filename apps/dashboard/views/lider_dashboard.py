@@ -12,6 +12,7 @@ import calendar
 from django.db import connections
 from django.db.utils import ProgrammingError
 from extractor.models import Ticket, Cliente, Proyecto, Usuario
+from django.conf import settings
 
 
 def es_lider_pruebas(user):
@@ -371,6 +372,8 @@ def dashboard_lider(request):
     
     context = {
         # Métricas
+        'debug': settings.DEBUG,
+
         'total_tickets': total_tickets,
         'tickets_abiertos': tickets_abiertos,
         'tickets_proceso': tickets_proceso,

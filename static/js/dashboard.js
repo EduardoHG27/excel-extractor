@@ -1,0 +1,349 @@
+// extractor/static/js/dashboard.min.js
+
+(function() {
+    'use strict';
+
+    // Función para construir URL de filtro hacia ticket_list (sin templates de Django)
+    function buildFilterUrl(estado, tipoGrafico, chartData) {
+        // Obtener parámetros actuales de la URL (filtros de cliente, proyecto, etc.)
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams();
+        
+        // Agregar el estado seleccionado
+        params.append('estado', estado);
+        
+        // 🔥 IMPORTANTE: Para el gráfico de período, usar las fechas del período desde chartData
+        if (tipoGrafico === 'periodo' && chartData) {
+            // Usar las fechas del período que vienen del backend
+            if (chartData.periodo_fecha_desde) {
+                params.append('fecha_desde', chartData.periodo_fecha_desde);
+            }
+            if (chartData.periodo_fecha_hasta) {
+                params.append('fecha_hasta', chartData.periodo_fecha_hasta);
+            }
+        } else {
+            // Para gráfico general, usar las fechas de los filtros manuales (si existen)
+            const fechaDesde = urlParams.get('fecha_desde') || '';
+            const fechaHasta = urlParams.get('fecha_hasta') || '';
+            if (fechaDesde) params.append('fecha_desde', fechaDesde);
+            if (fechaHasta) params.append('fecha_hasta', fechaHasta);
+        }
+        
+        // Agregar filtros de cliente y proyecto (si están seleccionados)
+        const clienteSelected = urlParams.get('cliente') || '';
+        const proyectoSelected = urlParams.get('proyecto') || '';
+        if (clienteSelected) params.append('cliente', clienteSelected);
+        if (proyectoSelected) params.append('proyecto', proyectoSelected);
+        
+        // Obtener la URL base del ticket_list desde un atributo de datos
+        const ticketListUrl = document.querySelector('[data-ticket-list-url]')?.getAttribute('data-ticket-list-url') || '/tickets/';
+        
+        return ticketListUrl + '?' + params.toString();
+    }
+
+    // Función para inicializar todos los gráficos
+    function initCharts(chartData) {
+        // Verificar que Chart esté disponible
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js no está cargado');
+            return;
+        }
+
+        // Registrar el plugin de datalabels si está disponible
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
+
+        // Configuración común para gráficos de pastel
+        const pieOptions = {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 11 },
+                        padding: 10,
+                        usePointStyle: true,
+                        boxWidth: 10
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} tickets (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        };
+
+        // Agregar datalabels solo si el plugin está disponible
+        if (typeof ChartDataLabels !== 'undefined') {
+            pieOptions.plugins.datalabels = {
+                color: 'white',
+                font: {
+                    weight: 'bold',
+                    size: 14
+                },
+                formatter: (value, context) => {
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    if (percentage > 5 && value > 0) {
+                        return `${percentage}%`;
+                    }
+                    return '';
+                },
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                borderRadius: 4,
+                padding: { left: 6, right: 6, top: 4, bottom: 4 },
+                align: 'center',
+                anchor: 'center',
+                offset: 0
+            };
+        }
+
+        // Gráfico de Estados General (Pastel)
+        const ctxGeneral = document.getElementById('estadosGeneralChart');
+        if (ctxGeneral && chartData.estados_general_labels && chartData.estados_general_data && chartData.estados_general_data.length > 0) {
+            new Chart(ctxGeneral.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: chartData.estados_general_labels,
+                    datasets: [{
+                        data: chartData.estados_general_data,
+                        backgroundColor: ['#17a2b8', '#ffc107', '#28a745', '#dc3545', '#6c757d'],
+                        borderWidth: 2,
+                        borderColor: 'white'
+                    }]
+                },
+                options: {
+                    ...pieOptions,
+                    onClick: (event, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            let estadoLabel = chartData.estados_general_labels[index];
+                            
+                            let estadoCode = '';
+                            if (estadoLabel === 'GENERADO' || estadoLabel === 'Generado') estadoCode = 'GENERADO';
+                            else if (estadoLabel === 'EN_PROCESO' || estadoLabel === 'En Proceso') estadoCode = 'EN_PROCESO';
+                            else if (estadoLabel === 'COMPLETADO' || estadoLabel === 'Completado') estadoCode = 'COMPLETADO';
+                            else if (estadoLabel === 'CANCELADO' || estadoLabel === 'Cancelado') estadoCode = 'CANCELADO';
+                            else estadoCode = estadoLabel.toUpperCase();
+                            
+                            // Pasar chartData a la función
+                            const url = buildFilterUrl(estadoCode, 'general', chartData);
+                            window.location.href = url;
+                        }
+                    }
+                }
+            });
+        }
+
+        // Gráfico de Estados por Período (Pastel)
+        const ctxPeriodo = document.getElementById('estadosPeriodoChart');
+        if (ctxPeriodo && chartData.estados_periodo_labels && chartData.estados_periodo_data && chartData.estados_periodo_data.length > 0) {
+            new Chart(ctxPeriodo.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: chartData.estados_periodo_labels,
+                    datasets: [{
+                        data: chartData.estados_periodo_data,
+                        backgroundColor: ['#17a2b8', '#ffc107', '#28a745', '#dc3545', '#6c757d'],
+                        borderWidth: 2,
+                        borderColor: 'white'
+                    }]
+                },
+                options: {
+                    ...pieOptions,
+                    onClick: (event, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            let estadoLabel = chartData.estados_periodo_labels[index];
+                            
+                            let estadoCode = '';
+                            if (estadoLabel === 'GENERADO' || estadoLabel === 'Generado') estadoCode = 'GENERADO';
+                            else if (estadoLabel === 'EN_PROCESO' || estadoLabel === 'En Proceso') estadoCode = 'EN_PROCESO';
+                            else if (estadoLabel === 'COMPLETADO' || estadoLabel === 'Completado') estadoCode = 'COMPLETADO';
+                            else if (estadoLabel === 'CANCELADO' || estadoLabel === 'Cancelado') estadoCode = 'CANCELADO';
+                            else estadoCode = estadoLabel.toUpperCase();
+                            
+                            // 🔥 Pasar 'periodo' como tipo y chartData con las fechas del período
+                            const url = buildFilterUrl(estadoCode, 'periodo', chartData);
+                            window.location.href = url;
+                        }
+                    }
+                }
+            });
+        }
+
+        // Gráfico de Clientes (Barras)
+        const ctxClientes = document.getElementById('clientesChart');
+        if (ctxClientes && chartData.clientes_labels && chartData.clientes_data && chartData.clientes_data.length > 0) {
+            new Chart(ctxClientes.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: chartData.clientes_labels,
+                    datasets: [{
+                        label: 'Número de Tickets',
+                        data: chartData.clientes_data,
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                        borderColor: '#3498db',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.raw} tickets`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, precision: 0 },
+                            title: { display: true, text: 'Cantidad de Tickets' }
+                        },
+                        x: {
+                            ticks: { rotation: -45, autoSkip: true, maxRotation: 45 },
+                            title: { display: true, text: 'Clientes' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Gráfico de Tendencia (Líneas)
+        const ctxTendencias = document.getElementById('tendenciasChart');
+        if (ctxTendencias && chartData.tendencias_labels && chartData.tendencias_data && chartData.tendencias_data.length > 0) {
+            new Chart(ctxTendencias.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: chartData.tendencias_labels,
+                    datasets: [{
+                        label: 'Tickets Creados',
+                        data: chartData.tendencias_data,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2980b9',
+                        pointBorderColor: 'white',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.raw} tickets`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, precision: 0 },
+                            title: { display: true, text: 'Cantidad de Tickets' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Fecha' },
+                            ticks: { rotation: -30, autoSkip: true }
+                        }
+                    }
+                }
+            });
+        }
+        
+        console.log('Dashboard cargado - Gráficos inicializados correctamente');
+    }
+
+    // Función para cargar los datos del gráfico
+    function loadChartData() {
+        const chartDataElement = document.getElementById('chart-data');
+        if (chartDataElement) {
+            try {
+                const chartData = JSON.parse(chartDataElement.textContent);
+                initCharts(chartData);
+            } catch(e) {
+                console.error('Error parsing chart data:', e);
+            }
+        }
+    }
+
+    // Esperar a que Chart.js esté cargado
+    function waitForChart() {
+        if (typeof Chart !== 'undefined') {
+            loadChartData();
+        } else {
+            setTimeout(waitForChart, 100);
+        }
+    }
+
+    // Exponer funciones globalmente para los onclick de HTML
+    window.toggleCard = function(headerElement) {
+        const card = headerElement.closest('.data-card');
+        if (!card) return;
+        
+        const body = card.querySelector('.data-card-body');
+        const icon = headerElement.querySelector('.toggle-icon');
+        
+        if (body) {
+            if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                if (icon) icon.textContent = '▼';
+            } else {
+                body.classList.add('collapsed');
+                if (icon) icon.textContent = '▶';
+            }
+        }
+    };
+
+    window.toggleUsuarioDetalle = function(headerElement) {
+        const usuarioCard = headerElement.closest('.usuario-card');
+        if (!usuarioCard) return;
+        
+        const detalle = usuarioCard.querySelector('.usuario-detalle');
+        
+        if (detalle) {
+            if (detalle.classList.contains('collapsed')) {
+                detalle.classList.remove('collapsed');
+            } else {
+                detalle.classList.add('collapsed');
+            }
+        }
+    };
+
+    // Inicializar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar todas las tarjetas como expandidas
+        document.querySelectorAll('.data-card-body').forEach(body => {
+            body.classList.remove('collapsed');
+        });
+        
+        document.querySelectorAll('.usuario-detalle').forEach(detalle => {
+            detalle.classList.remove('collapsed');
+        });
+        
+        // Iniciar carga de gráficos
+        waitForChart();
+    });
+
+})();

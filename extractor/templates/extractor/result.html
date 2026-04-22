@@ -642,6 +642,12 @@
 </style>
 
 {% load static %}
-<script src="{% static 'js/result.min.js' %}"></script>
+{% if debug %}
+    <!-- Desarrollo: usas el original para debugging fácil -->
+    <script src="{% static 'js/result.js' %}"></script>
+{% else %}
+    <!-- Producción: usas el ofuscado -->
+    <script src="{% static 'js/result.min.js' %}"></script>
+{% endif %}
 
 {% endblock %}

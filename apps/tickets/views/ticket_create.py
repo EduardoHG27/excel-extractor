@@ -8,6 +8,7 @@ from django.db import models
 from django.http import JsonResponse
 
 from extractor.models import Ticket, Cliente, Proyecto, TipoServicio, ExcelData
+from django.conf import settings
 
 
 @login_required
@@ -145,6 +146,7 @@ def ticket_create(request):
         'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
         'proyectos': [],
         'ultimo_consecutivo': Ticket.objects.order_by('-consecutivo').first().consecutivo if Ticket.objects.exists() else 0,
+        'debug': settings.DEBUG,
     }
     return render(request, 'catalogos/new_ticket_form.html', context)
 
@@ -157,6 +159,7 @@ def ticket_create_simple(request):
         context = {
             'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
             'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
+            'debug': settings.DEBUG,
         }
         return render(request, 'catalogos/new_ticket_form_simple.html', context)
     
@@ -381,5 +384,6 @@ def crear_ticket_manual(request):
         'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
         'today': timezone.now().date(),
         'now': timezone.now(),
+        'debug': settings.DEBUG,
     }
     return render(request, 'extractor/crear_solicitud.html', context)

@@ -4,6 +4,7 @@ Vistas públicas (sin autenticación)
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404
 from django.urls import reverse
+from django.conf import settings
 
 from extractor.models import Ticket
 
@@ -77,6 +78,7 @@ def consultar_ticket(request):
         'total_tickets': total_tickets,
         'tickets_abiertos': tickets_abiertos,
         'tickets_completados': tickets_completados,
+        'debug': settings.DEBUG,
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }
     return render(request, 'extractor/consultar_ticket.html', context)

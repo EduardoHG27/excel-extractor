@@ -89,7 +89,13 @@
 </form>
 
 {% load static %}
-<script src="{% static 'js/upload.min.js' %}"></script>
+{% if debug %}
+    <!-- Desarrollo: usas el original para debugging fácil -->
+    <script src="{% static 'js/upload.js' %}"></script>
+{% else %}
+    <!-- Producción: usas el ofuscado -->
+    <script src="{% static 'js/upload.min.js' %}"></script>
+{% endif %}
 
 <style>
  @keyframes spin {

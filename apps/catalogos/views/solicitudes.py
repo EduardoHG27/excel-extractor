@@ -100,6 +100,7 @@ def solicitud_list(request):
         'por_pagina': por_pagina,
         'today': today,
         'week_ago': week_ago,
+        'debug': settings.DEBUG,
     }
     return render(request, 'catalogos/solicitud_list.html', context)
 

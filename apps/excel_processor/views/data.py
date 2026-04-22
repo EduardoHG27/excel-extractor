@@ -9,6 +9,7 @@ from django.http import HttpResponse
 import csv
 from django.utils import timezone
 import logging
+from django.conf import settings 
 
 from extractor.models import ExcelData, Cliente, Proyecto, TipoServicio
 
@@ -79,6 +80,7 @@ def data_list(request):
         'filtro_tipo_servicio': tipo_servicio,
         'busqueda': busqueda or '',
         'por_pagina': por_pagina,
+        'debug': settings.DEBUG,
     }
     return render(request, 'extractor/list.html', context)
 
@@ -233,5 +235,6 @@ def data_detail(request, id):
         'cliente_nombre': cliente_nombre,
         'proyecto_nombre': proyecto_nombre,
         'tipo_pruebas_nombre': tipo_pruebas_nombre,
+        'debug': settings.DEBUG,
     }
     return render(request, 'extractor/data_detail.html', context)

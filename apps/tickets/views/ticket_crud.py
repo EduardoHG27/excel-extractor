@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 import json
 from datetime import datetime
-
+from django.conf import settings 
 from extractor.models import Ticket, Cliente, Proyecto, TipoServicio
 
 @login_required
@@ -117,6 +117,7 @@ def ticket_list(request):
         'fecha_desde': fecha_desde or '',
         'fecha_hasta': fecha_hasta or '',
         'cliente_nombre': cliente_nombre or '',
+        
     }
     return render(request, 'catalogos/ticket_list.html', context)
 
