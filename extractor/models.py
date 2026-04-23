@@ -135,11 +135,11 @@ class ExcelData(models.Model):
     
 class Ticket(models.Model):
     ESTADOS_TICKET = [
-        ('ABIERTO', 'Abierto'),
         ('GENERADO', 'Generado'),
         ('EN_PROCESO', 'En Proceso'),
         ('COMPLETADO', 'Completado'),
         ('CANCELADO', 'Cancelado'),
+        ('NO EXITOSO', 'No Exitoso'),
     ]
     
     codigo = models.CharField(max_length=100, unique=True, verbose_name="Código del Ticket")
@@ -471,6 +471,14 @@ class SolicitudPruebas(models.Model):
         blank=True,
         verbose_name="Insumos Requeridos"
     )
+
+    email_contacto = models.EmailField(
+        max_length=254,
+        blank=True,
+        null=True,
+        verbose_name="Email de contacto",
+        help_text="Email para contactar al solicitante si hay dudas"
+  )
     
     # Metadatos
     fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")

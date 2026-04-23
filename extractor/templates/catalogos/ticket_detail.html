@@ -480,7 +480,7 @@
                 <!-- Plantillas -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
-                        <div class="template-pill" onclick="seleccionarPlantilla('generico')">
+                        <div class="template-pill" onclick="seleccionarPlantilla('generico', event)">
                             <i class="bi bi-envelope fs-2 text-primary"></i>
                             <div>
                                 <div class="fw-bold">Respuesta Genérica</div>
@@ -489,7 +489,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="template-pill" onclick="seleccionarPlantilla('funcionalidad')">
+                        <div class="template-pill" onclick="seleccionarPlantilla('funcionalidad', event)">
                             <i class="bi bi-gear fs-2 text-success"></i>
                             <div>
                                 <div class="fw-bold">{{ ticket.tipo_servicio.nombre }}</div>
@@ -498,7 +498,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="template-pill" onclick="seleccionarPlantilla('completado')">
+                        <div class="template-pill" onclick="seleccionarPlantilla('completado', event)">
                             <i class="bi bi-check-circle fs-2 text-success"></i>
                             <div>
                                 <div class="fw-bold">Ticket Completado</div>
@@ -507,7 +507,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Vista previa -->
                 <div class="mb-4">
                     <label class="fw-bold mb-2">Vista Previa:</label>
@@ -617,10 +616,10 @@ Saludos.
                                     data-url="{% url 'extractor:ticket_cambiar_estado' id=ticket.id %}"
                                     onchange="cambiarEstado(this.value, {{ ticket.id }})">
                                 <option value="GENERADO" {% if ticket.estado == 'GENERADO' %}selected{% endif %}>🟡 Generado</option>
-                                <option value="ABIERTO" {% if ticket.estado == 'ABIERTO' %}selected{% endif %}>🔵 Abierto</option>
                                 <option value="EN_PROCESO" {% if ticket.estado == 'EN_PROCESO' %}selected{% endif %}>🟠 En Proceso</option>
                                 <option value="COMPLETADO" {% if ticket.estado == 'COMPLETADO' %}selected{% endif %}>🟢 Completado</option>
                                 <option value="CANCELADO" {% if ticket.estado == 'CANCELADO' %}selected{% endif %}>🔴 Cancelado</option>
+                                <option value="NO EXITOSO" {% if ticket.estado == 'NO EXITOSO' %}selected{% endif %}>❌ No Exitoso</option>
                             </select>
                         </td>
                     </tr>
@@ -1053,38 +1052,42 @@ Saludos.
             }
         }
 
-        function seleccionarPlantilla(tipo) {
+        function seleccionarPlantilla(tipo, clickEvent) {
             plantillaActual = tipo;
             
+            // Marcar visualmente la plantilla seleccionada
             document.querySelectorAll('.template-pill').forEach(card => {
                 card.classList.remove('selected');
             });
-            if(event && event.currentTarget) {
-                event.currentTarget.classList.add('selected');
+            if(clickEvent && clickEvent.currentTarget) {
+                clickEvent.currentTarget.classList.add('selected');
             }
             
-            // Obtener valores de Django (ya renderizados por el servidor)
+            // Obtener valores de Django
             const saludo = obtenerSaludoPorHora();
             const codigo = "{{ ticket.codigo|escapejs }}";
             const tipoServicio = "{{ ticket.tipo_servicio.nombre|default:''|escapejs }}";
             const cliente = "{{ ticket.cliente.nombre|default:ticket.cliente_code|escapejs }}";
             const proyecto = "{{ ticket.proyecto.nombre|default:ticket.proyecto_code|escapejs }}";
             const tipoPruebas = "{{ ticket.tipo_servicio.nombre|default:ticket.tipo_servicio_code|escapejs }}";
-            const nombreTicket = "{{ ticket.nombre|default:''|escapejs }}";
             
-            // Construir la línea del nombre SOLO si existe (con comillas incluidas)
+            // 🔥 USAR EL NOMBRE ACTUALIZADO (primero de variable global, luego del ticket original) 🔥
+            let nombreTicket = window._nombreTicketActualizado !== undefined 
+                ? window._nombreTicketActualizado 
+                : "{{ ticket.nombre|default:''|escapejs }}";
+            
+            // Construir la línea del nombre SOLO si existe
             let nombreLine = '';
             let nombreLineCompleta = '';
             if (nombreTicket && nombreTicket.trim() !== '' && nombreTicket !== 'None') {
                 nombreLine = nombreTicket;
-                nombreLineCompleta = ` "${nombreLine}"`;  // Con espacio inicial y comillas
+                nombreLineCompleta = ` "${nombreLine}"`;
             }
             
             // Plantillas con formato condicional
             let plantillas;
             
             if (nombreTicket && nombreTicket.trim() !== '' && nombreTicket !== 'None') {
-                // Plantillas cuando SÍ tiene nombre
                 plantillas = {
                     generico: `${saludo}:\n\nPor medio del presente, en continuidad a la solicitud de pruebas${nombreLineCompleta}, hacemos llegar el número de ticket con el cual podrás darle seguimiento: ${codigo}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
                     
@@ -1093,7 +1096,6 @@ Saludos.
                     completado: `${saludo}:\n\nPor medio del presente, con referencia a la solicitud${nombreLineCompleta} con el ticket ${codigo} comparto la documentación y dictamen correspondiente a las pruebas realizadas, dando como resultado; Exitoso.\n\nCualquier duda y/o comentario estoy a sus órdenes.\n\nSaludos.${firmaPersonal}`
                 };
             } else {
-                // Plantillas cuando NO tiene nombre
                 plantillas = {
                     generico: `${saludo}:\n\nPor medio del presente, en continuidad a la solicitud de pruebas, hacemos llegar el número de ticket con el cual podrás darle seguimiento: ${codigo}\n\nQuedamos atentos a cualquier duda o comentario al respecto.\n\nSaludos.${firmaPersonal}`,
                     
@@ -1106,7 +1108,6 @@ Saludos.
             const preview = document.getElementById('emailPreview');
             preview.textContent = plantillas[tipo];
         }
-
         function copiarAlPortapapeles(elementId) {
             const element = document.getElementById(elementId);
             const text = element.textContent;
@@ -1406,14 +1407,12 @@ Saludos.
             });
         }
 
-    document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     const emailCollapse = document.getElementById('emailTemplates');
     if (emailCollapse) {
         emailCollapse.addEventListener('show.bs.collapse', function () {
-            // Seleccionar la plantilla genérica automáticamente
             seleccionarPlantilla('generico');
             
-            // También marcar visualmente el pill correspondiente
             document.querySelectorAll('.template-pill').forEach(card => {
                 card.classList.remove('selected');
             });
@@ -1424,7 +1423,6 @@ Saludos.
         });
     }
     
-    // También asegurar que si el panel ya está visible al cargar la página, se seleccione
     if (emailCollapse && emailCollapse.classList.contains('show')) {
         seleccionarPlantilla('generico');
         const genericPill = document.querySelector('.template-pill[onclick*="generico"]');
@@ -1432,6 +1430,23 @@ Saludos.
             genericPill.classList.add('selected');
         }
     }
+    
+    // Guardar el nombre inicial en la variable global
+    const nombreInicial = "{{ ticket.nombre|default:''|escapejs }}";
+    window._nombreTicketActualizado = nombreInicial;
+    
+    // Modificar los onclick de los template-pill para pasar el evento
+    document.querySelectorAll('.template-pill').forEach(pill => {
+        const originalOnclick = pill.getAttribute('onclick');
+        if (originalOnclick && originalOnclick.includes('seleccionarPlantilla')) {
+            // Extraer el tipo de plantilla
+            const match = originalOnclick.match(/seleccionarPlantilla\('([^']+)'\)/);
+            if (match) {
+                const tipo = match[1];
+                pill.setAttribute('onclick', `seleccionarPlantilla('${tipo}', event)`);
+            }
+        }
+    });
 });
 
 function editarNombre() {
@@ -1460,7 +1475,6 @@ function guardarNombre(ticketId) {
     const nombreInput = document.getElementById('nombreInput');
     const nuevoNombre = nombreInput.value.trim();
     
-    // Buscar el botón de guardar de manera más confiable
     const guardarBtn = document.querySelector('#nombreForm .btn-light');
     if (!guardarBtn) {
         console.error('No se encontró el botón de guardar');
@@ -1507,6 +1521,9 @@ function guardarNombre(ticketId) {
                 `;
             }
             
+            // 🔥 ACTUALIZAR EL NOMBRE EN LAS PLANTILLAS DE CORREO 🔥
+            actualizarNombrePlantillas(nuevoNombre);
+            
             // Mostrar mensaje de éxito
             mostrarMensaje('Nombre actualizado correctamente', 'success');
             
@@ -1525,6 +1542,20 @@ function guardarNombre(ticketId) {
         guardarBtn.disabled = false;
     });
 }
+
+
+function actualizarNombrePlantillas(nuevoNombre) {
+    // Variables globales o locales que usa la función seleccionarPlantilla
+    window._nombreTicketActualizado = nuevoNombre;
+    
+    // Regenerar la plantilla actual con el nuevo nombre
+    if (plantillaActual) {
+        // Guardar referencia al evento si existe
+        const tempEvent = window.lastTemplateEvent || null;
+        seleccionarPlantilla(plantillaActual, tempEvent);
+    }
+}
+
 
 function mostrarMensaje(mensaje, tipo) {
     // Eliminar mensajes anteriores

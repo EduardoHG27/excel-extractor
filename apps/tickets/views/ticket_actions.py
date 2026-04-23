@@ -20,7 +20,7 @@ def ticket_cambiar_estado(request, id):
             
             ticket = get_object_or_404(Ticket, id=id)
             
-            estados_validos = ['ABIERTO', 'GENERADO', 'EN_PROCESO', 'COMPLETADO', 'CANCELADO']
+            estados_validos = ['GENERADO', 'EN_PROCESO', 'COMPLETADO', 'CANCELADO', 'NO EXITOSO']
             if nuevo_estado not in estados_validos:
                 return JsonResponse({'success': False, 'error': 'Estado no válido'})
             
