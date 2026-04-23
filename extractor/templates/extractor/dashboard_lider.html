@@ -134,6 +134,15 @@
         background: #f8d7da;
         color: #721c24;
     }
+
+        .badge-NO_EXITOSO {
+        background: #6c757d;
+        color: white;
+    }
+    .badge-SIN_TICKET {
+        background: #e83e8c;
+        color: white;
+    }
     
     .servicio-list {
         list-style: none;
@@ -500,6 +509,11 @@
         <div class="stat-number">{{ usuarios_activos }}</div>
         <div class="stat-label">👥 Usuarios activos</div>
     </div>
+    <!-- NUEVA TARJETA -->
+    <div class="stat-card" style="background: linear-gradient(135deg, #e83e8c, #c82333);">
+        <div class="stat-number">{{ total_sin_ticket|default:0 }}</div>
+        <div class="stat-label">📋 Solicitudes sin ticket</div>
+    </div>
 </div>
 
 <!-- Dos gráficos de pastel: General y por período -->
@@ -686,6 +700,7 @@
                             <th>🟠 En Proceso</th>
                             <th>✅ Completados</th>
                             <th>❌ Cancelados</th>
+                            <th>⚠️ No Exitosos</th>
                             <th>Tasa Éxito</th>
                         </tr>
                     </thead>
@@ -704,6 +719,7 @@
                             <td class="number-cell" style="color:#0c5460;">{{ usuario.en_proceso }}</td>
                             <td class="number-cell" style="color:#155724;">{{ usuario.completados }}</td>
                             <td class="number-cell" style="color:#721c24;">{{ usuario.cancelados }}</td>
+                            <td class="number-cell" style="color:#6c757d;">{{ usuario.no_exitosos|default:0 }}</td>  <!-- NUEVA CELDA -->
                             <td class="percentage-cell">
                                 {% if usuario.total_tickets > 0 %}
                                     {{ usuario.tasa_exito|floatformat:1 }}%
@@ -801,4 +817,23 @@
     <!-- Producción: usas el ofuscado -->
     <script src="{% static 'js/dashboard.min.js' %}"></script>
 {% endif %}
+
+<script>
+    // Guardar indicador en sessionStorage cuando se carga el dashboard
+    sessionStorage.setItem('from_dashboard', 'true');
+    
+    // Escuchar clics en los gráficos
+    document.addEventListener('DOMContentLoaded', function() {
+        // Para los canvas de los gráficos
+        const canvases = document.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+            canvas.addEventListener('click', function() {
+                sessionStorage.setItem('from_dashboard', 'true');
+                console.log('Click en gráfico - guardado from_dashboard=true');
+            });
+        });
+        
+        console.log('Dashboard cargado - from_dashboard=true guardado');
+    });
+</script>
 {% endblock %}

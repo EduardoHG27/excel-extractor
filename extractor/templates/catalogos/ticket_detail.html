@@ -663,7 +663,7 @@ Saludos.
         </div>      
     </div>      
     
- {% if ticket.estado == 'COMPLETADO' %}
+{% if ticket.estado == 'COMPLETADO' or ticket.estado == 'NO EXITOSO' %}
 <div class="row g-4 mb-4">
     <div class="col-12">
         <div class="modern-card">

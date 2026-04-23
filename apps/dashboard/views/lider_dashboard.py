@@ -11,7 +11,7 @@ from collections import defaultdict
 import calendar
 from django.db import connections
 from django.db.utils import ProgrammingError
-from extractor.models import Ticket, Cliente, Proyecto, Usuario
+from extractor.models import Ticket, Cliente, Proyecto, Usuario, SolicitudPruebas
 from django.conf import settings
 
 
@@ -61,30 +61,39 @@ def dashboard_lider(request):
     # ========== OBTENER TODOS LOS TICKETS ==========
     tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio', 'asignado_a', 'creado_por')
     
+    # ========== OBTENER SOLICITUDES SIN TICKET ==========
+    solicitudes_sin_ticket = SolicitudPruebas.objects.filter(ticket__isnull=True).select_related('cliente', 'proyecto')
+    
     # ========== APLICAR FILTROS MANUALMENTE ==========
     tickets_list = list(tickets)
     
     # Filtro por cliente
     if cliente_id and cliente_id != '':
         tickets_list = [t for t in tickets_list if t.cliente_id == int(cliente_id)]
+        solicitudes_sin_ticket = solicitudes_sin_ticket.filter(cliente_id=int(cliente_id))
     
     # Filtro por proyecto
     if proyecto_id and proyecto_id != '':
         tickets_list = [t for t in tickets_list if t.proyecto_id == int(proyecto_id)]
+        solicitudes_sin_ticket = solicitudes_sin_ticket.filter(proyecto_id=int(proyecto_id))
     
     # Filtro por estado
     if estado and estado != '':
         tickets_list = [t for t in tickets_list if t.estado == estado]
     
     # Filtro por fecha desde
+    fecha_desde_obj = None
+    fecha_hasta_obj = None
     if fecha_desde:
         fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
         tickets_list = [t for t in tickets_list if t.fecha_creacion and t.fecha_creacion.date() >= fecha_desde_obj]
+        solicitudes_sin_ticket = solicitudes_sin_ticket.filter(fecha_solicitud__gte=fecha_desde_obj)
     
     # Filtro por fecha hasta
     if fecha_hasta:
         fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
         tickets_list = [t for t in tickets_list if t.fecha_creacion and t.fecha_creacion.date() <= fecha_hasta_obj]
+        solicitudes_sin_ticket = solicitudes_sin_ticket.filter(fecha_solicitud__lte=fecha_hasta_obj)
     
     ahora = timezone.now()
     
@@ -94,6 +103,16 @@ def dashboard_lider(request):
     # ========== FILTRAR TICKETS POR PERÍODO ==========
     tickets_generales = tickets_list  # Todos los tickets (con filtros aplicados)
     tickets_periodo = [t for t in tickets_list if t.fecha_creacion and fechas_periodo['fecha_inicio'] <= t.fecha_creacion.date() <= fechas_periodo['fecha_fin']]
+    
+    # ========== FILTRAR SOLICITUDES SIN TICKET POR PERÍODO ==========
+    solicitudes_sin_ticket_generales = solicitudes_sin_ticket
+    solicitudes_sin_ticket_periodo = solicitudes_sin_ticket.filter(
+        fecha_solicitud__gte=fechas_periodo['fecha_inicio'],
+        fecha_solicitud__lte=fechas_periodo['fecha_fin']
+    )
+    
+    total_sin_ticket_general = solicitudes_sin_ticket_generales.count()
+    total_sin_ticket_periodo = solicitudes_sin_ticket_periodo.count()
     
     # ========== MÉTRICAS PRINCIPALES ==========
     total_tickets = len(tickets_generales)
@@ -107,16 +126,38 @@ def dashboard_lider(request):
     
     usuarios_activos = Usuario.objects.filter(is_active=True).count()
     
-    # ========== GRÁFICO 1: TICKETS POR ESTADO (GENERAL) ==========
+    # ========== GRÁFICO 1: TICKETS POR ESTADO (GENERAL) CON INCLUSIÓN DE SIN TICKET Y NO EXITOSO ==========
+    # Definir todos los estados posibles incluyendo NO EXITOSO y SIN_TICKET
+    ESTADOS_COMPLETOS = [
+        ('GENERADO', 'Generado'),
+        ('EN_PROCESO', 'En Proceso'),
+        ('COMPLETADO', 'Completado'),
+        ('CANCELADO', 'Cancelado'),
+        ('NO EXITOSO', 'No Exitoso'),
+    ]
+    
     conteo_estados_general = defaultdict(int)
     estado_codigos = {}  # Para mapear nombre a código
     
     for ticket in tickets_generales:
-        for codigo, nombre in Ticket.ESTADOS_TICKET:
+        for codigo, nombre in ESTADOS_COMPLETOS:
             if ticket.estado == codigo:
                 conteo_estados_general[nombre] += 1
                 estado_codigos[nombre] = codigo
                 break
+        # Si el estado no está en ESTADOS_COMPLETOS (ej: ABIERTO antiguo), mapear a GENERADO o mantener
+        if ticket.estado not in [c[0] for c in ESTADOS_COMPLETOS]:
+            if ticket.estado == 'ABIERTO':
+                conteo_estados_general['Generado'] += 1
+                estado_codigos['Generado'] = 'GENERADO'
+            else:
+                conteo_estados_general[ticket.estado] += 1
+                estado_codigos[ticket.estado] = ticket.estado
+    
+    # Agregar "Sin Ticket" al gráfico general
+    if total_sin_ticket_general > 0:
+        conteo_estados_general['Sin Ticket'] = total_sin_ticket_general
+        estado_codigos['Sin Ticket'] = 'SIN_TICKET'
     
     tickets_por_estado_general = [{'estado': k, 'total': v, 'codigo': estado_codigos.get(k, k)} 
                                    for k, v in conteo_estados_general.items()]
@@ -126,11 +167,23 @@ def dashboard_lider(request):
     estado_codigos_periodo = {}
     
     for ticket in tickets_periodo:
-        for codigo, nombre in Ticket.ESTADOS_TICKET:
+        for codigo, nombre in ESTADOS_COMPLETOS:
             if ticket.estado == codigo:
                 conteo_estados_periodo[nombre] += 1
                 estado_codigos_periodo[nombre] = codigo
                 break
+        if ticket.estado not in [c[0] for c in ESTADOS_COMPLETOS]:
+            if ticket.estado == 'ABIERTO':
+                conteo_estados_periodo['Generado'] += 1
+                estado_codigos_periodo['Generado'] = 'GENERADO'
+            else:
+                conteo_estados_periodo[ticket.estado] += 1
+                estado_codigos_periodo[ticket.estado] = ticket.estado
+    
+    # Agregar "Sin Ticket" al gráfico del período
+    if total_sin_ticket_periodo > 0:
+        conteo_estados_periodo['Sin Ticket'] = total_sin_ticket_periodo
+        estado_codigos_periodo['Sin Ticket'] = 'SIN_TICKET'
     
     tickets_por_estado_periodo = [{'estado': k, 'total': v, 'codigo': estado_codigos_periodo.get(k, k)} 
                                    for k, v in conteo_estados_periodo.items()]
@@ -140,6 +193,11 @@ def dashboard_lider(request):
     for ticket in tickets_generales:
         if ticket.cliente and ticket.cliente.nombre:
             conteo_clientes[ticket.cliente.nombre] += 1
+    
+    # Agregar solicitudes sin ticket al conteo de clientes
+    for solicitud in solicitudes_sin_ticket_generales:
+        if solicitud.cliente and solicitud.cliente.nombre:
+            conteo_clientes[solicitud.cliente.nombre] += 1
     
     tickets_por_cliente = [{'cliente__nombre': k, 'total': v} for k, v in sorted(conteo_clientes.items(), key=lambda x: x[1], reverse=True)[:10]]
     
@@ -151,6 +209,16 @@ def dashboard_lider(request):
         if ticket.fecha_creacion and ticket.fecha_creacion >= fecha_limite:
             fecha_str = ticket.fecha_creacion.date().isoformat()
             conteo_por_dia[fecha_str] += 1
+    
+    # Agregar solicitudes sin ticket a la tendencia
+    for solicitud in solicitudes_sin_ticket_generales:
+        if solicitud.fecha_solicitud:
+            fecha_dt = datetime.combine(solicitud.fecha_solicitud, datetime.min.time())
+            if hasattr(fecha_dt, 'replace'):
+                fecha_dt = timezone.make_aware(fecha_dt) if settings.USE_TZ else fecha_dt
+            if fecha_dt >= fecha_limite:
+                fecha_str = solicitud.fecha_solicitud.isoformat()
+                conteo_por_dia[fecha_str] += 1
     
     tickets_por_dia = [{'dia_str': k, 'total': v} for k, v in sorted(conteo_por_dia.items())]
     
@@ -210,10 +278,10 @@ def dashboard_lider(request):
     # Obtener todos los usuarios activos
     usuarios_activos_qs = Usuario.objects.filter(is_active=True)
     
-    for usuario in usuarios_activos_qs:
+    for usuario_obj in usuarios_activos_qs:
         # Tickets del usuario (asignados o creados por él)
         tickets_usuario = Ticket.objects.filter(
-            Q(asignado_a=usuario) | Q(creado_por=usuario)
+            Q(asignado_a=usuario_obj) | Q(creado_por=usuario_obj)
         )
         
         # Aplicar los mismos filtros de cliente, proyecto, etc. a los tickets del usuario
@@ -228,11 +296,11 @@ def dashboard_lider(request):
         if estado and estado != '':
             tickets_usuario_list = [t for t in tickets_usuario_list if t.estado == estado]
         
-        if fecha_desde:
-            tickets_usuario_list = [t for t in tickets_usuario_list if t.fecha_creacion and t.fecha_creacion.date() >= fecha_desde_obj] if 'fecha_desde_obj' in locals() else tickets_usuario_list
+        if fecha_desde and fecha_desde_obj:
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.fecha_creacion and t.fecha_creacion.date() >= fecha_desde_obj]
         
-        if fecha_hasta:
-            tickets_usuario_list = [t for t in tickets_usuario_list if t.fecha_creacion and t.fecha_creacion.date() <= fecha_hasta_obj] if 'fecha_hasta_obj' in locals() else tickets_usuario_list
+        if fecha_hasta and fecha_hasta_obj:
+            tickets_usuario_list = [t for t in tickets_usuario_list if t.fecha_creacion and t.fecha_creacion.date() <= fecha_hasta_obj]
         
         # Tickets por mes (usando los tickets filtrados)
         tickets_por_mes = defaultdict(int)
@@ -256,16 +324,17 @@ def dashboard_lider(request):
         
         # Verificar si el usuario es líder (ajusta según tu modelo)
         try:
-            es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
+            es_lider_usuario = getattr(usuario_obj, 'es_lider_pruebas', False) or usuario_obj.groups.filter(name='Lideres').exists()
         except ProgrammingError as e:
             if 'relation "extractor_usuario_groups" does not exist' in str(e):
-                es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.is_superuser
+                es_lider_usuario = getattr(usuario_obj, 'es_lider_pruebas', False) or usuario_obj.is_superuser
             else:
                 raise
+        
         resumen_usuarios.append({
-            'id': usuario.id,
-            'nombre_completo': usuario.get_full_name() or usuario.username,
-            'es_lider': es_lider,
+            'id': usuario_obj.id,
+            'nombre_completo': usuario_obj.get_full_name() or usuario_obj.username,
+            'es_lider': es_lider_usuario,
             'total_tickets': total_tickets_usuario,
             'tickets_por_mes': tickets_mes_list,
             'promedio_mensual': promedio
@@ -278,12 +347,12 @@ def dashboard_lider(request):
                 if mes_key not in top_usuarios_por_mes:
                     top_usuarios_por_mes[mes_key] = {}
                 
-                nombre_usuario = usuario.get_full_name() or usuario.username
+                nombre_usuario = usuario_obj.get_full_name() or usuario_obj.username
                 if nombre_usuario not in top_usuarios_por_mes[mes_key]:
                     top_usuarios_por_mes[mes_key][nombre_usuario] = {
                         'nombre': nombre_usuario,
                         'total': 0,
-                        'es_lider': es_lider
+                        'es_lider': es_lider_usuario
                     }
                 top_usuarios_por_mes[mes_key][nombre_usuario]['total'] += 1
     
@@ -297,15 +366,13 @@ def dashboard_lider(request):
     # Ordenar resumen de usuarios por total de tickets
     resumen_usuarios.sort(key=lambda x: x['total_tickets'], reverse=True)
     
-
-
-
+    # ========== RESUMEN DE ESTADOS POR USUARIO ==========
     resumen_estados_usuarios = []
-    
-    for usuario in usuarios_activos_qs:
+
+    for usuario_obj in usuarios_activos_qs:
         # Tickets del usuario (asignados o creados por él)
         tickets_usuario = Ticket.objects.filter(
-            Q(asignado_a=usuario) | Q(creado_por=usuario)
+            Q(asignado_a=usuario_obj) | Q(creado_por=usuario_obj)
         )
         
         # Aplicar filtros
@@ -317,43 +384,45 @@ def dashboard_lider(request):
         if proyecto_id and proyecto_id != '':
             tickets_usuario_list = [t for t in tickets_usuario_list if t.proyecto_id == int(proyecto_id)]
         
-        # Contar por estado
+        # Contar por estado (incluyendo NO EXITOSO)
         abiertos = len([t for t in tickets_usuario_list if t.estado in ['ABIERTO', 'GENERADO']])
         en_proceso = len([t for t in tickets_usuario_list if t.estado == 'EN_PROCESO'])
         completados = len([t for t in tickets_usuario_list if t.estado == 'COMPLETADO'])
         cancelados = len([t for t in tickets_usuario_list if t.estado == 'CANCELADO'])
+        no_exitosos = len([t for t in tickets_usuario_list if t.estado == 'NO EXITOSO'])  # <-- AGREGAR ESTA LÍNEA
         total = len(tickets_usuario_list)
         
-        # Tasa de éxito (completados / total de no cancelados)
-        tickets_evaluables = total - cancelados
+        # Tasa de éxito (completados / total de no cancelados y no no_exitosos)
+        tickets_evaluables = total - cancelados - no_exitosos
         tasa_exito = (completados / tickets_evaluables * 100) if tickets_evaluables > 0 else 0
         
         try:
-            es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.groups.filter(name='Lideres').exists()
+            es_lider_usuario = getattr(usuario_obj, 'es_lider_pruebas', False) or usuario_obj.groups.filter(name='Lideres').exists()
         except ProgrammingError as e:
             if 'relation "extractor_usuario_groups" does not exist' in str(e):
-                es_lider = getattr(usuario, 'es_lider_pruebas', False) or usuario.is_superuser
+                es_lider_usuario = getattr(usuario_obj, 'es_lider_pruebas', False) or usuario_obj.is_superuser
             else:
                 raise
-        # Determinar rol
-        rol = "Líder de Pruebas" if es_lider else "Tester"
+        
+        rol = "Líder de Pruebas" if es_lider_usuario else "Tester"
         
         resumen_estados_usuarios.append({
-            'id': usuario.id,
-            'nombre_completo': usuario.get_full_name() or usuario.username,
-            'es_lider': es_lider,
+            'id': usuario_obj.id,
+            'nombre_completo': usuario_obj.get_full_name() or usuario_obj.username,
+            'es_lider': es_lider_usuario,
             'rol': rol,
             'total_tickets': total,
             'abiertos': abiertos,
             'en_proceso': en_proceso,
             'completados': completados,
             'cancelados': cancelados,
+            'no_exitosos': no_exitosos,  # <-- AGREGAR ESTA LÍNEA
             'tasa_exito': tasa_exito
         })
-    
+
     # Ordenar por total de tickets
     resumen_estados_usuarios.sort(key=lambda x: x['total_tickets'], reverse=True)
-
+    
     # ========== DATOS PARA GRÁFICOS (JSON) ==========
     chart_data = {
         # Gráfico general
@@ -368,12 +437,14 @@ def dashboard_lider(request):
         # Tendencia
         'tendencias_labels': json.dumps([item['dia_str'] for item in tickets_por_dia]),
         'tendencias_data': json.dumps([item['total'] for item in tickets_por_dia]),
+        # Fechas del período
+        'periodo_fecha_desde': fechas_periodo['fecha_inicio'].strftime('%Y-%m-%d'),
+        'periodo_fecha_hasta': fechas_periodo['fecha_fin'].strftime('%Y-%m-%d'),
     }
     
     context = {
         # Métricas
         'debug': settings.DEBUG,
-
         'total_tickets': total_tickets,
         'tickets_abiertos': tickets_abiertos,
         'tickets_proceso': tickets_proceso,
@@ -381,6 +452,7 @@ def dashboard_lider(request):
         'tickets_completados_periodo': tickets_completados_periodo,
         'tickets_sin_asignar': tickets_sin_asignar,
         'usuarios_activos': usuarios_activos,
+        'total_sin_ticket': total_sin_ticket_general,
         
         # Información del período
         'periodo_actual': periodo,
@@ -400,8 +472,9 @@ def dashboard_lider(request):
         'resumen_usuarios': resumen_usuarios,
         'top_usuarios_por_mes': top_usuarios_por_mes_ordenado,
         
-         # NUEVO: Resumen de estados por usuario
+        # NUEVO: Resumen de estados por usuario
         'resumen_estados_usuarios': resumen_estados_usuarios,
+        
         # Datos para gráficos (JSON)
         'chart_data': chart_data,
         

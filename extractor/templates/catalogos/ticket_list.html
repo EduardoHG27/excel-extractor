@@ -90,8 +90,9 @@
                     </ol>
                 </nav>
             </div>
-            <a href="{% url 'extractor:upload_excel' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Volver
+            <a href="#" id="backButton" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> 
+                        <span id="backButtonText">Volver</span>
             </a>
         </div>
 
@@ -709,6 +710,44 @@
         function copiarTicket(codigo) {
             navigator.clipboard.writeText(codigo);
         }
+
+
+          document.addEventListener('DOMContentLoaded', function() {
+        const backButton = document.getElementById('backButton');
+        const backButtonText = document.getElementById('backButtonText');
+        
+        // Verificar de múltiples formas si venimos del dashboard
+        // 1. Por parámetro en la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromDashboardParam = urlParams.get('from_dashboard') === 'true';
+        
+        // 2. Por sessionStorage
+        const fromDashboardStorage = sessionStorage.getItem('from_dashboard') === 'true';
+        
+        // 3. Por el referrer (de dónde venimos)
+        const referrer = document.referrer;
+        const fromDashboardReferrer = referrer.includes('dashboard-lider');
+        
+        const fromDashboard = fromDashboardParam || fromDashboardStorage || fromDashboardReferrer;
+        
+        console.log('fromDashboard detection:', {
+            param: fromDashboardParam,
+            storage: fromDashboardStorage,
+            referrer: fromDashboardReferrer,
+            result: fromDashboard
+        });
+        
+        if (fromDashboard) {
+            backButton.href = "{% url 'extractor:dashboard_lider' %}";
+            backButtonText.textContent = 'Volver al Dashboard';
+            // Limpiar sessionStorage
+            sessionStorage.removeItem('from_dashboard');
+        } else {
+            backButton.href = "{% url 'extractor:upload_excel' %}";
+            backButtonText.textContent = 'Volver';
+        }
+    });
+
     </script>
 </body>
 

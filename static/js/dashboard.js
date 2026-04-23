@@ -1,20 +1,66 @@
-// extractor/static/js/dashboard.min.js
+// extractor/static/js/dashboard.js
 
 (function() {
     'use strict';
 
-    // Función para construir URL de filtro hacia ticket_list (sin templates de Django)
+    // Mapa de colores FIJOS por estado (NUNCA cambian sin importar el orden)
+    const COLOR_MAP = {
+        'generado': '#17a2b8',      // Azul turquesa
+        'en proceso': '#ffc107',    // Amarillo
+        'completado': '#28a745',    // Verde
+        'cancelado': '#dc3545',     // Rojo
+        'no exitoso': '#6c757d',    // Gris
+        'sin ticket': '#e83e8c'     // Rosado
+    };
+
+    // Orden fijo de visualización en los gráficos
+    const ORDEN_FIJO = ['Generado', 'En Proceso', 'Completado', 'Cancelado', 'No Exitoso', 'Sin Ticket'];
+
+    // Función para obtener color según el estado (consistente)
+    function getEstadoColor(estadoLabel) {
+        const estadoLower = estadoLabel.toLowerCase();
+        return COLOR_MAP[estadoLower] || '#17a2b8';
+    }
+
+    // Función para reordenar datos según orden fijo
+    function reordenarDatos(labels, data) {
+        const resultado = {
+            labels: [],
+            data: [],
+            colors: []
+        };
+        
+        // Primero agregar en orden fijo
+        ORDEN_FIJO.forEach(estadoFijo => {
+            const idx = labels.findIndex(l => l.toLowerCase() === estadoFijo.toLowerCase());
+            if (idx !== -1 && data[idx] > 0) {
+                resultado.labels.push(labels[idx]);
+                resultado.data.push(data[idx]);
+                resultado.colors.push(getEstadoColor(estadoFijo));
+            }
+        });
+        
+        // Luego agregar estados que no están en el orden fijo
+        labels.forEach((label, idx) => {
+            if (!ORDEN_FIJO.some(estado => estado.toLowerCase() === label.toLowerCase()) && data[idx] > 0) {
+                resultado.labels.push(label);
+                resultado.data.push(data[idx]);
+                resultado.colors.push(getEstadoColor(label));
+            }
+        });
+        
+        return resultado;
+    }
+
+    // Función para construir URL de filtro hacia ticket_list
     function buildFilterUrl(estado, tipoGrafico, chartData) {
-        // Obtener parámetros actuales de la URL (filtros de cliente, proyecto, etc.)
         const urlParams = new URLSearchParams(window.location.search);
         const params = new URLSearchParams();
         
-        // Agregar el estado seleccionado
         params.append('estado', estado);
+        params.append('from_dashboard', 'true');
         
-        // 🔥 IMPORTANTE: Para el gráfico de período, usar las fechas del período desde chartData
         if (tipoGrafico === 'periodo' && chartData) {
-            // Usar las fechas del período que vienen del backend
             if (chartData.periodo_fecha_desde) {
                 params.append('fecha_desde', chartData.periodo_fecha_desde);
             }
@@ -22,51 +68,86 @@
                 params.append('fecha_hasta', chartData.periodo_fecha_hasta);
             }
         } else {
-            // Para gráfico general, usar las fechas de los filtros manuales (si existen)
             const fechaDesde = urlParams.get('fecha_desde') || '';
             const fechaHasta = urlParams.get('fecha_hasta') || '';
             if (fechaDesde) params.append('fecha_desde', fechaDesde);
             if (fechaHasta) params.append('fecha_hasta', fechaHasta);
         }
         
-        // Agregar filtros de cliente y proyecto (si están seleccionados)
         const clienteSelected = urlParams.get('cliente') || '';
         const proyectoSelected = urlParams.get('proyecto') || '';
         if (clienteSelected) params.append('cliente', clienteSelected);
         if (proyectoSelected) params.append('proyecto', proyectoSelected);
         
-        // Obtener la URL base del ticket_list desde un atributo de datos
         const ticketListUrl = document.querySelector('[data-ticket-list-url]')?.getAttribute('data-ticket-list-url') || '/tickets/';
         
         return ticketListUrl + '?' + params.toString();
     }
 
-    // Función para inicializar todos los gráficos
+    // Función para obtener código de estado
+    function getEstadoCode(estadoLabel) {
+        const label = estadoLabel.toLowerCase();
+        const estadoMap = {
+            'sin ticket': 'SIN_TICKET',
+            'no exitoso': 'NO EXITOSO',
+            'generado': 'GENERADO',
+            'en proceso': 'EN_PROCESO',
+            'completado': 'COMPLETADO',
+            'cancelado': 'CANCELADO'
+        };
+        return estadoMap[label] || estadoLabel.toUpperCase();
+    }
+
+    // Función para manejar clic en gráficos
+    function handlePieChartClick(activeElements, chartData, tipoGrafico, labels) {
+        if (activeElements.length > 0) {
+            const index = activeElements[0].index;
+            const estadoLabel = labels[index];
+            
+            if (estadoLabel === 'Sin Ticket') {
+                const solicitudListUrl = '/solicitudes/';
+                const params = new URLSearchParams();
+                params.append('sin_ticket', 'si');
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const clienteSelected = urlParams.get('cliente') || '';
+                const proyectoSelected = urlParams.get('proyecto') || '';
+                if (clienteSelected) params.append('cliente', clienteSelected);
+                if (proyectoSelected) params.append('proyecto', proyectoSelected);
+                
+                if (tipoGrafico === 'periodo' && chartData) {
+                    if (chartData.periodo_fecha_desde) params.append('fecha_desde', chartData.periodo_fecha_desde);
+                    if (chartData.periodo_fecha_hasta) params.append('fecha_hasta', chartData.periodo_fecha_hasta);
+                }
+                
+                window.location.href = solicitudListUrl + '?' + params.toString();
+                return;
+            }
+            
+            const estadoCode = getEstadoCode(estadoLabel);
+            const url = buildFilterUrl(estadoCode, tipoGrafico, chartData);
+            window.location.href = url;
+        }
+    }
+
+    // Función para inicializar gráficos
     function initCharts(chartData) {
-        // Verificar que Chart esté disponible
         if (typeof Chart === 'undefined') {
             console.error('Chart.js no está cargado');
             return;
         }
 
-        // Registrar el plugin de datalabels si está disponible
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
         }
 
-        // Configuración común para gráficos de pastel
         const pieOptions = {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        font: { size: 11 },
-                        padding: 10,
-                        usePointStyle: true,
-                        boxWidth: 10
-                    }
+                    labels: { font: { size: 11 }, padding: 10, usePointStyle: true, boxWidth: 10 }
                 },
                 tooltip: {
                     callbacks: {
@@ -75,28 +156,21 @@
                             const value = context.raw || 0;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${label}: ${value} tickets (${percentage}%)`;
+                            return `${label}: ${value} (${percentage}%)`;
                         }
                     }
                 }
             }
         };
 
-        // Agregar datalabels solo si el plugin está disponible
         if (typeof ChartDataLabels !== 'undefined') {
             pieOptions.plugins.datalabels = {
                 color: 'white',
-                font: {
-                    weight: 'bold',
-                    size: 14
-                },
+                font: { weight: 'bold', size: 14 },
                 formatter: (value, context) => {
                     const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                    if (percentage > 5 && value > 0) {
-                        return `${percentage}%`;
-                    }
-                    return '';
+                    return percentage > 5 && value > 0 ? `${percentage}%` : '';
                 },
                 backgroundColor: 'rgba(0,0,0,0.6)',
                 borderRadius: 4,
@@ -107,90 +181,57 @@
             };
         }
 
-        // Gráfico de Estados General (Pastel)
+        // Gráfico General
         const ctxGeneral = document.getElementById('estadosGeneralChart');
-        if (ctxGeneral && chartData.estados_general_labels && chartData.estados_general_data && chartData.estados_general_data.length > 0) {
-            new Chart(ctxGeneral.getContext('2d'), {
-                type: 'pie',
-                data: {
-                    labels: chartData.estados_general_labels,
-                    datasets: [{
-                        data: chartData.estados_general_data,
-                        backgroundColor: ['#17a2b8', '#ffc107', '#28a745', '#dc3545', '#6c757d'],
-                        borderWidth: 2,
-                        borderColor: 'white'
-                    }]
-                },
-                options: {
-                    ...pieOptions,
-                    onClick: (event, activeElements) => {
-                        if (activeElements.length > 0) {
-                            const index = activeElements[0].index;
-                            let estadoLabel = chartData.estados_general_labels[index];
-                            
-                            let estadoCode = '';
-                            if (estadoLabel === 'GENERADO' || estadoLabel === 'Generado') estadoCode = 'GENERADO';
-                            else if (estadoLabel === 'EN_PROCESO' || estadoLabel === 'En Proceso') estadoCode = 'EN_PROCESO';
-                            else if (estadoLabel === 'COMPLETADO' || estadoLabel === 'Completado') estadoCode = 'COMPLETADO';
-                            else if (estadoLabel === 'CANCELADO' || estadoLabel === 'Cancelado') estadoCode = 'CANCELADO';
-                            else estadoCode = estadoLabel.toUpperCase();
-                            
-                            // Pasar chartData a la función
-                            const url = buildFilterUrl(estadoCode, 'general', chartData);
-                            window.location.href = url;
-                        }
+        if (ctxGeneral && chartData.estados_general_labels) {
+            const labelsRaw = JSON.parse(chartData.estados_general_labels);
+            const dataRaw = JSON.parse(chartData.estados_general_data);
+            const { labels, data, colors } = reordenarDatos(labelsRaw, dataRaw);
+            
+            if (labels.length > 0) {
+                new Chart(ctxGeneral.getContext('2d'), {
+                    type: 'pie',
+                    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: 'white' }] },
+                    options: {
+                        ...pieOptions,
+                        onClick: (event, activeElements) => handlePieChartClick(activeElements, chartData, 'general', labels)
                     }
-                }
-            });
+                });
+            }
         }
 
-        // Gráfico de Estados por Período (Pastel)
+        // Gráfico Período
         const ctxPeriodo = document.getElementById('estadosPeriodoChart');
-        if (ctxPeriodo && chartData.estados_periodo_labels && chartData.estados_periodo_data && chartData.estados_periodo_data.length > 0) {
-            new Chart(ctxPeriodo.getContext('2d'), {
-                type: 'pie',
-                data: {
-                    labels: chartData.estados_periodo_labels,
-                    datasets: [{
-                        data: chartData.estados_periodo_data,
-                        backgroundColor: ['#17a2b8', '#ffc107', '#28a745', '#dc3545', '#6c757d'],
-                        borderWidth: 2,
-                        borderColor: 'white'
-                    }]
-                },
-                options: {
-                    ...pieOptions,
-                    onClick: (event, activeElements) => {
-                        if (activeElements.length > 0) {
-                            const index = activeElements[0].index;
-                            let estadoLabel = chartData.estados_periodo_labels[index];
-                            
-                            let estadoCode = '';
-                            if (estadoLabel === 'GENERADO' || estadoLabel === 'Generado') estadoCode = 'GENERADO';
-                            else if (estadoLabel === 'EN_PROCESO' || estadoLabel === 'En Proceso') estadoCode = 'EN_PROCESO';
-                            else if (estadoLabel === 'COMPLETADO' || estadoLabel === 'Completado') estadoCode = 'COMPLETADO';
-                            else if (estadoLabel === 'CANCELADO' || estadoLabel === 'Cancelado') estadoCode = 'CANCELADO';
-                            else estadoCode = estadoLabel.toUpperCase();
-                            
-                            // 🔥 Pasar 'periodo' como tipo y chartData con las fechas del período
-                            const url = buildFilterUrl(estadoCode, 'periodo', chartData);
-                            window.location.href = url;
-                        }
+        if (ctxPeriodo && chartData.estados_periodo_labels) {
+            const labelsRaw = JSON.parse(chartData.estados_periodo_labels);
+            const dataRaw = JSON.parse(chartData.estados_periodo_data);
+            const { labels, data, colors } = reordenarDatos(labelsRaw, dataRaw);
+            
+            if (labels.length > 0) {
+                new Chart(ctxPeriodo.getContext('2d'), {
+                    type: 'pie',
+                    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: 'white' }] },
+                    options: {
+                        ...pieOptions,
+                        onClick: (event, activeElements) => handlePieChartClick(activeElements, chartData, 'periodo', labels)
                     }
-                }
-            });
+                });
+            }
         }
 
-        // Gráfico de Clientes (Barras)
+        // Gráfico de Clientes
         const ctxClientes = document.getElementById('clientesChart');
-        if (ctxClientes && chartData.clientes_labels && chartData.clientes_data && chartData.clientes_data.length > 0) {
+        if (ctxClientes && chartData.clientes_labels) {
+            const labels = JSON.parse(chartData.clientes_labels);
+            const data = JSON.parse(chartData.clientes_data);
+            
             new Chart(ctxClientes.getContext('2d'), {
                 type: 'bar',
                 data: {
-                    labels: chartData.clientes_labels,
+                    labels,
                     datasets: [{
                         label: 'Número de Tickets',
-                        data: chartData.clientes_data,
+                        data,
                         backgroundColor: 'rgba(52, 152, 219, 0.7)',
                         borderColor: '#3498db',
                         borderWidth: 1
@@ -199,41 +240,28 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.raw} tickets`;
-                                }
-                            }
-                        }
-                    },
+                    plugins: { legend: { position: 'top' } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1, precision: 0 },
-                            title: { display: true, text: 'Cantidad de Tickets' }
-                        },
-                        x: {
-                            ticks: { rotation: -45, autoSkip: true, maxRotation: 45 },
-                            title: { display: true, text: 'Clientes' }
-                        }
+                        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, title: { display: true, text: 'Cantidad de Tickets' } },
+                        x: { ticks: { rotation: -45, autoSkip: true }, title: { display: true, text: 'Clientes' } }
                     }
                 }
             });
         }
 
-        // Gráfico de Tendencia (Líneas)
+        // Gráfico de Tendencia
         const ctxTendencias = document.getElementById('tendenciasChart');
-        if (ctxTendencias && chartData.tendencias_labels && chartData.tendencias_data && chartData.tendencias_data.length > 0) {
+        if (ctxTendencias && chartData.tendencias_labels) {
+            const labels = JSON.parse(chartData.tendencias_labels);
+            const data = JSON.parse(chartData.tendencias_data);
+            
             new Chart(ctxTendencias.getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: chartData.tendencias_labels,
+                    labels,
                     datasets: [{
                         label: 'Tickets Creados',
-                        data: chartData.tendencias_data,
+                        data,
                         borderColor: '#3498db',
                         backgroundColor: 'rgba(52, 152, 219, 0.1)',
                         fill: true,
@@ -247,35 +275,18 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.raw} tickets`;
-                                }
-                            }
-                        }
-                    },
+                    plugins: { legend: { position: 'top' } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1, precision: 0 },
-                            title: { display: true, text: 'Cantidad de Tickets' }
-                        },
-                        x: {
-                            title: { display: true, text: 'Fecha' },
-                            ticks: { rotation: -30, autoSkip: true }
-                        }
+                        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, title: { display: true, text: 'Cantidad de Tickets' } },
+                        x: { title: { display: true, text: 'Fecha' }, ticks: { rotation: -30, autoSkip: true } }
                     }
                 }
             });
         }
         
-        console.log('Dashboard cargado - Gráficos inicializados correctamente');
+        console.log('Dashboard cargado - Gráficos con colores consistentes');
     }
 
-    // Función para cargar los datos del gráfico
     function loadChartData() {
         const chartDataElement = document.getElementById('chart-data');
         if (chartDataElement) {
@@ -288,7 +299,6 @@
         }
     }
 
-    // Esperar a que Chart.js esté cargado
     function waitForChart() {
         if (typeof Chart !== 'undefined') {
             loadChartData();
@@ -297,14 +307,11 @@
         }
     }
 
-    // Exponer funciones globalmente para los onclick de HTML
     window.toggleCard = function(headerElement) {
         const card = headerElement.closest('.data-card');
         if (!card) return;
-        
         const body = card.querySelector('.data-card-body');
         const icon = headerElement.querySelector('.toggle-icon');
-        
         if (body) {
             if (body.classList.contains('collapsed')) {
                 body.classList.remove('collapsed');
@@ -319,30 +326,15 @@
     window.toggleUsuarioDetalle = function(headerElement) {
         const usuarioCard = headerElement.closest('.usuario-card');
         if (!usuarioCard) return;
-        
         const detalle = usuarioCard.querySelector('.usuario-detalle');
-        
         if (detalle) {
-            if (detalle.classList.contains('collapsed')) {
-                detalle.classList.remove('collapsed');
-            } else {
-                detalle.classList.add('collapsed');
-            }
+            detalle.classList.toggle('collapsed');
         }
     };
 
-    // Inicializar cuando el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar todas las tarjetas como expandidas
-        document.querySelectorAll('.data-card-body').forEach(body => {
-            body.classList.remove('collapsed');
-        });
-        
-        document.querySelectorAll('.usuario-detalle').forEach(detalle => {
-            detalle.classList.remove('collapsed');
-        });
-        
-        // Iniciar carga de gráficos
+        document.querySelectorAll('.data-card-body').forEach(body => body.classList.remove('collapsed'));
+        document.querySelectorAll('.usuario-detalle').forEach(detalle => detalle.classList.remove('collapsed'));
         waitForChart();
     });
 
