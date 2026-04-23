@@ -809,15 +809,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
-{% load static %}
-{% if debug %}
-    <!-- Desarrollo: usas el original para debugging fácil -->
-    <script src="{% static 'js/dashboard.js' %}"></script>
-{% else %}
-    <!-- Producción: usas el ofuscado -->
-    <script src="{% static 'js/dashboard.min.js' %}"></script>
-{% endif %}
 
+{% load static %}
+<script src="{% static 'js/dashboard.js' %}"></script>
 <script>
     // Guardar indicador en sessionStorage cuando se carga el dashboard
     sessionStorage.setItem('from_dashboard', 'true');

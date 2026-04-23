@@ -34,8 +34,8 @@ def subir_dictamen(request, id):
     """Subir archivo PDF del dictamen a Cloudinary"""
     ticket = get_object_or_404(Ticket, id=id)
     
-    if ticket.estado != 'COMPLETADO':
-        messages.error(request, 'Solo se pueden subir archivos cuando el ticket está COMPLETADO')
+    if ticket.estado not in ['COMPLETADO', 'NO EXITOSO']:
+        messages.error(request, 'Solo se pueden subir archivos cuando el ticket está COMPLETADO o NO EXITOSO')
         return redirect('extractor:ticket_detail', id=ticket.id)
     
     if request.method == 'POST' and request.FILES.get('dictamen_pdf'):
@@ -79,8 +79,8 @@ def subir_evidencia(request, id):
     """Subir archivo PDF de evidencia a Cloudinary"""
     ticket = get_object_or_404(Ticket, id=id)
     
-    if ticket.estado != 'COMPLETADO':
-        messages.error(request, 'Solo se pueden subir archivos cuando el ticket está COMPLETADO')
+    if ticket.estado not in ['COMPLETADO', 'NO EXITOSO']:
+        messages.error(request, 'Solo se pueden subir archivos cuando el ticket está COMPLETADO o NO EXITOSO')
         return redirect('extractor:ticket_detail', id=ticket.id)
     
     if request.method == 'POST' and request.FILES.get('evidencia_pdf'):
