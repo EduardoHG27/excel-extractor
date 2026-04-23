@@ -477,6 +477,7 @@ def dashboard_lider(request):
         
         # Datos para gráficos (JSON)
         'chart_data': chart_data,
+        'chart_data_json': json.dumps(chart_data), 
         
         # Filtros
         'clientes': Cliente.objects.filter(activo=True),

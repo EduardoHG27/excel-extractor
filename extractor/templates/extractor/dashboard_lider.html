@@ -398,19 +398,9 @@
 
 {% block content %}
 <div data-ticket-list-url="{% url 'extractor:ticket_list' %}" style="display: none;"></div>
+
 <script id="chart-data" type="application/json">
-    {
-        "estados_general_labels": {{ chart_data.estados_general_labels|safe }},
-        "estados_general_data": {{ chart_data.estados_general_data|safe }},
-        "estados_periodo_labels": {{ chart_data.estados_periodo_labels|safe }},
-        "estados_periodo_data": {{ chart_data.estados_periodo_data|safe }},
-        "clientes_labels": {{ chart_data.clientes_labels|safe }},
-        "clientes_data": {{ chart_data.clientes_data|safe }},
-        "tendencias_labels": {{ chart_data.tendencias_labels|safe }},
-        "tendencias_data": {{ chart_data.tendencias_data|safe }},
-        "periodo_fecha_desde": "{{ periodo_fecha_desde_str }}",
-        "periodo_fecha_hasta": "{{ periodo_fecha_hasta_str }}"
-    }
+    {{ chart_data_json|safe }}
 </script>
 
 <div class="page-header">
