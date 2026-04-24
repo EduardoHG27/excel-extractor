@@ -122,6 +122,8 @@ def crear_solicitud(request):
     Con protecciones anti-bots (Cooldown + Honeypot + Rate Limiting)
     """
     from django.conf import settings
+    from django.utils import timezone
+    from datetime import datetime
     
     # Cooldown de 5 minutos
     ultima_solicitud = request.session.get('ultima_solicitud_timestamp')
@@ -189,26 +191,82 @@ def crear_solicitud(request):
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
                 return redirect('extractor:crear_solicitud')
             
-            # Procesar fecha y hora correctamente
+            # ========== PROCESAMIENTO CORRECTO DE FECHA Y HORA ==========
+            # Obtener la hora local actual del servidor (México)
+            ahora_local = timezone.localtime(timezone.now())
+            
+            # Procesar fecha
             fecha_str = request.POST.get('fecha_solicitud')
-            hora_str = request.POST.get('hora_solicitud')
-            
-            from datetime import datetime
-            
             if fecha_str:
                 fecha_solicitud = datetime.strptime(fecha_str, '%Y-%m-%d').date()
             else:
-                fecha_solicitud = timezone.now().date()
+                fecha_solicitud = ahora_local.date()
+            
+            # Procesar hora - AHORA CON ZONA HORARIA CORRECTA
+            hora_str = request.POST.get('hora_solicitud')
+            hora_actual_local = ahora_local.time().replace(microsecond=0)
             
             if hora_str:
-                # Asegurar formato correcto
                 try:
-                    hora_solicitud = datetime.strptime(hora_str, '%H:%M').time()
-                except:
-                    hora_solicitud = datetime.strptime(hora_str, '%H:%M:%S').time()
+                    # Intentar parsear la hora del formulario
+                    hora_parseada = datetime.strptime(hora_str, '%H:%M').time()
+                    
+                    # Verificar si la hora es razonable (no difiere más de 5 minutos de la actual)
+                    hoy = datetime.today()
+                    hora_parseada_dt = datetime.combine(hoy, hora_parseada)
+                    hora_actual_dt = datetime.combine(hoy, hora_actual_local)
+                    diferencia_segundos = abs((hora_parseada_dt - hora_actual_dt).total_seconds())
+                    
+                    if diferencia_segundos > 300:  # Más de 5 minutos de diferencia
+                        # Usar hora actual local en lugar de la del formulario
+                        hora_solicitud = hora_actual_local
+                        print(f"⚠️ Hora del formulario ({hora_parseada}) reemplazada por hora local ({hora_actual_local})")
+                    else:
+                        hora_solicitud = hora_parseada
+                        
+                except Exception as e:
+                    # Si falla el parseo, usar hora actual local
+                    print(f"⚠️ Error parseando hora {hora_str}: {e}")
+                    hora_solicitud = hora_actual_local
             else:
-                hora_solicitud = timezone.now().time().replace(microsecond=0)
+                # Si no hay hora en el POST, usar la hora actual local
+                hora_solicitud = hora_actual_local
             
+            # Debug para verificar (opcional, puedes comentar en producción)
+            print(f"✅ [DEBUG] Fecha guardada: {fecha_solicitud}")
+            print(f"✅ [DEBUG] Hora guardada: {hora_solicitud}")
+            print(f"✅ [DEBUG] Hora local actual: {hora_actual_local}")
+            print(f"✅ [DEBUG] Hora UTC actual: {timezone.now().time()}")
+            
+            creado_por_value = request.POST.get('creado_por', '').strip()
+            email_contacto_value = request.POST.get('email_contacto', '').strip()
+
+            print("=" * 50)
+            print("POST data recibido:")
+            print(f"creado_por: {request.POST.get('creado_por', 'NO ENVIADO')}")
+            print(f"email_contacto: {request.POST.get('email_contacto', 'NO ENVIADO')}")
+            print("=" * 50)
+            
+
+            if not creado_por_value:
+                # Si el usuario está autenticado, usar su nombre como fallback
+                if request.user.is_authenticated:
+                    creado_por_value = request.user.get_full_name() or request.user.username
+                else:
+                    messages.error(request, 'Por favor, ingresa tu nombre como solicitante')
+                    return redirect('extractor:crear_solicitud')
+                
+            # Validar que el campo creado_por no esté vacío
+            if not creado_por_value:
+                messages.error(request, 'Por favor, ingresa tu nombre como solicitante')
+                return redirect('extractor:crear_solicitud')
+
+            # Si el usuario está autenticado pero quiere usar un nombre diferente,
+            # permitir que el campo editable tenga prioridad
+            if request.user.is_authenticated and not creado_por_value:
+                creado_por_value = request.user.get_full_name() or request.user.username
+            
+            # Crear la solicitud
             solicitud = SolicitudPruebas(
                 cliente=cliente,
                 proyecto=proyecto,
@@ -227,7 +285,8 @@ def crear_solicitud(request):
                 puntos_considerar=request.POST.get('puntos_considerar', ''),
                 pendientes=request.POST.get('pendientes', ''),
                 insumos=request.POST.get('insumos', ''),
-                creado_por=request.user.username if request.user.is_authenticated else 'Anónimo'
+                creado_por=creado_por_value,
+                email_contacto=email_contacto_value, 
             )
             
             # Generar nombre de archivo (con manejo de errores)
@@ -236,18 +295,19 @@ def crear_solicitud(request):
             except Exception as e:
                 print(f"⚠️ Error en generar_nombre_archivo: {e}")
                 # Usar nombre por defecto
-                solicitud.nombre_archivo = f"Solicitud_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                solicitud.nombre_archivo = f"Solicitud_{ahora_local.strftime('%Y%m%d_%H%M%S')}.xlsx"
             
             solicitud.save()
             
+            # Guardar timestamp de la última solicitud usando hora local
             request.session['ultima_solicitud_timestamp'] = timezone.now().timestamp()
             request.session['ultima_solicitud_id'] = solicitud.id
             
             context_exito = {
                 'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
                 'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
-                'today': timezone.now().date(),
-                'now': timezone.now(),
+                'today': ahora_local.date(),
+                'now': ahora_local,
                 'tiempo_restante': int(tiempo_restante),
                 'solicitud_creada': solicitud,
                 'mostrar_resumen': True,
@@ -275,11 +335,12 @@ def crear_solicitud(request):
         return redirect('extractor:crear_solicitud')
     
     # GET - Mostrar formulario
+    ahora_local = timezone.localtime(timezone.now())
     context = {
         'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
         'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
-        'today': timezone.now().date(),
-        'now': timezone.now(),
+        'today': ahora_local.date(),
+        'now': ahora_local,
         'tiempo_restante': int(tiempo_restante),
     }
     return render(request, 'extractor/crear_solicitud.html', context)

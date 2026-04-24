@@ -77,6 +77,8 @@
 </div>
 
 
+
+
 {% if tiempo_restante > 0 %}
 <div class="cooldown-timer" style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 10px; padding: 20px; margin-bottom: 30px; text-align: center;">
     <div style="font-size: 1.2rem; color: #856404; margin-bottom: 10px;">
@@ -102,7 +104,52 @@
 
 
 <form method="post" enctype="multipart/form-data" style="margin-top: 20px;" id="solicitudForm">
-    {% csrf_token %}
+{% csrf_token %} 
+
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
+    <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+        👤 Información del Solicitante
+    </h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Nombre del Solicitante (EDITABLE) -->
+        <div style="margin-bottom: 15px;">
+            <label for="creado_por" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Nombre del Solicitante: <span style="color: #e74c3c;">*</span>
+            </label>
+            <input type="text" name="creado_por" id="creado_por" 
+                   value="{% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% endif %}"
+                   required
+                   placeholder="Ej: Juan Pérez / Empresa ABC"
+                   style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+            <small style="color: #7f8c8d; font-size: 0.8rem; display: block; margin-top: 5px;">
+                📝 Ingresa tu nombre completo o el de la empresa/persona que realiza esta solicitud
+            </small>
+        </div>
+        
+        <!-- Email de Contacto -->
+        <div style="margin-bottom: 15px;">
+            <label for="email_contacto" style="display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50;">
+                Email de Contacto:
+            </label>
+            <input type="email" name="email_contacto" id="email_contacto" 
+                   placeholder="correo@ejemplo.com"
+                   style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+            <small style="color: #7f8c8d; font-size: 0.8rem; display: block; margin-top: 5px;">
+                📧 Opcional - Para contactarte si hay dudas sobre la solicitud
+            </small>
+        </div>
+    </div>
+    
+    <!-- Aviso para usuarios no autenticados -->
+    {% if not user.is_authenticated %}
+    <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 0.9rem;">
+        <strong>⚠️ Nota:</strong> Por favor escribe tu nombre completo para que podamos identificar quién realiza esta solicitud.
+    </div>
+    {% endif %}
+</div>
+
+    
     <div style="position: absolute; left: -9999px; top: -9999px; opacity: 0; pointer-events: none; height: 0; width: 0; overflow: hidden;" aria-hidden="true">
     <label for="web_contacto">Email (solo para bots):</label>
     <input type="text" name="web_contacto" id="web_contacto" value="" tabindex="-1" autocomplete="off">
@@ -341,7 +388,7 @@
         </div>
     </div>
 
-    <!-- Sección: Adjuntar Archivos -->
+    <!-- Sección: Adjuntar Archivos 
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📎 Archivos Adjuntos</h3>
         
@@ -356,7 +403,7 @@
             <input type="file" name="archivos_adjuntos" id="archivos_adjuntos" multiple style="display: none;" accept=".xlsx,.xls,.pdf,.doc,.docx">
             <div id="filesList" style="display: none; margin-top: 10px;"></div>
         </div>
-    </div>
+    </div> -->
 
     <!-- Botones de acción -->
     <div style="display: flex; gap: 15px; margin-top: 30px;">

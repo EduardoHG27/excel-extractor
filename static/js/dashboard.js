@@ -294,7 +294,7 @@
                 const chartData = JSON.parse(chartDataElement.textContent);
                 initCharts(chartData);
             } catch(e) {
-                console.error('Error parsing chart data:', e);
+                console.error('Error<script id="chart-data" type="application/json"> parsing chart data:', e);
             }
         }
     }

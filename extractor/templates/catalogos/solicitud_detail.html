@@ -197,21 +197,37 @@
 <!-- Metadatos -->
 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
     <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-        ℹ️ Metadatos
+        ℹ️ Metadatos de la Solicitud
     </h3>
     
     <table style="width: 100%;">
-        <tr>
-            <td style="padding: 8px 0; font-weight: bold; width: 200px;">Fecha de Creación:</td>
-            <td style="padding: 8px 0;">{{ solicitud.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 12px 0; font-weight: bold; width: 200px;">📅 Fecha de Creación:</td>
+            <td style="padding: 12px 0;">{{ solicitud.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 12px 0; font-weight: bold;">🔄 Última Actualización:</td>
+            <td style="padding: 12px 0;">{{ solicitud.fecha_actualizacion|date:"d/m/Y H:i:s" }}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 12px 0; font-weight: bold;">👤 Creado por:</td>
+            <td style="padding: 12px 0;">{{ solicitud.creado_por|default:"No especificado" }}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 12px 0; font-weight: bold;">📧 Email de Contacto:</td>
+            <td style="padding: 12px 0;">
+                {% if solicitud.email_contacto %}
+                    <a href="mailto:{{ solicitud.email_contacto }}" style="color: #3498db; text-decoration: none;">
+                        {{ solicitud.email_contacto }}
+                    </a>
+                {% else %}
+                    <span style="color: #7f8c8d;">No especificado</span>
+                {% endif %}
+            </td>
         </tr>
         <tr>
-            <td style="padding: 8px 0; font-weight: bold;">Última Actualización:</td>
-            <td style="padding: 8px 0;">{{ solicitud.fecha_actualizacion|date:"d/m/Y H:i:s" }}</td>
-        </tr>
-        <tr>
-            <td style="padding: 8px 0; font-weight: bold;">Creado por:</td>
-            <td style="padding: 8px 0;">{{ solicitud.creado_por }}</td>
+            <td style="padding: 12px 0; font-weight: bold;">📄 Nombre del Archivo:</td>
+            <td style="padding: 12px 0;">{{ solicitud.nombre_archivo|default:"No generado" }}</td>
         </tr>
     </table>
 </div>
