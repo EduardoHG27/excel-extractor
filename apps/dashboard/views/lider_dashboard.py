@@ -104,13 +104,21 @@ def dashboard_lider(request):
     tickets_generales = tickets_list  # Todos los tickets (con filtros aplicados)
     tickets_periodo = [t for t in tickets_list if t.fecha_creacion and fechas_periodo['fecha_inicio'] <= t.fecha_creacion.date() <= fechas_periodo['fecha_fin']]
     
-    # ========== FILTRAR SOLICITUDES SIN TICKET POR PERÍODO ==========
+   
+      # ========== FILTRAR SOLICITUDES SIN TICKET POR PERÍODO ==========
     solicitudes_sin_ticket_generales = solicitudes_sin_ticket
     solicitudes_sin_ticket_periodo = solicitudes_sin_ticket.filter(
         fecha_solicitud__gte=fechas_periodo['fecha_inicio'],
         fecha_solicitud__lte=fechas_periodo['fecha_fin']
     )
     
+   
+    # ========== CALCULAR DATOS POR MES PARA GRÁFICAS ==========
+    datos_por_mes = calcular_estados_por_mes(
+        ahora, tickets_list, solicitudes_sin_ticket_generales,
+        cliente_id, proyecto_id, estado, fecha_desde_obj, fecha_hasta_obj
+    )
+
     total_sin_ticket_general = solicitudes_sin_ticket_generales.count()
     total_sin_ticket_periodo = solicitudes_sin_ticket_periodo.count()
     
@@ -276,7 +284,7 @@ def dashboard_lider(request):
     top_usuarios_por_mes = {}
     
     # Obtener todos los usuarios activos
-    usuarios_activos_qs = Usuario.objects.filter(is_active=True)
+    usuarios_activos_qs = Usuario.objects.filter(is_active=True).exclude(username='qa_adwin')
     
     for usuario_obj in usuarios_activos_qs:
         # Tickets del usuario (asignados o creados por él)
@@ -478,11 +486,12 @@ def dashboard_lider(request):
         # Datos para gráficos (JSON)
         'chart_data': chart_data,
         'chart_data_json': json.dumps(chart_data), 
-        
+        'datos_por_mes': datos_por_mes,
         # Filtros
         'clientes': Cliente.objects.filter(activo=True),
         'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
         'estados_disponibles': Ticket.ESTADOS_TICKET,
+        
         
         # Opciones de período
         'periodos_disponibles': [
@@ -559,4 +568,78 @@ def calcular_fechas_periodo(periodo, fecha_referencia):
         'nombre': nombre,
         'fecha_inicio': fecha_inicio.date() if hasattr(fecha_inicio, 'date') else fecha_inicio,
         'fecha_fin': fecha_fin.date() if hasattr(fecha_fin, 'date') else fecha_fin,
+    }
+
+def calcular_estados_por_mes(fecha_referencia, tickets_list, solicitudes_sin_ticket, cliente_id, proyecto_id, estado, fecha_desde_obj, fecha_hasta_obj):
+    """Calcula los datos para los gráficos de mes actual y mes anterior"""
+    
+    # Calcular mes actual
+    mes_actual_inicio = fecha_referencia.replace(day=1)
+    ultimo_dia_actual = calendar.monthrange(fecha_referencia.year, fecha_referencia.month)[1]
+    mes_actual_fin = fecha_referencia.replace(day=ultimo_dia_actual)
+    
+    # Calcular mes anterior
+    if fecha_referencia.month == 1:
+        mes_anterior_inicio = fecha_referencia.replace(year=fecha_referencia.year - 1, month=12, day=1)
+    else:
+        mes_anterior_inicio = fecha_referencia.replace(month=fecha_referencia.month - 1, day=1)
+    ultimo_dia_anterior = calendar.monthrange(mes_anterior_inicio.year, mes_anterior_inicio.month)[1]
+    mes_anterior_fin = mes_anterior_inicio.replace(day=ultimo_dia_anterior)
+    
+    # Filtrar tickets por mes
+    tickets_mes_actual = [t for t in tickets_list if t.fecha_creacion and mes_actual_inicio.date() <= t.fecha_creacion.date() <= mes_actual_fin.date()]
+    tickets_mes_anterior = [t for t in tickets_list if t.fecha_creacion and mes_anterior_inicio.date() <= t.fecha_creacion.date() <= mes_anterior_fin.date()]
+    
+    # Filtrar solicitudes sin ticket por mes
+    solicitudes_mes_actual = solicitudes_sin_ticket.filter(
+        fecha_solicitud__gte=mes_actual_inicio.date(),
+        fecha_solicitud__lte=mes_actual_fin.date()
+    )
+    solicitudes_mes_anterior = solicitudes_sin_ticket.filter(
+        fecha_solicitud__gte=mes_anterior_inicio.date(),
+        fecha_solicitud__lte=mes_anterior_fin.date()
+    )
+    
+    # Definir estados
+    ESTADOS_COMPLETOS = [
+        ('GENERADO', 'Generado'),
+        ('EN_PROCESO', 'En Proceso'),
+        ('COMPLETADO', 'Completado'),
+        ('CANCELADO', 'Cancelado'),
+        ('NO EXITOSO', 'No Exitoso'),
+    ]
+    
+    def contar_estados(tickets, solicitudes):
+        conteo = defaultdict(int)
+        for ticket in tickets:
+            for codigo, nombre in ESTADOS_COMPLETOS:
+                if ticket.estado == codigo:
+                    conteo[nombre] += 1
+                    break
+            if ticket.estado not in [c[0] for c in ESTADOS_COMPLETOS]:
+                if ticket.estado == 'ABIERTO':
+                    conteo['Generado'] += 1
+                else:
+                    conteo[ticket.estado] += 1
+        # Agregar solicitudes sin ticket
+        if solicitudes.count() > 0:
+            conteo['Sin Ticket'] = solicitudes.count()
+        return conteo
+    
+    conteo_mes_actual = contar_estados(tickets_mes_actual, solicitudes_mes_actual)
+    conteo_mes_anterior = contar_estados(tickets_mes_anterior, solicitudes_mes_anterior)
+    
+    return {
+        'mes_actual': {
+            'nombre': f"{mes_actual_inicio.strftime('%B %Y')}",
+            'fecha_inicio': mes_actual_inicio.date(),
+            'fecha_fin': mes_actual_fin.date(),
+            'datos': [{'estado': k, 'total': v} for k, v in conteo_mes_actual.items()]
+        },
+        'mes_anterior': {
+            'nombre': f"{mes_anterior_inicio.strftime('%B %Y')}",
+            'fecha_inicio': mes_anterior_inicio.date(),
+            'fecha_fin': mes_anterior_fin.date(),
+            'datos': [{'estado': k, 'total': v} for k, v in conteo_mes_anterior.items()]
+        }
     }

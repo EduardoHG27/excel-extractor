@@ -130,6 +130,32 @@
         }
     }
 
+
+    function createPieChart(ctx, labels, data, options, onClickCallback) {
+    if (!ctx || !labels || labels.length === 0) return null;
+    
+    const chartData = {
+        labels: labels,
+        datasets: [{
+            data: data,
+            backgroundColor: labels.map(label => getEstadoColor(label)),
+            borderWidth: 2,
+            borderColor: 'white'
+        }]
+    };
+    
+    const chartOptions = {
+        ...options,
+        onClick: onClickCallback
+    };
+    
+    return new Chart(ctx.getContext('2d'), {
+        type: 'pie',
+        data: chartData,
+        options: chartOptions
+    });
+}
+
     // Función para inicializar gráficos
     function initCharts(chartData) {
         if (typeof Chart === 'undefined') {
@@ -219,6 +245,114 @@
             }
         }
 
+         const datosPorMesElement = document.getElementById('datos-por-mes');
+        let datosPorMes = null;
+        if (datosPorMesElement) {
+            try {
+                datosPorMes = JSON.parse(datosPorMesElement.textContent);
+            } catch(e) {
+                console.error('Error parsing datos por mes:', e);
+            }
+        }
+        
+        // Gráfico Mes Actual
+        if (datosPorMes && datosPorMes.mes_actual && datosPorMes.mes_actual.datos) {
+            const ctxMesActual = document.getElementById('estadosMesActualChart');
+            if (ctxMesActual) {
+                const labelsRaw = datosPorMes.mes_actual.datos.map(item => item.estado);
+                const dataRaw = datosPorMes.mes_actual.datos.map(item => item.total);
+                const { labels, data, colors } = reordenarDatos(labelsRaw, dataRaw);
+                
+                if (labels.length > 0) {
+                    createPieChart(
+                        ctxMesActual, 
+                        labels, 
+                        data, 
+                        pieOptions,
+                        (event, activeElements) => {
+                            if (activeElements.length > 0) {
+                                const index = activeElements[0].index;
+                                const estadoLabel = labels[index];
+                                
+                                if (estadoLabel === 'Sin Ticket') {
+                                    const solicitudListUrl = '/solicitudes/';
+                                    const params = new URLSearchParams();
+                                    params.append('sin_ticket', 'si');
+                                    params.append('fecha_desde', datosPorMes.mes_actual.fecha_inicio);
+                                    params.append('fecha_hasta', datosPorMes.mes_actual.fecha_fin);
+                                    
+                                    const urlParams = new URLSearchParams(window.location.search);
+                                    const clienteSelected = urlParams.get('cliente') || '';
+                                    const proyectoSelected = urlParams.get('proyecto') || '';
+                                    if (clienteSelected) params.append('cliente', clienteSelected);
+                                    if (proyectoSelected) params.append('proyecto', proyectoSelected);
+                                    
+                                    window.location.href = solicitudListUrl + '?' + params.toString();
+                                    return;
+                                }
+                                
+                                const estadoCode = getEstadoCode(estadoLabel);
+                                const url = buildFilterUrl(estadoCode, 'mes_actual', {
+                                    periodo_fecha_desde: datosPorMes.mes_actual.fecha_inicio,
+                                    periodo_fecha_hasta: datosPorMes.mes_actual.fecha_fin
+                                });
+                                window.location.href = url;
+                            }
+                        }
+                    );
+                }
+            }
+        }
+        
+        // Gráfico Mes Anterior
+        if (datosPorMes && datosPorMes.mes_anterior && datosPorMes.mes_anterior.datos) {
+            const ctxMesAnterior = document.getElementById('estadosMesAnteriorChart');
+            if (ctxMesAnterior) {
+                const labelsRaw = datosPorMes.mes_anterior.datos.map(item => item.estado);
+                const dataRaw = datosPorMes.mes_anterior.datos.map(item => item.total);
+                const { labels, data, colors } = reordenarDatos(labelsRaw, dataRaw);
+                
+                if (labels.length > 0) {
+                    createPieChart(
+                        ctxMesAnterior, 
+                        labels, 
+                        data, 
+                        pieOptions,
+                        (event, activeElements) => {
+                            if (activeElements.length > 0) {
+                                const index = activeElements[0].index;
+                                const estadoLabel = labels[index];
+                                
+                                if (estadoLabel === 'Sin Ticket') {
+                                    const solicitudListUrl = '/solicitudes/';
+                                    const params = new URLSearchParams();
+                                    params.append('sin_ticket', 'si');
+                                    params.append('fecha_desde', datosPorMes.mes_anterior.fecha_inicio);
+                                    params.append('fecha_hasta', datosPorMes.mes_anterior.fecha_fin);
+                                    
+                                    const urlParams = new URLSearchParams(window.location.search);
+                                    const clienteSelected = urlParams.get('cliente') || '';
+                                    const proyectoSelected = urlParams.get('proyecto') || '';
+                                    if (clienteSelected) params.append('cliente', clienteSelected);
+                                    if (proyectoSelected) params.append('proyecto', proyectoSelected);
+                                    
+                                    window.location.href = solicitudListUrl + '?' + params.toString();
+                                    return;
+                                }
+                                
+                                const estadoCode = getEstadoCode(estadoLabel);
+                                const url = buildFilterUrl(estadoCode, 'mes_anterior', {
+                                    periodo_fecha_desde: datosPorMes.mes_anterior.fecha_inicio,
+                                    periodo_fecha_hasta: datosPorMes.mes_anterior.fecha_fin
+                                });
+                                window.location.href = url;
+                            }
+                        }
+                    );
+                }
+            }
+        }
+        
         // Gráfico de Clientes
         const ctxClientes = document.getElementById('clientesChart');
         if (ctxClientes && chartData.clientes_labels) {
