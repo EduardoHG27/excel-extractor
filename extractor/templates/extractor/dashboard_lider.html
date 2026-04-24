@@ -808,9 +808,7 @@
 
 {% load static %}
 <script src="{% static 'js/dashboard.js' %}"></script>
-<script id="datos-por-mes" type="application/json">
-    {{ datos_por_mes|safe|default:'{}' }}
-</script>
+{{ datos_por_mes|json_script:"datos-por-mes" }}
 <script>
     // Guardar indicador en sessionStorage cuando se carga el dashboard
     sessionStorage.setItem('from_dashboard', 'true');
