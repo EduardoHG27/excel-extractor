@@ -16,6 +16,11 @@ import csv
 from datetime import datetime
 from openpyxl import load_workbook
 from django.conf import settings
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_http_methods
 
 from extractor.models import Cliente, Proyecto, TipoServicio, SolicitudPruebas, Ticket
 
@@ -542,4 +547,32 @@ def imprimir_solicitud_excel(request, id):
         import traceback
         traceback.print_exc()
         messages.error(request, f"Error al generar el archivo: {str(e)}")
+        return redirect('extractor:solicitud_detail', id=solicitud.id)
+    
+@login_required
+@csrf_protect
+@require_http_methods(["POST"])
+def solicitud_crear_ticket(request, solicitud_id):
+    """
+    Crea un ticket a partir de una solicitud existente
+    """
+    solicitud = get_object_or_404(SolicitudPruebas, id=solicitud_id)
+    
+    # Verificar si ya tiene ticket
+    if solicitud.ticket:
+        messages.warning(
+            request, 
+            f'⚠️ Esta solicitud ya tiene un ticket asociado: {solicitud.ticket.codigo}'
+        )
+        return redirect('extractor:ticket_detail', id=solicitud.ticket.id)
+    
+    try:
+        # Generar el ticket usando el método del modelo
+        ticket = solicitud.generar_ticket(request=request)
+        
+        messages.success(request, f'✅ Ticket creado exitosamente: {ticket.codigo}')
+        return redirect('extractor:ticket_detail', id=ticket.id)
+        
+    except Exception as e:
+        messages.error(request, f'❌ Error al crear el ticket: {str(e)}')
         return redirect('extractor:solicitud_detail', id=solicitud.id)

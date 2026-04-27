@@ -5,6 +5,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404
 from django.urls import reverse
 from django.conf import settings
+from django.utils import timezone
+from datetime import datetime
+from calendar import monthrange
+from django.db.models import Count, Q
 
 from extractor.models import Ticket
 
@@ -14,6 +18,52 @@ def consultar_ticket(request):
     ticket = None
     error = None
     
+    # ========== 1. ESTADÍSTICAS SOLO DEL MES ACTUAL ==========
+    hoy = timezone.now()
+    inicio_mes = datetime(hoy.year, hoy.month, 1)
+    
+    # Obtener el último día del mes actual
+    ultimo_dia = monthrange(hoy.year, hoy.month)[1]
+    fin_mes = datetime(hoy.year, hoy.month, ultimo_dia, 23, 59, 59)
+    
+    # Aplicar timezone si es necesario
+    if timezone.is_aware(inicio_mes):
+        inicio_mes = timezone.make_aware(inicio_mes)
+        fin_mes = timezone.make_aware(fin_mes)
+    
+    # Filtrar tickets del mes actual
+    tickets_mes = Ticket.objects.filter(
+        fecha_creacion__gte=inicio_mes,
+        fecha_creacion__lte=fin_mes
+    )
+    
+    # Estadísticas del mes actual
+    total_tickets_mes = tickets_mes.count()
+    tickets_abiertos_mes = tickets_mes.filter(
+        estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO']
+    ).count()
+    tickets_completados_mes = tickets_mes.filter(
+        estado='COMPLETADO'
+    ).count()
+    
+    # Estadísticas detalladas por estado
+    estadisticas_estados = tickets_mes.values('estado').annotate(
+        cantidad=Count('estado')
+    )
+    
+    # Mapear estados a nombres legibles
+    estados_map = dict(Ticket.ESTADOS_TICKET)
+    for stat in estadisticas_estados:
+        stat['estado_nombre'] = estados_map.get(stat['estado'], stat['estado'])
+    
+    # ========== 2. NOMBRE DEL MES EN ESPAÑOL ==========
+    meses_espanol = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+    mes_actual = f"{meses_espanol[hoy.month]} {hoy.year}"
+    
     if request.method == 'POST':
         codigo_ticket = request.POST.get('codigo_ticket', '').strip().upper()
         
@@ -21,7 +71,10 @@ def consultar_ticket(request):
             error = 'Por favor ingresa un código de ticket'
         else:
             try:
-                ticket = Ticket.objects.filter(codigo=codigo_ticket).first()
+                # ========== 3. CARGAR ASIGNADO_A con select_related ==========
+                ticket = Ticket.objects.select_related(
+                    'cliente', 'proyecto', 'tipo_servicio', 'asignado_a', 'creado_por'
+                ).filter(codigo=codigo_ticket).first()
                 
                 if not ticket:
                     error = f'No se encontró ningún ticket con el código "{codigo_ticket}"'
@@ -68,16 +121,16 @@ def consultar_ticket(request):
             except Exception as e:
                 error = f'Error al buscar el ticket: {str(e)}'
     
-    total_tickets = Ticket.objects.count()
-    tickets_abiertos = Ticket.objects.filter(estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO']).count()
-    tickets_completados = Ticket.objects.filter(estado='COMPLETADO').count()
-    
+    # ========== 4. CONTEXTO CON LAS NUEVAS VARIABLES ==========
     context = {
         'ticket': ticket,
         'error': error,
-        'total_tickets': total_tickets,
-        'tickets_abiertos': tickets_abiertos,
-        'tickets_completados': tickets_completados,
+        # Estadísticas del mes actual (NO globales)
+        'total_tickets': total_tickets_mes,
+        'tickets_abiertos': tickets_abiertos_mes,
+        'tickets_completados': tickets_completados_mes,
+        'estadisticas_estados': estadisticas_estados,
+        'mes_actual': mes_actual,
         'debug': settings.DEBUG,
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }

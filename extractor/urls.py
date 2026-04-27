@@ -93,4 +93,5 @@ urlpatterns = [
 
     path('dashboard-lider/', views.dashboard_lider, name='dashboard_lider'),
     path('api/usuario/<int:id>/cambiar-lider/', views.usuario_cambiar_lider, name='usuario_cambiar_lider'),
+    path('solicitudes/<int:solicitud_id>/crear-ticket/', views.solicitud_crear_ticket, name='solicitud_crear_ticket'),
 ]

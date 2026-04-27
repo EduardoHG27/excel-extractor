@@ -60,19 +60,6 @@
         padding: 2rem;
         color: white;
         margin-bottom: 2rem;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .ticket-hero::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        pointer-events: none;
     }
 
     .ticket-code {
@@ -184,6 +171,14 @@
         border-radius: 100px;
         font-weight: 600;
         font-size: 1rem;
+        position: relative;
+        cursor: help;
+    }
+
+    /* Estados actualizados con PENDIENTE */
+    .estado-PENDIENTE {
+        background: linear-gradient(135deg, #94a3b8, #64748b);
+        color: white;
     }
 
     .estado-GENERADO, .estado-ABIERTO {
@@ -204,6 +199,57 @@
     .estado-CANCELADO {
         background: linear-gradient(135deg, #e74c3c, #c0392b);
         color: white;
+    }
+
+    .estado-NO_EXITOSO {
+        background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        color: white;
+    }
+
+    /* Tooltip personalizado para estados */
+    .estado-tooltip {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+    }
+
+    .estado-tooltip .tooltip-text {
+        visibility: hidden;
+        width: 320px;
+        background-color: #1e293b;
+        color: #fff;
+        text-align: center;
+        border-radius: 12px;
+        padding: 12px 16px;
+        position: absolute;
+        z-index: 1000;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.875rem;
+        font-weight: normal;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        pointer-events: none;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+
+    .estado-tooltip .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
+    }
+
+    .estado-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
     }
 
     /* Buscador */
@@ -332,6 +378,75 @@
         border-top: 2px dashed #e9ecef;
         margin-top: 0.5rem;
     }
+
+    /* Estilo para el asignado */
+    .asignado-card {
+        background: linear-gradient(135deg, #f8fafc, #ffffff);
+        border-left: 4px solid var(--primary-color);
+    }
+
+    /* Estilos para la leyenda de estados */
+    .leyenda-estados {
+        background: linear-gradient(135deg, #f8fafc, #ffffff);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .leyenda-estados h5 {
+        color: #1e293b;
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .leyenda-estados h5 i {
+        color: var(--primary-color);
+        font-size: 1.25rem;
+    }
+
+    .estado-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        border-radius: 12px;
+        background: white;
+        transition: all 0.2s;
+        border: 1px solid #e9ecef;
+    }
+
+    .estado-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .estado-badge-mini {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 100px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        min-width: 130px;
+        justify-content: center;
+    }
+
+    .estado-descripcion {
+        flex: 1;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    .estado-descripcion strong {
+        color: #1e293b;
+        font-size: 0.95rem;
+    }
 </style>
 {% endblock %}
 
@@ -386,7 +501,9 @@
     </div>
     {% endif %}
 
-    <!-- Resultado de la consulta -->
+    <!-- ============================================ -->
+    <!-- PRIMERO: INFORMACIÓN DEL TICKET (si existe) -->
+    <!-- ============================================ -->
     {% if ticket %}
     
     <!-- Hero Ticket -->
@@ -416,15 +533,73 @@
                         <i class="bi bi-arrow-repeat me-2"></i>Actualizado: {{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}
                     </span>
                 </div>
+
+                <!-- Sección: Persona asignada / que atiende el ticket -->
+                {% if ticket.asignado_a %}
+                <div class="mt-3 pt-2" style="border-top: 1px solid rgba(255,255,255,0.2);">
+                    <div class="d-flex align-items-center gap-3">
+                        <div>
+                            <div style="font-size: 0.8rem; opacity: 0.8;">
+                                <i class="bi bi-person-badge"></i> 
+                                {% if ticket.estado == 'COMPLETADO' %}
+                                    Atendido por:
+                                {% else %}
+                                    Asignado a:
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">
+                                {{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}
+                                {% if ticket.asignado_a.puesto %}
+                                    <span style="font-size: 0.8rem; opacity: 0.8;">({{ ticket.asignado_a.puesto }})</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if ticket.estado == 'COMPLETADO' %}
+                        <span class="badge-modern" style="background: rgba(46,204,113,0.3);">
+                            <i class="bi bi-check-circle-fill"></i> Atención completada
+                        </span>
+                        {% elif ticket.estado == 'EN_PROCESO' %}
+                        <span class="badge-modern" style="background: rgba(243,156,18,0.3);">
+                            <i class="bi bi-gear"></i> En atención
+                        </span>
+                        {% else %}
+                        <span class="badge-modern" style="background: rgba(255,255,255,0.2);">
+                            <i class="bi bi-clock-history"></i> Pendiente de atención
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="mt-3 pt-2" style="border-top: 1px solid rgba(255,255,255,0.2);">
+                    <div class="d-flex align-items-center gap-3">
+                        <div>
+                            <div style="font-size: 0.8rem; opacity: 0.8;">
+                                <i class="bi bi-person"></i> Estado de atención:
+                            </div>
+                            <div style="font-size: 1rem; font-weight: 500;">
+                                ⏳ Pendiente de asignación
+                            </div>
+                            <small style="opacity: 0.7;">El ticket será asignado próximamente</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
+
             <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                <!-- Estado con énfasis visual -->
-                <div class="estado-badge-large estado-{{ ticket.estado }}">
-                    <i class="bi bi-{% if ticket.estado == 'GENERADO' or ticket.estado == 'ABIERTO' %}hourglass-split
-                                {% elif ticket.estado == 'EN_PROCESO' %}gear
-                                {% elif ticket.estado == 'COMPLETADO' %}check-circle
-                                {% else %}exclamation-circle{% endif %} fs-3"></i>
-                    <span class="fs-4 fw-bold">{{ ticket.get_estado_display }}</span>
+                <!-- Estado con tooltip informativo -->
+                <div class="estado-tooltip">
+                    <div class="estado-badge-large estado-{{ ticket.estado }}">
+                        <i class="bi bi-{% if ticket.estado == 'PENDIENTE' %}clock-history
+                                    {% elif ticket.estado == 'GENERADO' or ticket.estado == 'ABIERTO' %}hourglass-split
+                                    {% elif ticket.estado == 'EN_PROCESO' %}gear
+                                    {% elif ticket.estado == 'COMPLETADO' %}check-circle
+                                    {% else %}exclamation-circle{% endif %} fs-3"></i>
+                        <span class="fs-4 fw-bold">{{ ticket.get_estado_display }}</span>
+                    </div>
+                    <div class="tooltip-text" id="tooltip-estado">
+                        <!-- Descripción dinámica -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -514,6 +689,39 @@
                                     <span class="text-muted">No especificado</span>
                                 {% endif %}
                             </td>
+                        </tr>
+                        <!-- Fila: Persona asignada que atiende el ticket -->
+                        <tr style="background-color: #f0f9ff;">
+                            <td style="background-color: #e0f2fe;">
+                                <i class="bi bi-person-check"></i> 👨‍💻 Atendido por:
+                            </td>
+                            <td style="background-color: #f0f9ff;">
+                                {% if ticket.asignado_a %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="bg-primary bg-opacity-10 p-2 rounded-circle">
+                                            <i class="bi bi-person-circle text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <strong class="text-primary">{{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}</strong>
+                                            {% if ticket.asignado_a.puesto %}
+                                                <br>
+                                                <small class="text-muted">{{ ticket.asignado_a.puesto }}</small>
+                                            {% endif %}
+                                        </div>
+                                        <span class="badge bg-success ms-2">
+                                            <i class="bi bi-check-circle-fill"></i> Activo
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="bi bi-clock-history"></i> Pendiente de asignación
+                                    </span>
+                                    <br>
+                                    <small class="text-warning">
+                                        <i class="bi bi-info-circle"></i> El ticket será asignado próximamente
+                                    </small>
+                                {% endif %}
+                              <td>
                         </tr>
                         <tr>
                             <td>👥 Líder proyecto:</td>
@@ -663,14 +871,108 @@
 
     {% endif %}
 
-    <!-- Estadísticas rápidas (opcional) -->
+    <!-- ============================================ -->
+    <!-- DESPUÉS: PANEL DE ESTADÍSTICAS Y LEYENDA -->
+    <!-- ============================================ -->
+
+    <!-- Leyenda de estados del ticket -->
+    <div class="leyenda-estados">
+        <h5>
+            <i class="bi bi-info-circle-fill"></i> 
+            📋 Estados del Ticket - Guía Rápida
+        </h5>
+        <div class="row g-3">
+            <!-- Estado PENDIENTE -->
+            <div class="col-md-6 col-lg-4">
+                <div class="estado-item">
+                    <div class="estado-badge-mini estado-PENDIENTE">
+                        <i class="bi bi-clock-history"></i>
+                        <span>PENDIENTE</span>
+                    </div>
+                    <div class="estado-descripcion">
+                        <strong>📋 Solicitud creada</strong><br>
+                        El ticket ha sido dado de alta y está en espera de ser procesado por el equipo de QA.
+                    </div>
+                </div>
+            </div>
+            <!-- Estado GENERADO -->
+            <div class="col-md-6 col-lg-4">
+                <div class="estado-item">
+                    <div class="estado-badge-mini estado-GENERADO">
+                        <i class="bi bi-hourglass-split"></i>
+                        <span>GENERADO</span>
+                    </div>
+                    <div class="estado-descripcion">
+                        <strong>🔖 Ticket generado</strong><br>
+                        El equipo de QA ha generado el ticket. Está pendiente de iniciar el proceso de pruebas.
+                    </div>
+                </div>
+            </div>
+            <!-- Estado EN_PROCESO -->
+            <div class="col-md-6 col-lg-4">
+                <div class="estado-item">
+                    <div class="estado-badge-mini estado-EN_PROCESO">
+                        <i class="bi bi-gear"></i>
+                        <span>EN PROCESO</span>
+                    </div>
+                    <div class="estado-descripcion">
+                        <strong>⚙️ En atención activa</strong><br>
+                        El ticket está siendo atendido por el equipo asignado. Se están realizando las pruebas o gestiones necesarias.
+                    </div>
+                </div>
+            </div>
+            <!-- Estado COMPLETADO -->
+            <div class="col-md-6 col-lg-4">
+                <div class="estado-item">
+                    <div class="estado-badge-mini estado-COMPLETADO">
+                        <i class="bi bi-check-circle"></i>
+                        <span>COMPLETADO</span>
+                    </div>
+                    <div class="estado-descripcion">
+                        <strong>✅ Pruebas finalizadas</strong><br>
+                        Las pruebas han finalizado exitosamente. Todos los requisitos han sido cumplidos y los archivos están disponibles.
+                    </div>
+                </div>
+            </div>
+            <!-- Estado CANCELADO -->
+            <div class="col-md-6 col-lg-4">
+                <div class="estado-item">
+                    <div class="estado-badge-mini estado-CANCELADO">
+                        <i class="bi bi-x-circle"></i>
+                        <span>CANCELADO</span>
+                    </div>
+                    <div class="estado-descripcion">
+                        <strong>❌ Cancelado</strong><br>
+                        El ticket fue cancelado por solicitud del cliente o decisión interna. No se completarán las acciones planificadas.
+                    </div>
+                </div>
+            </div>
+            <!-- Estado NO_EXITOSO -->
+            <div class="col-md-6 col-lg-4">
+                <div class="estado-item">
+                    <div class="estado-badge-mini estado-NO_EXITOSO">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>NO EXITOSO</span>
+                    </div>
+                    <div class="estado-descripcion">
+                        <strong>⚠️ No exitoso</strong><br>
+                        El proceso no pudo completarse exitosamente debido a inconvenientes técnicos, falta de información u otros factores.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas rápidas (SOLO del mes actual) -->
     <div class="row mt-4 g-3">
         <div class="col-md-4">
             <div class="modern-card text-center">
                 <div class="card-body p-3">
                     <i class="bi bi-ticket-perforated fs-1 text-primary"></i>
                     <h3 class="mt-2 mb-0">{{ total_tickets|default:"0" }}</h3>
-                    <small class="text-muted">Total de Tickets</small>
+                    <small class="text-muted">
+                        <i class="bi bi-calendar-month"></i> Tickets ({{ mes_actual|default:"este mes" }})
+                    </small>
                 </div>
             </div>
         </div>
@@ -679,7 +981,9 @@
                 <div class="card-body p-3">
                     <i class="bi bi-hourglass-split fs-1 text-warning"></i>
                     <h3 class="mt-2 mb-0">{{ tickets_abiertos|default:"0" }}</h3>
-                    <small class="text-muted">Tickets en Proceso</small>
+                    <small class="text-muted">
+                        <i class="bi bi-play-circle"></i> En Proceso
+                    </small>
                 </div>
             </div>
         </div>
@@ -688,22 +992,54 @@
                 <div class="card-body p-3">
                     <i class="bi bi-check-circle fs-1 text-success"></i>
                     <h3 class="mt-2 mb-0">{{ tickets_completados|default:"0" }}</h3>
-                    <small class="text-muted">Tickets Completados</small>
+                    <small class="text-muted">
+                        <i class="bi bi-check2-all"></i> Completados
+                    </small>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Desglose de estados del mes actual (opcional) -->
+    {% if estadisticas_estados %}
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="modern-card">
+                <div class="card-body p-3">
+                    <small class="text-muted d-block mb-2">
+                        <i class="bi bi-pie-chart"></i> Desglose por estado ({{ mes_actual }}):
+                    </small>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for stat in estadisticas_estados %}
+                        <span class="badge estado-{{ stat.estado }}" style="padding: 0.5rem 1rem;">
+                            {{ stat.estado_nombre }}: {{ stat.cantidad }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
 <script>
+    // Descripciones informativas de los estados (para el tooltip)
+    const descripcionesEstados = {
+        'PENDIENTE': '📋 La solicitud ha sido creada por el área de desarrollo y está en espera de ser procesada por el equipo de QA.',
+        'GENERADO': '🔖 El equipo de QA ha generado el ticket. Está pendiente de iniciar el proceso de pruebas.',
+        'ABIERTO': '🔖 El ticket está abierto y listo para ser procesado.',
+        'EN_PROCESO': '⚙️ El ticket está siendo atendido activamente por el equipo asignado. Se están realizando las pruebas o gestiones necesarias.',
+        'COMPLETADO': '✅ Las pruebas han finalizado exitosamente. Todos los requisitos han sido cumplidos y los archivos están disponibles para descarga.',
+        'CANCELADO': '❌ El ticket fue cancelado por solicitud del cliente o por decisión interna. No se completarán las acciones planificadas.',
+        'NO_EXITOSO': '⚠️ El proceso no pudo completarse exitosamente debido a inconvenientes técnicos, falta de información u otros factores.'
+    };
+
     function copiarAlPortapapeles(texto) {
-        // Usar el API moderno de clipboard
         navigator.clipboard.writeText(texto).then(() => {
-            // Mostrar mensaje flotante
             mostrarMensaje('Código copiado al portapapeles', 'success');
         }).catch(() => {
-            // Fallback para navegadores antiguos
             const textarea = document.createElement('textarea');
             textarea.value = texto;
             document.body.appendChild(textarea);
@@ -719,7 +1055,6 @@
     }
 
     function mostrarMensaje(mensaje, tipo) {
-        // Eliminar mensajes anteriores
         const existingAlerts = document.querySelectorAll('.toast-message');
         existingAlerts.forEach(alert => alert.remove());
         
@@ -746,12 +1081,22 @@
         }, 3000);
     }
 
-    // Auto-focus en el input de búsqueda
+    // Mostrar descripción del estado en el tooltip
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('codigo_ticket');
         if (searchInput && !searchInput.value) {
             searchInput.focus();
         }
+        
+        // Mostrar descripción del estado en el tooltip
+        {% if ticket %}
+        const estado = '{{ ticket.estado }}';
+        const descripcion = descripcionesEstados[estado] || 'Estado en proceso de actualización';
+        const tooltipDiv = document.getElementById('tooltip-estado');
+        if (tooltipDiv) {
+            tooltipDiv.innerHTML = descripcion;
+        }
+        {% endif %}
     });
 </script>
 

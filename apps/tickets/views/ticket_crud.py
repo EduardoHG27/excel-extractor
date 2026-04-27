@@ -16,6 +16,18 @@ from extractor.models import Ticket, Cliente, Proyecto, TipoServicio
 @login_required
 def ticket_list(request):
     """Listado de tickets con filtros y paginación"""
+
+   
+    from_dashboard = request.GET.get('from_dashboard') == 'true'
+    
+    # Si viene del dashboard, guardarlo en sesión para mantenerlo en navegación
+    if from_dashboard:
+        request.session['from_dashboard'] = True
+    else:
+        # Limpiar la sesión si no viene del dashboard
+        request.session.pop('from_dashboard', None)
+   
+
     tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio')
 
     # Filtros
@@ -113,10 +125,10 @@ def ticket_list(request):
         'orden_actual': orden,
         'por_pagina': por_pagina,
         'tickets_count': tickets.count(),
-        # 🆕 Pasar fechas al template
         'fecha_desde': fecha_desde or '',
         'fecha_hasta': fecha_hasta or '',
         'cliente_nombre': cliente_nombre or '',
+        'from_dashboard': from_dashboard or request.session.get('from_dashboard', False),
         
     }
     return render(request, 'catalogos/ticket_list.html', context)

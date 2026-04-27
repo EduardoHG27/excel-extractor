@@ -505,10 +505,7 @@ class SolicitudPruebas(models.Model):
         return f"Solicitud #{self.id} - {self.cliente.nombre} ({self.fecha_solicitud})"
    
     def generar_nombre_archivo(self):
-        """
-        Genera nombre de archivo con número aleatorio de 3 cifras,
-        verificando que no exista ya para hoy
-        """
+        """Genera nombre de archivo con número aleatorio de 3 cifras"""
         from django.utils import timezone
         import random
         
@@ -516,21 +513,18 @@ class SolicitudPruebas(models.Model):
         nomenclatura_cliente = self.cliente.nomenclatura if self.cliente else "CLI"
         fecha_actual = timezone.now().strftime('%Y%m%d')
         
-        # Prefijo del nombre (sin el número)
         prefijo = f"{base}-{nomenclatura_cliente}_{fecha_actual}-"
         
-        # Máximo de intentos para encontrar número único
-        for _ in range(50):  # 50 intentos es más que suficiente
+        for _ in range(50):
             numero = random.randint(1, 999)
             numero_str = f"{numero:03d}"
             nombre_completo = f"{prefijo}{numero_str}.xlsx"
             
-            # Verificar si ya existe
-            if self.pk:  # Si es actualización
+            if self.pk:
                 existe = SolicitudPruebas.objects.filter(
                     nombre_archivo=nombre_completo
                 ).exclude(pk=self.pk).exists()
-            else:  # Si es nuevo
+            else:
                 existe = SolicitudPruebas.objects.filter(
                     nombre_archivo=nombre_completo
                 ).exists()
@@ -538,7 +532,6 @@ class SolicitudPruebas(models.Model):
             if not existe:
                 return nombre_completo
         
-        # Fallback: usar timestamp (altamente improbable)
         timestamp = timezone.now().strftime('%f')[-3:]
         return f"{prefijo}{timestamp}.xlsx"
     
@@ -548,81 +541,78 @@ class SolicitudPruebas(models.Model):
             return self.ticket.get_estado_display()
         return "Sin ticket"
     
-    def generar_ticket(self, tipo_servicio_code=None, tipo_prueba_id=None):
+    def generar_ticket(self, request=None, tipo_servicio_code=None):
         """
-        Genera un ticket a partir de la solicitud
+        Genera un ticket a partir de la solicitud usando el ticket_generator existente
         """
-        from .views import generate_ticket_parts
+        from django.utils import timezone
+        from django.db import transaction
         
         if self.ticket:
             return self.ticket
         
-        # Usar los valores de la solicitud si no se proporcionan
+        # Usar valores de la solicitud
         tipo_servicio = tipo_servicio_code or self.tipo_servicio_code
-        tipo_prueba_obj = tipo_prueba_id or self.tipo_prueba
+        tipo_prueba_obj = self.tipo_prueba
         
-        # Generar consecutivo
-        tickets_existentes = Ticket.objects.filter(
-            empresa_code="BID",
-            tipo_servicio_code=tipo_servicio,
-            funcion_code=self.tipo_prueba.nomenclatura,
-            version_code=str(self.tipo_prueba.id),
-            cliente_code=self.cliente.nomenclatura,
-            proyecto_code=self.proyecto.codigo
-        )
+        # Construir los datos extraídos (simulando lo que vendría de un Excel)
+        extracted_data = {
+            'responsable_solicitud': self.responsable_solicitud or '',
+            'lider_proyecto': self.lider_proyecto or '',
+            'tipo_aplicacion': self.tipo_aplicacion or '',
+            'numero_version': self.numero_version or '',
+            'funcionalidad_liberacion': self.funcionalidad_liberacion or '',
+            'detalle_cambios': self.detalle_cambios or '',
+            'justificacion_cambio': self.justificacion_cambio or '',
+        }
         
-        if tickets_existentes.exists():
-            max_consecutivo = tickets_existentes.aggregate(models.Max('consecutivo'))['consecutivo__max']
-            consecutivo_num = (max_consecutivo or 0) + 1
-        else:
-            consecutivo_num = 1
+        # Construir nomenclaturas
+        nomenclaturas = {
+            'cliente_nomenclatura': self.cliente.nomenclatura,
+            'proyecto_nomenclatura': self.proyecto.codigo,
+            'tipo_servicio_nomenclatura': tipo_prueba_obj.nomenclatura,
+            'tipo_servicio_form': tipo_servicio
+        }
         
-        consecutivo_str = f"{consecutivo_num:03d}"
+        # Construir objetos encontrados
+        objetos_encontrados = {
+            'cliente_obj': self.cliente,
+            'proyecto_obj': self.proyecto,
+            'tipo_servicio_obj': tipo_prueba_obj
+        }
         
-        # Generar código del ticket
-        ticket_code = f"BID-{tipo_servicio}-{self.tipo_prueba.nomenclatura}-{self.tipo_prueba.id}-{self.cliente.nomenclatura}-{self.proyecto.codigo}-{consecutivo_str}"
+        # Usar el ticket_generator existente
+        from apps.excel_processor.services.ticket_generator import generate_and_save_ticket
         
-        # Crear ExcelData asociado
-        excel_data = ExcelData.objects.create(
-            cliente=str(self.cliente.id),
-            proyecto=str(self.proyecto.id),
-            tipo_pruebas=str(self.tipo_prueba.id),
-            tipo_servicio=tipo_servicio,
-            responsable_solicitud=self.responsable_solicitud,
-            lider_proyecto=self.lider_proyecto,
-            tipo_aplicacion=self.tipo_aplicacion,
-            numero_version=self.numero_version,
-            funcionalidad_liberacion=self.funcionalidad_liberacion,
-            detalle_cambios=self.detalle_cambios,
-            justificacion_cambio=self.justificacion_cambio,
-            ticket_code=ticket_code
-        )
+        with transaction.atomic():
+            ticket_code, ticket_obj = generate_and_save_ticket(
+                extracted_data=extracted_data,
+                tipo_servicio_form=tipo_servicio,
+                nomenclaturas=nomenclaturas,
+                objetos_encontrados=objetos_encontrados,
+                request=request
+            )
+            
+            # Asociar el ticket a la solicitud (sin llamar a save() completo)
+            # Usamos update en lugar de save() para evitar validaciones adicionales
+            SolicitudPruebas.objects.filter(pk=self.pk).update(
+                ticket=ticket_obj,
+                tiene_ticket=True,
+                fecha_asociacion_ticket=timezone.now()
+            )
+            
+            # Actualizar el objeto actual en memoria
+            self.ticket = ticket_obj
+            self.tiene_ticket = True
+            self.fecha_asociacion_ticket = timezone.now()
+            
+            # Generar nombre de archivo si no existe
+            if not self.nombre_archivo:
+                nombre_archivo = self.generar_nombre_archivo()
+                SolicitudPruebas.objects.filter(pk=self.pk).update(nombre_archivo=nombre_archivo)
+                self.nombre_archivo = nombre_archivo
         
-        # Crear el ticket
-        ticket = Ticket.objects.create(
-            codigo=ticket_code,
-            empresa_code="BID",
-            tipo_servicio_code=tipo_servicio,
-            funcion_code=self.tipo_prueba.nomenclatura,
-            version_code=str(self.tipo_prueba.id),
-            cliente_code=self.cliente.nomenclatura,
-            proyecto_code=self.proyecto.codigo,
-            consecutivo=consecutivo_num,
-            cliente=self.cliente,
-            proyecto=self.proyecto,
-            tipo_servicio=self.tipo_prueba,
-            responsable_solicitud=self.responsable_solicitud,
-            lider_proyecto=self.lider_proyecto,
-            numero_version=self.numero_version,
-            estado='GENERADO',
-            excel_data=excel_data
-        )
-        
-        # Asociar el ticket a la solicitud
-        self.ticket = ticket
-        self.save()
-        
-        return ticket
+        return ticket_obj
     
     def save(self, *args, **kwargs):
         # Asegurar que ticket_id nunca sea string vacío

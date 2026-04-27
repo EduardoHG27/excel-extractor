@@ -25,7 +25,19 @@
         </div>
     </div>
     
-    <div>
+    <div style="display: flex; gap: 10px;">
+        <!-- ✅ NUEVO BOTÓN CREAR TICKET (arriba, junto a descargar) -->
+        {% if not solicitud.ticket %}
+        <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
+              style="display: inline;" 
+              onsubmit="return confirm('¿Estás seguro de que deseas crear un ticket a partir de esta solicitud?');">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="background-color: #4361ee; color: white;">
+                🎫 Crear Ticket
+            </button>
+        </form>
+        {% endif %}
+        
         {% if not solicitud.ticket %}
             <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
         {% else %}
@@ -234,6 +246,18 @@
 
 <!-- Botones de acción -->
 <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
+    
+    <!-- ✅ NUEVO: Botón para crear ticket desde solicitud -->
+    {% if not solicitud.ticket %}
+    <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
+          style="display: inline;" 
+          onsubmit="return confirm('¿Estás seguro de que deseas crear un ticket a partir de esta solicitud?');">
+        {% csrf_token %}
+        <button type="submit" class="btn" style="background-color: #4361ee; color: white; font-size: 1.1rem; padding: 12px 30px;">
+            🎫 Crear Ticket desde Solicitud
+        </button>
+    </form>
+    {% endif %}
 
     {% if solicitud.ticket %}
     <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn" style="background-color: #9b59b6; color: white; font-size: 1.1rem; padding: 12px 30px;">
@@ -246,6 +270,7 @@
         🖨️ Descargar Solicitud
     </a>
     {% endif %}
+    
     <a href="{% url 'extractor:solicitud_list' %}" class="btn" style="font-size: 1.1rem; padding: 12px 30px;">
         ← Volver al Listado
     </a>
