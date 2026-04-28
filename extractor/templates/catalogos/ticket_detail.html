@@ -1207,7 +1207,7 @@ Saludos.
                 btn.disabled = true;
                 
                 // IMPORTANTE: Usar la URL correcta sin 'extractor/'
-                const url = `/extractor/api/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
+                const url = `/api/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
                 
                 fetch(url, {
                     method: 'POST',
