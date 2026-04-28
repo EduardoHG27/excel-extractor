@@ -1,6 +1,5 @@
-"""
-Funciones auxiliares para procesamiento de Excel
-"""
+"""Funciones auxiliares para procesamiento de Excel"""
+import re
 from datetime import timedelta
 
 
@@ -45,7 +44,6 @@ def calcular_dias_habiles(fecha_inicio, fecha_fin):
 
 def sanitizar_public_id(nombre):
     """Limpia caracteres inválidos para Cloudinary"""
-    import re
     nombre = re.sub(r'[&<>#%{}|\\^~\[\]`;?:@=$,/]', '_', nombre)
     nombre = re.sub(r'\s+', '_', nombre)
     nombre = nombre.encode('ascii', 'ignore').decode('ascii')
@@ -55,19 +53,32 @@ def sanitizar_public_id(nombre):
 
 def extraer_public_id_cloudinary(url):
     """Extrae el public_id de una URL de Cloudinary"""
+    if not url:
+        return None
+        
     try:
-        # Patrón más flexible que maneja image/upload/, raw/upload/, etc.
-        # Busca: cualquier cosa/upload/v123/resto.si
+        # Patrón principal: maneja image/upload/, raw/upload/, video/upload/
         pattern = r'/(?:image|raw|video)/upload/(?:v\d+/)?(.+?)\.\w+$'
         match = re.search(pattern, url)
         
         if match:
             public_id = match.group(1)
-            # Limpiar cualquier query parameter
             public_id = public_id.split('?')[0]
             return public_id
         
+        # FALLBACK: patrón simple para URLs sin el tipo de recurso explícito
+        pattern_fallback = r'/upload/(?:v\d+/)?(.+?)\.\w+$'
+        match_fallback = re.search(pattern_fallback, url)
+        
+        if match_fallback:
+            public_id = match_fallback.group(1)
+            public_id = public_id.split('?')[0]
+            return public_id
+        
+        # Si llegamos aquí, no se pudo extraer
+        print(f"⚠️ No se pudo extraer public_id de: {url[:100]}...")
         return None
+        
     except Exception as e:
-        print(f"Error extrayendo public_id: {e}")
+        print(f"❌ Error extrayendo public_id: {e}")
         return None

@@ -13,10 +13,17 @@ import cloudinary.uploader
 from extractor.models import Ticket
 
 
+# ============================================================
+# FUNCIÓN PARA EXTRAER PUBLIC_ID DE CLOUDINARY
+# ============================================================
 def extraer_public_id_cloudinary(url):
     """Extrae el public_id de una URL de Cloudinary"""
+    if not url:
+        return None
+        
     try:
-        pattern = r'/upload/(?:v\d+/)?(.+?)\.\w+$'
+        # Patrón principal: maneja image/upload/, raw/upload/, video/upload/
+        pattern = r'/(?:image|raw|video)/upload/(?:v\d+/)?(.+?)\.\w+$'
         match = re.search(pattern, url)
         
         if match:
@@ -24,10 +31,24 @@ def extraer_public_id_cloudinary(url):
             public_id = public_id.split('?')[0]
             return public_id
         
+        # FALLBACK: patrón simple para URLs sin el tipo de recurso explícito
+        pattern_fallback = r'/upload/(?:v\d+/)?(.+?)\.\w+$'
+        match_fallback = re.search(pattern_fallback, url)
+        
+        if match_fallback:
+            public_id = match_fallback.group(1)
+            public_id = public_id.split('?')[0]
+            return public_id
+        
         return None
+        
     except Exception:
         return None
 
+
+# ============================================================
+# VISTAS
+# ============================================================
 
 @login_required
 def subir_dictamen(request, id):
