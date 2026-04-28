@@ -13,11 +13,12 @@
 
     <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;">
         <!-- Botón para descargar la solicitud -->
-        <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud_creada.id %}" class="btn btn-success">            ⬇️ Descargar Solicitud de Pruebas (Excel)
+        <a href="{% url 'extractor:imprimir_solicitud_excel_public' solicitud_creada.id %}" class="btn btn-success">
+            ⬇️ Descargar Solicitud de Pruebas (Excel)
         </a>
 
         <!-- Botón para ver detalle de la solicitud -->
-        <a href="{% url 'extractor:solicitud_detail' solicitud_creada.id %}" class="btn btn-info" style="font-size: 1.1rem; padding: 12px 30px; display: inline-flex; align-items: center; gap: 10px;">
+        <a href="{% url 'extractor:solicitud_detail_public' solicitud_creada.id %}" class="btn btn-info">
             👁️ Ver Detalle de Solicitud
         </a>
     </div>

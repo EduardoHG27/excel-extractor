@@ -24,7 +24,8 @@ from apps.catalogos.views.usuarios import (
 from apps.catalogos.views.solicitudes import (
     solicitud_list, solicitud_detail, solicitud_generar_ticket,
     solicitud_delete, imprimir_solicitud_excel, crear_solicitud,
-    solicitud_crear_ticket
+    solicitud_crear_ticket,solicitud_detail_public,          
+    imprimir_solicitud_excel_public 
 )
 
 # ===== TICKETS =====

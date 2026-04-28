@@ -94,4 +94,9 @@ urlpatterns = [
     path('dashboard-lider/', views.dashboard_lider, name='dashboard_lider'),
     path('api/usuario/<int:id>/cambiar-lider/', views.usuario_cambiar_lider, name='usuario_cambiar_lider'),
     path('solicitudes/<int:solicitud_id>/crear-ticket/', views.solicitud_crear_ticket, name='solicitud_crear_ticket'),
+
+        # ========== RUTAS PÚBLICAS DE SOLICITUDES (NO REQUIEREN LOGIN) ==========
+    path('solicitudes/nueva/', views.crear_solicitud, name='crear_solicitud'),
+    path('solicitud/publico/<int:id>/', views.solicitud_detail_public, name='solicitud_detail_public'),
+    path('solicitud/publico/<int:id>/excel/', views.imprimir_solicitud_excel_public, name='imprimir_solicitud_excel_public'),
 ]

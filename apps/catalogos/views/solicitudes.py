@@ -21,6 +21,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 
 from extractor.models import Cliente, Proyecto, TipoServicio, SolicitudPruebas, Ticket
 
@@ -52,7 +53,7 @@ def check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600):
 
 @login_required
 def solicitud_list(request):
-    """Listado de solicitudes de pruebas"""
+    """Listado de solicitudes de pruebas (requiere autenticación)"""
     today = timezone.now().date()
     week_ago = today - timedelta(days=7)
 
@@ -110,13 +111,31 @@ def solicitud_list(request):
     return render(request, 'catalogos/solicitud_list.html', context)
 
 
-@login_required
-def solicitud_detail(request, id):
-    """Ver detalle de una solicitud de pruebas"""
+# 🔓 VISTA PÚBLICA - No requiere autenticación
+@never_cache
+def solicitud_detail_public(request, id):
+    """
+    Ver detalle de una solicitud de pruebas (PÚBLICO - sin autenticación)
+    Útil para compartir enlaces con clientes o para descargas rápidas
+    """
     solicitud = get_object_or_404(SolicitudPruebas, id=id)
     
     context = {
         'solicitud': solicitud,
+        'es_publico': True,  # Indicador para la plantilla
+    }
+    return render(request, 'catalogos/solicitud_detail.html', context)
+
+
+# Mantener la versión con login por compatibilidad
+@login_required
+def solicitud_detail(request, id):
+    """Ver detalle de una solicitud de pruebas (requiere autenticación)"""
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    
+    context = {
+        'solicitud': solicitud,
+        'es_publico': False,
     }
     return render(request, 'catalogos/solicitud_detail.html', context)
 
@@ -397,11 +416,28 @@ def solicitud_delete(request, id):
     return render(request, 'catalogos/solicitud_confirm_delete.html', context)
 
 
+# 🔓 VISTA PÚBLICA - No requiere autenticación para descargar Excel
+@never_cache
+def imprimir_solicitud_excel_public(request, id):
+    """
+    Genera el archivo Excel de solicitud de pruebas (PÚBLICO - sin autenticación)
+    """
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    return _generar_excel_solicitud(request, solicitud)
+
+
+# Mantener la versión con login por compatibilidad
 @login_required
 def imprimir_solicitud_excel(request, id):
-    """Genera el archivo Excel de solicitud de pruebas usando la plantilla"""
+    """Genera el archivo Excel de solicitud de pruebas (requiere autenticación)"""
     solicitud = get_object_or_404(SolicitudPruebas, id=id)
-    
+    return _generar_excel_solicitud(request, solicitud)
+
+
+def _generar_excel_solicitud(request, solicitud):
+    """
+    Función interna compartida para generar el Excel de solicitud
+    """
     plantilla_path = os.path.join(
         settings.BASE_DIR,
         'static',
@@ -410,7 +446,8 @@ def imprimir_solicitud_excel(request, id):
     )
     
     if not os.path.exists(plantilla_path):
-        messages.error(request, f"No se encontró la plantilla en: {plantilla_path}")
+        if request.user.is_authenticated:
+            messages.error(request, f"No se encontró la plantilla en: {plantilla_path}")
         return redirect('extractor:solicitud_detail', id=solicitud.id)
     
     try:
@@ -546,9 +583,11 @@ def imprimir_solicitud_excel(request, id):
         print(f"❌ Error al generar solicitud: {str(e)}")
         import traceback
         traceback.print_exc()
-        messages.error(request, f"Error al generar el archivo: {str(e)}")
+        if request.user.is_authenticated:
+            messages.error(request, f"Error al generar el archivo: {str(e)}")
         return redirect('extractor:solicitud_detail', id=solicitud.id)
     
+
 @login_required
 @csrf_protect
 @require_http_methods(["POST"])
@@ -576,3 +615,156 @@ def solicitud_crear_ticket(request, solicitud_id):
     except Exception as e:
         messages.error(request, f'❌ Error al crear el ticket: {str(e)}')
         return redirect('extractor:solicitud_detail', id=solicitud.id)
+    
+    @never_cache
+    def solicitud_detail_public(request, id):
+        """
+        Ver detalle de una solicitud de pruebas (PÚBLICO - sin autenticación)
+        Útil para compartir enlaces con clientes o para descargas rápidas
+        """
+        from extractor.models import SolicitudPruebas
+        
+        solicitud = get_object_or_404(SolicitudPruebas, id=id)
+        
+        context = {
+            'solicitud': solicitud,
+            'es_publico': True,  # Indicador para la plantilla
+        }
+        return render(request, 'catalogos/solicitud_detail.html', context)
+
+
+@never_cache
+def imprimir_solicitud_excel_public(request, id):
+    """
+    Genera el archivo Excel de solicitud de pruebas (PÚBLICO - sin autenticación)
+    """
+    from extractor.models import SolicitudPruebas
+    
+    solicitud = get_object_or_404(SolicitudPruebas, id=id)
+    
+    plantilla_path = os.path.join(
+        settings.BASE_DIR,
+        'static',
+        'plantillas',
+        'BID-PMC-FOR-00017_Formato_de_Solicitud_de_Pruebas.xlsx'
+    )
+    
+    if not os.path.exists(plantilla_path):
+        # Redirigir al detalle público si no hay plantilla
+        from django.shortcuts import redirect
+        return redirect('extractor:solicitud_detail_public', id=solicitud.id)
+    
+    try:
+        wb = load_workbook(plantilla_path)
+        
+        if 'Solicitud de Pruebas V4' in wb.sheetnames:
+            ws = wb['Solicitud de Pruebas V4']
+        else:
+            ws = wb.active
+        
+        def set_cell_value(sheet, coordinate, value):
+            try:
+                for merged_range in sheet.merged_cells.ranges:
+                    if coordinate in merged_range:
+                        top_left = merged_range.start_cell.coordinate
+                        sheet[top_left] = value
+                        return
+                sheet[coordinate] = value
+            except Exception as e:
+                print(f"⚠️ Error en {coordinate}: {e}")
+        
+        # Llenar datos de la solicitud
+        if solicitud.cliente:
+            set_cell_value(ws, 'C5', solicitud.cliente.nombre)
+        
+        if solicitud.proyecto:
+            set_cell_value(ws, 'H5', solicitud.proyecto.nombre)
+        
+        if solicitud.fecha_solicitud:
+            if hasattr(solicitud.fecha_solicitud, 'strftime'):
+                fecha_str = solicitud.fecha_solicitud.strftime('%d/%m/%Y')
+            else:
+                try:
+                    fecha_obj = datetime.strptime(str(solicitud.fecha_solicitud), '%Y-%m-%d')
+                    fecha_str = fecha_obj.strftime('%d/%m/%Y')
+                except:
+                    fecha_str = str(solicitud.fecha_solicitud)
+            set_cell_value(ws, 'M5', fecha_str)
+        
+        if solicitud.hora_solicitud:
+            if hasattr(solicitud.hora_solicitud, 'strftime'):
+                hora_str = solicitud.hora_solicitud.strftime('%H:%M') + ' hrs'
+            else:
+                try:
+                    hora_obj = datetime.strptime(str(solicitud.hora_solicitud), '%H:%M:%S')
+                    hora_str = hora_obj.strftime('%H:%M') + ' hrs'
+                except:
+                    try:
+                        hora_obj = datetime.strptime(str(solicitud.hora_solicitud), '%H:%M')
+                        hora_str = hora_obj.strftime('%H:%M') + ' hrs'
+                    except:
+                        hora_str = str(solicitud.hora_solicitud) + ' hrs'
+            set_cell_value(ws, 'M6', hora_str)
+        
+        if solicitud.tipo_prueba:
+            set_cell_value(ws, 'D8', solicitud.tipo_prueba.nombre)
+        
+        set_cell_value(ws, 'K8', solicitud.area_solicitante or '')
+        set_cell_value(ws, 'D12', solicitud.responsable_solicitud or '')
+        set_cell_value(ws, 'J12', solicitud.lider_proyecto or '')
+        set_cell_value(ws, 'D17', solicitud.tipo_aplicacion or '')
+        set_cell_value(ws, 'M17', solicitud.numero_version or '')
+        
+        if solicitud.funcionalidad_liberacion:
+            set_cell_value(ws, 'D20', solicitud.funcionalidad_liberacion)
+        
+        if solicitud.detalle_cambios:
+            set_cell_value(ws, 'D22', solicitud.detalle_cambios)
+        
+        if solicitud.justificacion_cambio:
+            set_cell_value(ws, 'D24', solicitud.justificacion_cambio)
+        
+        if solicitud.puntos_considerar:
+            set_cell_value(ws, 'D26', solicitud.puntos_considerar)
+        
+        if solicitud.pendientes:
+            set_cell_value(ws, 'D28', solicitud.pendientes)
+        
+        if solicitud.insumos:
+            set_cell_value(ws, 'D30', solicitud.insumos)
+        
+        set_cell_value(ws, 'D37', 'Servicio de Pruebas')
+        set_cell_value(ws, 'J37', solicitud.responsable_solicitud or '')
+        
+        detalles = f"Cliente: {solicitud.cliente.nombre if solicitud.cliente else ''} - Proyecto: {solicitud.proyecto.nombre if solicitud.proyecto else ''}"
+        set_cell_value(ws, 'D39', detalles)
+        
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+        if solicitud.nombre_archivo:
+            filename = solicitud.nombre_archivo
+        else:
+            if solicitud.ticket:
+                filename = f"{solicitud.ticket.codigo} Solicitud de Pruebas.xlsx"
+            else:
+                filename = f"Solicitud_{solicitud.id}_{solicitud.fecha_solicitud}.xlsx"
+        
+        # Limpiar nombre de archivo (quitar caracteres no permitidos)
+        filename = "".join(c for c in filename if c.isalnum() or c in '.-_() ')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Error al generar solicitud pública: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        from django.shortcuts import redirect
+        return redirect('extractor:solicitud_detail_public', id=solicitud.id)

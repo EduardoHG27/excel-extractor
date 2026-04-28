@@ -144,6 +144,13 @@ def subir_evidencia(request, id):
 @require_http_methods(["POST"])
 def eliminar_archivo_cloudinary(request, ticket_id, tipo_archivo):
     """Elimina un archivo de Cloudinary y actualiza el modelo Ticket"""
+    import traceback
+    import json
+    
+    print(f"\n{'='*60}")
+    print(f"[DEBUG] Iniciando eliminación - Ticket: {ticket_id}, Tipo: {tipo_archivo}")
+    print(f"[DEBUG] Usuario: {request.user}")
+    
     ticket = get_object_or_404(Ticket, id=ticket_id)
     
     if tipo_archivo == 'dictamen':
@@ -158,24 +165,42 @@ def eliminar_archivo_cloudinary(request, ticket_id, tipo_archivo):
     
     try:
         url_str = str(campo_url)
+        print(f"[DEBUG] URL del archivo: {url_str}")
+        
         public_id = extraer_public_id_cloudinary(url_str)
+        print(f"[DEBUG] Public ID extraído: {public_id}")
         
         if not public_id:
-            return JsonResponse({'success': False, 'error': 'No se pudo identificar el archivo en Cloudinary'}, status=400)
+            return JsonResponse({
+                'success': False, 
+                'error': f'No se pudo identificar el archivo. URL: {url_str[:100]}...',
+                'debug_url': url_str
+            }, status=400)
         
+        # Intentar eliminar con diferentes resource_types
         eliminado = False
         resource_types = ["image", "raw", "auto"]
+        ultimo_resultado = None
         
         for resource_type in resource_types:
             try:
+                print(f"[DEBUG] Intentando eliminar con resource_type='{resource_type}'")
                 result = cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+                print(f"[DEBUG] Resultado Cloudinary: {result}")
+                ultimo_resultado = result
+                
                 if result.get('result') == 'ok':
                     eliminado = True
+                    print(f"[DEBUG] ✅ Eliminado exitosamente con resource_type='{resource_type}'")
                     break
-            except:
+                else:
+                    print(f"[DEBUG] ❌ Falló con resource_type='{resource_type}': {result}")
+            except Exception as e:
+                print(f"[DEBUG] ❌ Excepción con resource_type='{resource_type}': {str(e)}")
                 continue
         
         if eliminado:
+            # Actualizar el ticket
             if tipo_archivo == 'dictamen':
                 ticket.dictamen_pdf = None
                 ticket.fecha_subida_dictamen = None
@@ -196,13 +221,26 @@ def eliminar_archivo_cloudinary(request, ticket_id, tipo_archivo):
                 ticket.comentarios_seguimiento = comentario
             
             ticket.save()
+            print(f"[DEBUG] ✅ Ticket actualizado correctamente")
             
             return JsonResponse({'success': True, 'message': f'{tipo_archivo.capitalize()} eliminado exitosamente'})
         else:
-            return JsonResponse({'success': False, 'error': 'No se pudo eliminar el archivo de Cloudinary'}, status=500)
+            print(f"[DEBUG] ❌ No se pudo eliminar. Último resultado: {ultimo_resultado}")
+            return JsonResponse({
+                'success': False, 
+                'error': 'No se pudo eliminar el archivo de Cloudinary',
+                'cloudinary_response': ultimo_resultado,
+                'public_id': public_id
+            }, status=500)
             
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        print(f"[DEBUG] ❌ Excepción general: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'success': False, 
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
 
 
 @login_required

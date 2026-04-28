@@ -1198,16 +1198,17 @@ Saludos.
             }
         }
 
-        function eliminarArchivoCloudinary(ticketId, tipo,event) {
+        function eliminarArchivoCloudinary(ticketId, tipo, event) {
             if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
-                // Mostrar estado de carga
                 const btn = event.currentTarget;
                 const originalHtml = btn.innerHTML;
                 btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
                 btn.disabled = true;
                 
-                // IMPORTANTE: Usar la URL correcta sin 'extractor/'
                 const url = `/api/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
+                
+                console.log('[DEBUG] Enviando solicitud a:', url);
+                console.log('[DEBUG] CSRF Token:', getCsrfToken());
                 
                 fetch(url, {
                     method: 'POST',
@@ -1215,10 +1216,19 @@ Saludos.
                         'X-CSRFToken': getCsrfToken(),
                         'Content-Type': 'application/json'
                     },
-                      credentials: 'include', 
-                      mode: 'same-origin'    
+                    credentials: 'include',
+                    mode: 'same-origin'
                 })
-                .then(response => response.json())
+                .then(async response => {
+                    console.log('[DEBUG] Respuesta status:', response.status);
+                    const data = await response.json();
+                    console.log('[DEBUG] Respuesta data:', data);
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || `Error ${response.status}`);
+                    }
+                    return data;
+                })
                 .then(data => {
                     if (data.success) {
                         mostrarMensaje(data.message, 'success');
@@ -1226,14 +1236,15 @@ Saludos.
                             location.reload();
                         }, 1500);
                     } else {
-                        mostrarMensaje(data.error, 'danger');
+                        console.error('[ERROR] Eliminación fallida:', data);
+                        mostrarMensaje(data.error || 'Error al eliminar', 'danger');
                         btn.innerHTML = originalHtml;
                         btn.disabled = false;
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    mostrarMensaje('Error al eliminar el archivo', 'danger');
+                    console.error('[ERROR] Fetch error:', error);
+                    mostrarMensaje('Error de red: ' + error.message, 'danger');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 });
