@@ -768,7 +768,7 @@ Saludos.
                                                 <i class="bi bi-download"></i> Ver/Descargar
                                             </a>
                                             <button type="button" class="btn btn-sm btn-danger" 
-                                                    onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'evidencia')">
+                                                    onclick="eliminarArchivoCloudinary({{ ticket.id }}, 'evidencia', event)">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -1198,7 +1198,7 @@ Saludos.
             }
         }
 
-        function eliminarArchivoCloudinary(ticketId, tipo) {
+        function eliminarArchivoCloudinary(ticketId, tipo,event) {
             if (confirm(`¿Estás seguro de eliminar este ${tipo === 'dictamen' ? 'dictamen' : 'archivo de evidencia'} permanentemente?`)) {
                 // Mostrar estado de carga
                 const btn = event.currentTarget;
@@ -1207,14 +1207,15 @@ Saludos.
                 btn.disabled = true;
                 
                 // IMPORTANTE: Usar la URL correcta sin 'extractor/'
-                const url = `/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
+                const url = `/extractor/api/ticket/${ticketId}/eliminar-archivo/${tipo}/`;
                 
                 fetch(url, {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': getCsrfToken(),
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    credentials: 'same-origin'
                 })
                 .then(response => response.json())
                 .then(data => {

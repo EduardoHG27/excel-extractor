@@ -37,21 +37,35 @@ def consultar_ticket(request):
         fecha_creacion__lte=fin_mes
     )
     
-    # Estadísticas del mes actual
+    # ========== ESTADÍSTICAS CORREGIDAS ==========
     total_tickets_mes = tickets_mes.count()
+    
+    # Tickets abiertos (en proceso)
     tickets_abiertos_mes = tickets_mes.filter(
-        estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO']
+        estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO', 'PENDIENTE']
     ).count()
+    
+    # Tickets completados exitosamente
     tickets_completados_mes = tickets_mes.filter(
         estado='COMPLETADO'
     ).count()
     
-    # Estadísticas detalladas por estado
+    # ✅ NUEVO: Tickets NO EXITOSOS
+    tickets_no_exitosos_mes = tickets_mes.filter(
+        estado='NO_EXITOSO'
+    ).count()
+    
+    # ✅ NUEVO: Tickets CANCELADOS (opcional)
+    tickets_cancelados_mes = tickets_mes.filter(
+        estado='CANCELADO'
+    ).count()
+    
+    # Estadísticas detalladas por estado (YA INCLUYE NO_EXITOSO automáticamente)
     estadisticas_estados = tickets_mes.values('estado').annotate(
         cantidad=Count('estado')
-    )
+    ).order_by('estado')  # Ordenar para consistencia
     
-    # Mapear estados a nombres legibles
+    # Mapear estados a nombres legibles (incluyendo NO_EXITOSO)
     estados_map = dict(Ticket.ESTADOS_TICKET)
     for stat in estadisticas_estados:
         stat['estado_nombre'] = estados_map.get(stat['estado'], stat['estado'])
@@ -129,11 +143,14 @@ def consultar_ticket(request):
         'total_tickets': total_tickets_mes,
         'tickets_abiertos': tickets_abiertos_mes,
         'tickets_completados': tickets_completados_mes,
+        'tickets_no_exitosos': tickets_no_exitosos_mes,  # ✅ NUEVO
+        'tickets_cancelados': tickets_cancelados_mes,     # ✅ NUEVO (opcional)
         'estadisticas_estados': estadisticas_estados,
         'mes_actual': mes_actual,
         'debug': settings.DEBUG,
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }
+    
     return render(request, 'extractor/consultar_ticket.html', context)
 
 

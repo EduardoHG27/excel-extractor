@@ -90,10 +90,11 @@
                     </ol>
                 </nav>
             </div>
-            <a href="#" id="backButton" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> 
-                        <span id="backButtonText">Volver</span>
-            </a>
+                <a href="{% if from_dashboard %}{% url 'extractor:dashboard_lider' %}{% else %}{% url 'extractor:upload_excel' %}{% endif %}" 
+                class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 
+                    {% if from_dashboard %}Volver al Dashboard{% else %}Volver{% endif %}
+                </a>
         </div>
 
         {% if messages %}
@@ -171,100 +172,99 @@
 
         <!-- Filtros básicos -->
         <div class="filter-section">
-    <form method="get" id="filterForm">
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Buscar ticket</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" name="q" value="{{ busqueda }}" 
-                        placeholder="Código o nombre...">
-                </div>
-            </div>
-            
-            <div class="col-md-2">
-                <label class="form-label fw-bold">Estado</label>
-                <select class="form-select" name="estado">
-                    <option value="">Todos los estados</option>
-                    <option value="GENERADO" {% if estado_selected == 'GENERADO' %}selected{% endif %}>Generado</option>
-                    <option value="EN_PROCESO" {% if estado_selected == 'EN_PROCESO' %}selected{% endif %}>En Proceso</option>
-                    <option value="COMPLETADO" {% if estado_selected == 'COMPLETADO' %}selected{% endif %}>Completado</option>
-                    <option value="CANCELADO" {% if estado_selected == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
-                </select>
-            </div>
-            
-            <div class="col-md-2">
-                <label class="form-label fw-bold">Cliente</label>
-                <select class="form-select" name="cliente">
-                    <option value="">Todos los clientes</option>
-                    {% for cliente in clientes %}
-                        <option value="{{ cliente.id }}" {% if cliente_selected == cliente.id %}selected{% endif %}>
-                            {{ cliente.nombre }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <!-- 🆕 NUEVOS FILTROS DE FECHA -->
-            <div class="col-md-2">
-                <label class="form-label fw-bold">Fecha desde</label>
-                <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde|default:'' }}">
-            </div>
-            
-            <div class="col-md-2">
-                <label class="form-label fw-bold">Fecha hasta</label>
-                <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta|default:'' }}">
-            </div>
-            
-            <div class="col-md-1">
-                <div class="row">
-                    <div class="col-12">
-                        <label class="form-label fw-bold">Mostrar</label>
-                        <select class="form-select" name="por_pagina" onchange="this.form.submit()">
-                            <option value="10" {% if por_pagina == '10' %}selected{% endif %}>10</option>
-                            <option value="20" {% if por_pagina == '20' or not por_pagina %}selected{% endif %}>20</option>
-                            <option value="50" {% if por_pagina == '50' %}selected{% endif %}>50</option>
-                            <option value="100" {% if por_pagina == '100' %}selected{% endif %}>100</option>
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Buscar ticket</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" name="q" value="{{ busqueda }}" 
+                                placeholder="Código o nombre...">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Estado</label>
+                        <select class="form-select" name="estado">
+                            <option value="">Todos los estados</option>
+                            <option value="GENERADO" {% if estado_selected == 'GENERADO' %}selected{% endif %}>Generado</option>
+                            <option value="EN_PROCESO" {% if estado_selected == 'EN_PROCESO' %}selected{% endif %}>En Proceso</option>
+                            <option value="COMPLETADO" {% if estado_selected == 'COMPLETADO' %}selected{% endif %}>Completado</option>
+                            <option value="CANCELADO" {% if estado_selected == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
                         </select>
                     </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Cliente</label>
+                        <select class="form-select" name="cliente">
+                            <option value="">Todos los clientes</option>
+                            {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if cliente_selected == cliente.id %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Fecha desde</label>
+                        <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde|default:'' }}">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Fecha hasta</label>
+                        <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta|default:'' }}">
+                    </div>
+                    
+                    <div class="col-md-1">
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Mostrar</label>
+                                <select class="form-select" name="por_pagina" onchange="this.form.submit()">
+                                    <option value="10" {% if por_pagina == '10' %}selected{% endif %}>10</option>
+                                    <option value="20" {% if por_pagina == '20' or not por_pagina %}selected{% endif %}>20</option>
+                                    <option value="50" {% if por_pagina == '50' %}selected{% endif %}>50</option>
+                                    <option value="100" {% if por_pagina == '100' %}selected{% endif %}>100</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        <a href="{% url 'extractor:ticket_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar filtros
+                        </a>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="col-md-12">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-funnel"></i> Filtrar
-                </button>
-                <a href="{% url 'extractor:ticket_list' %}" class="btn btn-secondary">
-                    <i class="bi bi-x-circle"></i> Limpiar filtros
-                </a>
-            </div>
+            </form>
         </div>
-    </form>
-</div>
 
-<!-- Indicador de filtros activos -->
-{% if request.GET.estado or request.GET.cliente or request.GET.q or request.GET.fecha_desde or request.GET.fecha_hasta %}
-<div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
-    <i class="bi bi-funnel-fill"></i>
-    <strong>Filtros activos:</strong>
-    {% if request.GET.q %}
-        <span class="badge bg-secondary">Búsqueda: {{ request.GET.q }}</span>
-    {% endif %}
-    {% if request.GET.estado %}
-        <span class="badge bg-info">Estado: {{ request.GET.estado }}</span>
-    {% endif %}
-    {% if request.GET.cliente %}
-        <span class="badge bg-primary">Cliente ID: {{ request.GET.cliente }}</span>
-    {% endif %}
-    {% if request.GET.fecha_desde %}
-        <span class="badge bg-success">Desde: {{ request.GET.fecha_desde }}</span>
-    {% endif %}
-    {% if request.GET.fecha_hasta %}
-        <span class="badge bg-success">Hasta: {{ request.GET.fecha_hasta }}</span>
-    {% endif %}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
+        <!-- Indicador de filtros activos -->
+        {% if request.GET.estado or request.GET.cliente or request.GET.q or request.GET.fecha_desde or request.GET.fecha_hasta %}
+            <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-funnel-fill"></i>
+                <strong>Filtros activos:</strong>
+                {% if request.GET.q %}
+                    <span class="badge bg-secondary">Búsqueda: {{ request.GET.q }}</span>
+                {% endif %}
+                {% if request.GET.estado %}
+                    <span class="badge bg-info">Estado: {{ request.GET.estado }}</span>
+                {% endif %}
+                {% if request.GET.cliente %}
+                    <span class="badge bg-primary">Cliente ID: {{ request.GET.cliente }}</span>
+                {% endif %}
+                {% if request.GET.fecha_desde %}
+                    <span class="badge bg-success">Desde: {{ request.GET.fecha_desde }}</span>
+                {% endif %}
+                {% if request.GET.fecha_hasta %}
+                    <span class="badge bg-success">Hasta: {{ request.GET.fecha_hasta }}</span>
+                {% endif %}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
 
         <!-- SECCIÓN DE DESCARGAS - EN COLLAPSE (CERRADO POR DEFECTO) -->
         <div class="card mt-4 mb-4 shadow-sm">
@@ -303,7 +303,7 @@
                                     <!-- Resumen de filtros actuales -->
                                     <div class="alert alert-info py-2 mb-3 small">
                                         <i class="bi bi-info-circle"></i>
-                                       Se exportarán <strong>{{ tickets.paginator.count }}</strong> tickets con los filtros aplicados
+                                        Se exportarán <strong>{{ tickets.paginator.count }}</strong> tickets con los filtros aplicados
                                     </div>
                                     
                                     <a href="{% url 'extractor:export_tickets_excel' %}?{{ request.GET.urlencode }}" 
@@ -325,7 +325,7 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="d-flex align-items-center mb-3">
-                                       <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
+                                        <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
                                             <i class="fas fa-database fs-1 text-primary"></i>
                                         </div>
                                         <div>
@@ -385,7 +385,7 @@
                                 <div class="card-body">
                                     <div class="row g-2">
                                         <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'proyecto' %}" 
+                                            <a href="{% url 'extractor:export_table_csv' 'cliente' %}" 
                                                class="btn btn-outline-secondary w-100 mb-2">
                                                 <i class="bi bi-building"></i> Clientes
                                             </a>
@@ -414,9 +414,9 @@
                                                 <i class="bi bi-file-text"></i> Datos Excel
                                             </a>
                                         </div>
-                                          <div class="col-md-2 col-6">
+                                        <div class="col-md-2 col-6">
                                             <a href="{% url 'extractor:export_table_csv' 'solicitudpruebas' %}" 
-                                            class="btn btn-outline-secondary w-100 mb-2">
+                                               class="btn btn-outline-secondary w-100 mb-2">
                                                 <i class="bi bi-file-earmark-text"></i> Solicitudes
                                             </a>
                                         </div>
@@ -441,7 +441,6 @@
             </div>
         </div>
 
-        <!-- Listado de tickets -->
 <div class="row">
     {% for ticket in tickets %}
         <div class="col-md-6 mb-3">
@@ -591,12 +590,17 @@
                             </a>
                         </div>
                         
-                        <div class="btn-group" role="group" onclick="event.stopPropagation()">
-                            <a href="{% url 'extractor:ticket_delete' ticket.id %}" class="btn btn-sm btn-outline-danger" title="Eliminar ticket" 
-                            onclick="return confirm('¿Estás seguro de eliminar este ticket? Esta acción no se puede deshacer.');">
-                                <i class="bi bi-trash"></i> Eliminar
-                            </a>
-                        </div>
+                        {% if ticket.estado != 'COMPLETADO' and ticket.estado != 'CANCELADO' and ticket.estado != 'NO EXITOSO' %}
+                            <div class="btn-group" role="group" onclick="event.stopPropagation()">
+                                <a href="{% url 'extractor:ticket_delete' ticket.id %}" class="btn btn-sm btn-outline-danger" title="Eliminar ticket" 
+                                onclick="return confirm('¿Estás seguro de eliminar este ticket? Esta acción no se puede deshacer.');">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </a>
+                            </div>
+                        {% else %}
+                            <!-- Espacio vacío para mantener la alineación -->
+                            <div></div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -614,149 +618,176 @@
         </div>
     {% endfor %}
 </div>
-                <!-- Paginador -->
+        
+        <!-- Paginador -->
         {% if tickets.paginator.num_pages > 1 %}
-        <div class="row mt-4">
-            <div class="col-12">
-                <nav aria-label="Navegación de páginas">
-                    <ul class="pagination justify-content-center">
-                        {% if tickets.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page=1" aria-label="Primera">
-                                    <i class="bi bi-chevron-double-left"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ tickets.previous_page_number }}" aria-label="Anterior">
-                                    <i class="bi bi-chevron-left"></i>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link"><i class="bi bi-chevron-double-left"></i></span>
-                            </li>
-                            <li class="page-item disabled">
-                                <span class="page-link"><i class="bi bi-chevron-left"></i></span>
-                            </li>
-                        {% endif %}
-
-                        {% for num in tickets.paginator.page_range %}
-                            {% if tickets.number == num %}
-                                <li class="page-item active">
-                                    <span class="page-link">{{ num }}</span>
-                                </li>
-                            {% elif num > tickets.number|add:'-3' and num < tickets.number|add:'3' %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <nav aria-label="Navegación de páginas">
+                        <ul class="pagination justify-content-center">
+                            {% if tickets.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page=1" aria-label="Primera">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ tickets.previous_page_number }}" aria-label="Anterior">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-double-left"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-left"></i></span>
                                 </li>
                             {% endif %}
-                        {% endfor %}
 
-                        {% if tickets.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ tickets.next_page_number }}" aria-label="Siguiente">
-                                    <i class="bi bi-chevron-right"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ tickets.paginator.num_pages }}" aria-label="Última">
-                                    <i class="bi bi-chevron-double-right"></i>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link"><i class="bi bi-chevron-right"></i></span>
-                            </li>
-                            <li class="page-item disabled">
-                                <span class="page-link"><i class="bi bi-chevron-double-right"></i></span>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                            {% for num in tickets.paginator.page_range %}
+                                {% if tickets.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > tickets.number|add:'-3' and num < tickets.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if tickets.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ tickets.next_page_number }}" aria-label="Siguiente">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ tickets.paginator.num_pages }}" aria-label="Última">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-double-right"></i></span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
             </div>
-        </div>
-        
-        <!-- Información de paginación -->
-        <div class="row">
-            <div class="col-12 text-center text-muted small">
-                <p>
-                    Mostrando {{ tickets.start_index }} - {{ tickets.end_index }} de {{ tickets.paginator.count }} tickets
-                    (Página {{ tickets.number }} de {{ tickets.paginator.num_pages }})
-                </p>
+            
+            <!-- Información de paginación -->
+            <div class="row">
+                <div class="col-12 text-center text-muted small">
+                    <p>
+                        Mostrando {{ tickets.start_index }} - {{ tickets.end_index }} de {{ tickets.paginator.count }} tickets
+                        (Página {{ tickets.number }} de {{ tickets.paginator.num_pages }})
+                    </p>
+                </div>
             </div>
-        </div>
         {% endif %}
+
+    </div>
 
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Script para cambiar el icono del collapse -->
     <script>
+        // Función para copiar ticket
+        function copiarTicket(codigo) {
+            navigator.clipboard.writeText(codigo);
+            // Feedback visual opcional
+            alert('Código copiado: ' + codigo);
+        }
+
+        // Función principal para determinar el origen y configurar el botón de volver
+        function determinarOrigenYConfigurarBoton() {
+            const backButton = document.getElementById('backButton');
+            const backButtonText = document.getElementById('backButtonText');
+            
+            // SOLO verificar el parámetro en la URL - método más confiable
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromDashboardParam = urlParams.get('from_dashboard') === 'true';
+            
+            // Verificar sessionStorage SOLO si se estableció explícitamente en esta sesión
+            // y no hay un parámetro en URL que diga lo contrario
+            let fromDashboardStorage = false;
+            if (!fromDashboardParam) {
+                // Solo usar sessionStorage si no hay parámetro en URL
+                fromDashboardStorage = sessionStorage.getItem('from_dashboard_verified') === 'true';
+            }
+            
+            // NO usar referrer porque puede dar falsos positivos
+            // NO usar localStorage porque persiste entre sesiones
+            // NO usar cookies porque pueden estar sucias
+            
+            // Determinar el origen final
+            let fromDashboard = fromDashboardParam || fromDashboardStorage;
+            
+            // Log para depuración
+            console.log('=== VALIDACIÓN DE ORIGEN (VERSIÓN CORREGIDA) ===');
+            console.log('URL param from_dashboard:', fromDashboardParam);
+            console.log('sessionStorage from_dashboard_verified:', fromDashboardStorage);
+            console.log('RESULTADO FINAL - fromDashboard:', fromDashboard);
+            console.log('URL actual:', window.location.href);
+            console.log('===============================================');
+            
+            // Configurar el botón según el origen
+            if (fromDashboard) {
+                // Venimos del dashboard - configurar para volver al dashboard
+                const dashboardUrl = "{% url 'extractor:dashboard_lider' %}";
+                backButton.href = dashboardUrl;
+                backButtonText.textContent = 'Volver al Dashboard';
+                
+                // Guardar en sessionStorage para mantener consistencia
+                sessionStorage.setItem('from_dashboard_verified', 'true');
+                
+                console.log('✅ Configurado: Volver al Dashboard');
+            } else {
+                // NO venimos del dashboard - configurar para volver al inicio normal
+                const uploadUrl = "{% url 'extractor:upload_excel' %}";
+                backButton.href = uploadUrl;
+                backButtonText.textContent = 'Volver';
+                
+                // Limpiar cualquier indicador previo
+                sessionStorage.removeItem('from_dashboard_verified');
+                
+                console.log('✅ Configurado: Volver a Inicio');
+            }
+        }
+        
+        // Ejecutar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
+            determinarOrigenYConfigurarBoton();
+            
+            // Configurar el collapse
             const collapseElement = document.getElementById('collapseDownloads');
             const iconElement = document.getElementById('collapse-icon');
             
-            collapseElement.addEventListener('show.bs.collapse', function() {
-                iconElement.classList.remove('bi-chevron-down');
-                iconElement.classList.add('bi-chevron-up');
-            });
-            
-            collapseElement.addEventListener('hide.bs.collapse', function() {
-                iconElement.classList.remove('bi-chevron-up');
-                iconElement.classList.add('bi-chevron-down');
-            });
-        });
-
-        function copiarTicket(codigo) {
-            navigator.clipboard.writeText(codigo);
-        }
-
-
-          document.addEventListener('DOMContentLoaded', function() {
-        const backButton = document.getElementById('backButton');
-        const backButtonText = document.getElementById('backButtonText');
-        
-        // Verificar de múltiples formas si venimos del dashboard
-        // 1. Por parámetro en la URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const fromDashboardParam = urlParams.get('from_dashboard') === 'true';
-        
-        // 2. Por sessionStorage
-        const fromDashboardStorage = sessionStorage.getItem('from_dashboard') === 'true';
-        
-        // 3. Por el referrer (de dónde venimos)
-        const referrer = document.referrer;
-        const fromDashboardReferrer = referrer.includes('dashboard-lider');
-        
-        const fromDashboard = fromDashboardParam || fromDashboardStorage || fromDashboardReferrer;
-        
-        console.log('fromDashboard detection:', {
-            param: fromDashboardParam,
-            storage: fromDashboardStorage,
-            referrer: fromDashboardReferrer,
-            result: fromDashboard
+            if (collapseElement && iconElement) {
+                collapseElement.addEventListener('show.bs.collapse', function() {
+                    iconElement.classList.remove('bi-chevron-down');
+                    iconElement.classList.add('bi-chevron-up');
+                });
+                
+                collapseElement.addEventListener('hide.bs.collapse', function() {
+                    iconElement.classList.remove('bi-chevron-up');
+                    iconElement.classList.add('bi-chevron-down');
+                });
+            }
         });
         
-        if (fromDashboard) {
-            backButton.href = "{% url 'extractor:dashboard_lider' %}";
-            backButtonText.textContent = 'Volver al Dashboard';
-            // Limpiar sessionStorage
-            sessionStorage.removeItem('from_dashboard');
-        } else {
-            backButton.href = "{% url 'extractor:upload_excel' %}";
-            backButtonText.textContent = 'Volver';
-        }
-    });
-
+        // Script de depuración para ver los tickets
+        console.log("=== TICKETS EN PÁGINA ===");
+        document.querySelectorAll('.codigo-ticket').forEach((el, idx) => {
+            console.log(`${idx + 1}. ${el.textContent.trim()}`);
+        });
+        console.log("Total tickets mostrados: " + document.querySelectorAll('.codigo-ticket').length);
     </script>
 </body>
-
-<script>
-    // Script de depuración para ver los tickets
-    console.log("=== TICKETS EN PÁGINA ===");
-    document.querySelectorAll('.codigo-ticket').forEach((el, idx) => {
-        console.log(`${idx + 1}. ${el.textContent.trim()}`);
-    });
-    console.log("Total tickets mostrados: " + document.querySelectorAll('.codigo-ticket').length);
-</script>
 </html>
