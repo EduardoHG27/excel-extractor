@@ -54,19 +54,20 @@ def sanitizar_public_id(nombre):
 
 
 def extraer_public_id_cloudinary(url):
-    """
-    Extrae el public_id de una URL de Cloudinary
-    """
-    import re
+    """Extrae el public_id de una URL de Cloudinary"""
     try:
-        pattern = r'/upload/(?:v\d+/)?(.+?)\.\w+$'
+        # Patrón más flexible que maneja image/upload/, raw/upload/, etc.
+        # Busca: cualquier cosa/upload/v123/resto.si
+        pattern = r'/(?:image|raw|video)/upload/(?:v\d+/)?(.+?)\.\w+$'
         match = re.search(pattern, url)
         
         if match:
             public_id = match.group(1)
+            # Limpiar cualquier query parameter
             public_id = public_id.split('?')[0]
             return public_id
         
         return None
-    except Exception:
+    except Exception as e:
+        print(f"Error extrayendo public_id: {e}")
         return None
