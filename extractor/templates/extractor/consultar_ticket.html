@@ -971,7 +971,7 @@
                     <i class="bi bi-ticket-perforated fs-1 text-primary"></i>
                     <h3 class="mt-2 mb-0">{{ total_tickets|default:"0" }}</h3>
                     <small class="text-muted">
-                        <i class="bi bi-calendar-month"></i> Tickets ({{ mes_actual|default:"este mes" }})
+                        <i class="bi bi-calendar-month"></i> Tickets ({{ mes_actual }})
                     </small>
                 </div>
             </div>
@@ -980,7 +980,7 @@
             <div class="modern-card text-center">
                 <div class="card-body p-3">
                     <i class="bi bi-hourglass-split fs-1 text-warning"></i>
-                    <h3 class="mt-2 mb-0">{{ tickets_abiertos|default:"0" }}</h3>
+                    <h3 class="mt-2 mb-0">{{ tickets_abiertos|default:"0" }}</h3>  <!-- ✅ Esta línea ya usa tickets_abiertos -->
                     <small class="text-muted">
                         <i class="bi bi-play-circle"></i> Generados/en proceso
                     </small>

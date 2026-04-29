@@ -161,6 +161,8 @@ def consultar_ticket(request):
                 error = f'Error al buscar el ticket: {str(e)}'
     
     # ========== 4. CONTEXTO CON NUEVAS VARIABLES ==========
+    tickets_abiertos = tickets_pendientes_mes + tickets_en_proceso_mes  
+
     context = {
         'ticket': ticket,
         'error': error,
@@ -175,6 +177,7 @@ def consultar_ticket(request):
         'mes_actual': mes_actual,
         'tickets_pendientes_lista': tickets_pendientes_lista,
         'debug': settings.DEBUG,
+        'tickets_abiertos': tickets_abiertos, 
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }
     
