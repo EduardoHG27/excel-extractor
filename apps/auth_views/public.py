@@ -10,7 +10,7 @@ from datetime import datetime
 from calendar import monthrange
 from django.db.models import Count, Q
 
-from extractor.models import Ticket
+from extractor.models import Ticket, SolicitudPruebas  
 
 
 def consultar_ticket(request):
@@ -36,13 +36,24 @@ def consultar_ticket(request):
         fecha_creacion__gte=inicio_mes,
         fecha_creacion__lte=fin_mes
     )
+
+    solicitudes_sin_ticket = SolicitudPruebas.objects.filter(
+        ticket__isnull=True,  # Sin ticket asociado
+        fecha_creacion__gte=inicio_mes,
+        fecha_creacion__lte=fin_mes
+    ).count()
     
     # ========== ESTADÍSTICAS CORREGIDAS ==========
     total_tickets_mes = tickets_mes.count()
     
-    # Tickets abiertos (en proceso)
-    tickets_abiertos_mes = tickets_mes.filter(
-        estado__in=['GENERADO', 'ABIERTO', 'EN_PROCESO', 'PENDIENTE']
+    # ✅ CORREGIDO: Tickets pendientes (GENERADO es el estado inicial)
+    tickets_pendientes_mes = tickets_mes.filter(
+        estado__in=['GENERADO']
+    ).count()
+    
+    # Tickets en proceso
+    tickets_en_proceso_mes = tickets_mes.filter(
+        estado='EN_PROCESO'
     ).count()
     
     # Tickets completados exitosamente
@@ -50,27 +61,42 @@ def consultar_ticket(request):
         estado='COMPLETADO'
     ).count()
     
-    # ✅ NUEVO: Tickets NO EXITOSOS
+    # Tickets NO EXITOSOS
     tickets_no_exitosos_mes = tickets_mes.filter(
-        estado='NO_EXITOSO'
+        estado='NO EXITOSO'  # ← Atención al espacio
     ).count()
     
-    # ✅ NUEVO: Tickets CANCELADOS (opcional)
+    # Tickets CANCELADOS
     tickets_cancelados_mes = tickets_mes.filter(
         estado='CANCELADO'
     ).count()
     
-    # Estadísticas detalladas por estado (YA INCLUYE NO_EXITOSO automáticamente)
-    estadisticas_estados = tickets_mes.values('estado').annotate(
-        cantidad=Count('estado')
-    ).order_by('estado')  # Ordenar para consistencia
+    # Estadísticas detalladas por estado
+    estadisticas_estados = list(tickets_mes.values('estado').annotate(
+    cantidad=Count('estado')
+    ).order_by('estado'))
+
+    if solicitudes_sin_ticket > 0:
+        estadisticas_estados.append({
+            'estado': 'SIN_TICKET',
+            'estado_nombre': '📋 Solicitudes sin ticket',
+            'cantidad': solicitudes_sin_ticket
+        })
     
-    # Mapear estados a nombres legibles (incluyendo NO_EXITOSO)
+    # Mapear estados a nombres legibles
     estados_map = dict(Ticket.ESTADOS_TICKET)
     for stat in estadisticas_estados:
         stat['estado_nombre'] = estados_map.get(stat['estado'], stat['estado'])
     
-    # ========== 2. NOMBRE DEL MES EN ESPAÑOL ==========
+    # ========== 2. LISTA DE TICKETS PENDIENTES (para mostrar en tabla) ==========
+    # ✅ NUEVO: Obtener los tickets con estado GENERADO (pendientes)
+    tickets_pendientes_lista = Ticket.objects.select_related(
+        'cliente', 'proyecto', 'tipo_servicio'
+    ).filter(
+        estado='GENERADO'  # Tickets que están pendientes de atención
+    ).order_by('-fecha_creacion')[:20]  # Últimos 20 tickets pendientes
+    
+    # ========== 3. NOMBRE DEL MES EN ESPAÑOL ==========
     meses_espanol = {
         1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
         5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
@@ -85,7 +111,6 @@ def consultar_ticket(request):
             error = 'Por favor ingresa un código de ticket'
         else:
             try:
-                # ========== 3. CARGAR ASIGNADO_A con select_related ==========
                 ticket = Ticket.objects.select_related(
                     'cliente', 'proyecto', 'tipo_servicio', 'asignado_a', 'creado_por'
                 ).filter(codigo=codigo_ticket).first()
@@ -135,18 +160,20 @@ def consultar_ticket(request):
             except Exception as e:
                 error = f'Error al buscar el ticket: {str(e)}'
     
-    # ========== 4. CONTEXTO CON LAS NUEVAS VARIABLES ==========
+    # ========== 4. CONTEXTO CON NUEVAS VARIABLES ==========
     context = {
         'ticket': ticket,
         'error': error,
-        # Estadísticas del mes actual (NO globales)
+        # Estadísticas del mes actual
         'total_tickets': total_tickets_mes,
-        'tickets_abiertos': tickets_abiertos_mes,
+        'tickets_pendientes': tickets_pendientes_mes,      
+        'tickets_en_proceso': tickets_en_proceso_mes,      
         'tickets_completados': tickets_completados_mes,
-        'tickets_no_exitosos': tickets_no_exitosos_mes,  # ✅ NUEVO
-        'tickets_cancelados': tickets_cancelados_mes,     # ✅ NUEVO (opcional)
+        'tickets_no_exitosos': tickets_no_exitosos_mes,
+        'tickets_cancelados': tickets_cancelados_mes,
         'estadisticas_estados': estadisticas_estados,
         'mes_actual': mes_actual,
+        'tickets_pendientes_lista': tickets_pendientes_lista,
         'debug': settings.DEBUG,
         'codigo_buscado': request.POST.get('codigo_ticket', '') if request.method == 'POST' else '',
     }
