@@ -22,7 +22,8 @@ def ticket_cambiar_estado(request, id):
         if not nuevo_estado:
             return JsonResponse({'success': False, 'error': 'Estado no proporcionado'})
         
-        if nuevo_estado not in dict(Ticket.ESTADOS):
+        
+        if nuevo_estado not in dict(Ticket.ESTADOS_TICKET):
             return JsonResponse({'success': False, 'error': 'Estado inválido'})
         
         # Guardar estado anterior
