@@ -614,6 +614,7 @@ Saludos.
                             <select id="estadoSelect" 
                                     class="form-select form-select-sm" 
                                     data-url="{% url 'extractor:ticket_cambiar_estado' id=ticket.id %}"
+                                    data-valor-anterior="{{ ticket.estado }}"
                                     onchange="cambiarEstado(this.value, {{ ticket.id }})">
                                 <option value="GENERADO" {% if ticket.estado == 'GENERADO' %}selected{% endif %}>🟡 Generado</option>
                                 <option value="EN_PROCESO" {% if ticket.estado == 'EN_PROCESO' %}selected{% endif %}>🟠 En Proceso</option>
@@ -1271,35 +1272,63 @@ Saludos.
             }, 3000);
         }
 
-        function cambiarEstado(nuevoEstado, ticketId) {
-            const select = document.getElementById('estadoSelect');
-            const url = select.getAttribute('data-url');
+    function cambiarEstado(nuevoEstado, ticketId) {
+        // Guardar valor anterior para posible restauración
+        const select = document.getElementById('estadoSelect');
+        const valorAnterior = select.getAttribute('data-valor-anterior') || select.value;
+        select.setAttribute('data-valor-anterior', valorAnterior);
+        
+        // Verificar si el nuevo estado es terminal (COMPLETADO o NO EXITOSO)
+        const estadosTerminales = ['COMPLETADO', 'NO EXITOSO'];
+        const esEstadoTerminal = estadosTerminales.includes(nuevoEstado);
+        
+        if (esEstadoTerminal) {
+            // Confirmar con el usuario
+            const confirmMessage = nuevoEstado === 'COMPLETADO' 
+                ? '¿Deseas marcar este ticket como COMPLETADO y cerrar la incidencia en Jira?'
+                : '¿Deseas marcar este ticket como NO EXITOSO y cerrar la incidencia en Jira?';
             
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify({ estado: nuevoEstado })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
-                    alertDiv.innerHTML = `Estado cambiado a ${data.estado_display} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-                    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    alert('Error: ' + data.error);
+            if (confirm(confirmMessage)) {
+                cambiarEstadoConJira(nuevoEstado, ticketId);
+            } else {
+                // Restaurar valor anterior
+                const valorAnteriorGuardado = select.getAttribute('data-valor-anterior');
+                if (valorAnteriorGuardado) {
+                    select.value = valorAnteriorGuardado;
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cambiar el estado');
-            });
+            }
+        } else {
+            // Para estados no terminales, cambiar directamente
+            cambiarEstadoNormal(nuevoEstado, ticketId);
         }
+    }
+
+    function cambiarEstadoNormal(nuevoEstado, ticketId) {
+        const select = document.getElementById('estadoSelect');
+        const url = select.getAttribute('data-url');
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ estado: nuevoEstado })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarMensaje(`✅ Estado cambiado a ${data.estado_display}`, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                mostrarMensaje('❌ Error: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarMensaje('❌ Error al cambiar el estado', 'danger');
+        });
+    }
 
         function getCsrfToken() {
             let cookieValue = null;
@@ -1611,6 +1640,74 @@ document.addEventListener('DOMContentLoaded', function() {
         nombreInput.setAttribute('data-original-value', nombreInput.value);
     }
 });
+
+function cambiarEstadoConJira(nuevoEstado, ticketId) {
+    const select = document.getElementById('estadoSelect');
+    if (!select) {
+        console.error('No se encontró el select de estado');
+        return;
+    }
+    const url = select.getAttribute('data-url');
+    
+    // Mostrar loading
+    const btnGuardar = document.activeElement;
+    let originalHtml = '';
+    if (btnGuardar && btnGuardar.tagName === 'SELECT') {
+        btnGuardar.style.opacity = '0.6';
+        btnGuardar.disabled = true;
+    }
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ 
+            estado: nuevoEstado,
+            cerrar_en_jira: true  // Indicador para cerrar en Jira
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let mensaje = `✅ Estado cambiado a ${data.estado_display}`;
+            
+            // Mostrar resultado de Jira
+            if (data.jira_result) {
+                if (data.jira_result.success) {
+                    mensaje += `\n📋 Incidencia Jira cerrada: ${data.jira_result.issue_key}`;
+                } else if (data.jira_result.warning) {
+                    mensaje += `\n⚠️ ${data.jira_result.warning}`;
+                }
+            }
+            
+            mostrarMensaje(mensaje, 'success');
+            
+            // Recargar para mostrar cambios
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            mostrarMensaje('❌ Error: ' + data.error, 'danger');
+            if (btnGuardar && btnGuardar.tagName === 'SELECT') {
+                btnGuardar.style.opacity = '1';
+                btnGuardar.disabled = false;
+                // Restaurar valor anterior
+                const valorAnterior = btnGuardar.getAttribute('data-valor-anterior');
+                if (valorAnterior) btnGuardar.value = valorAnterior;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarMensaje('❌ Error de red al cambiar el estado', 'danger');
+        if (btnGuardar && btnGuardar.tagName === 'SELECT') {
+            btnGuardar.style.opacity = '1';
+            btnGuardar.disabled = false;
+            const valorAnterior = btnGuardar.getAttribute('data-valor-anterior');
+            if (valorAnterior) btnGuardar.value = valorAnterior;
+        }
+    });
+}
     </script>
 
     <style>

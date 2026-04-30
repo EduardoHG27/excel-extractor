@@ -2,6 +2,17 @@
 {% extends 'extractor/base_general.html' %}  
 
 {% block content %}
+
+<!-- Overlay de carga (similar al de upload.html) -->
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background-color: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 250px;">
+        <!-- Spinner animado -->
+        <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+        <h3 style="color: #2c3e50; margin: 0;">Procesando...</h3>
+        <p style="color: #7f8c8d; margin-top: 10px; font-size: 0.9rem;">Por favor espera</p>
+    </div>
+</div>
+
 <div class="page-header">
     <h1>📋 Detalle de Solicitud #{{ solicitud.id }}</h1>
     <p>
@@ -26,11 +37,11 @@
     </div>
     
     <div style="display: flex; gap: 10px;">
-        <!-- ✅ NUEVO BOTÓN CREAR TICKET (arriba, junto a descargar) -->
         {% if not solicitud.ticket %}
         <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
               style="display: inline;" 
-              onsubmit="return confirm('¿Estás seguro de que deseas crear un ticket a partir de esta solicitud?');">
+              id="crearTicketForm"
+              onsubmit="showLoading(); return true;">
             {% csrf_token %}
             <button type="submit" class="btn" style="background-color: #4361ee; color: white;">
                 🎫 Crear Ticket
@@ -68,9 +79,9 @@
                 <td style="padding: 8px 0;">{{ solicitud.fecha_solicitud|date:"d/m/Y" }} {{ solicitud.hora_solicitud|time:"H:i" }}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; font-weight: bold;">Nombre del archivo:</td>
-            <td style="padding: 8px 0;">{{ solicitud.nombre_archivo }}</td>
-           </tr>
+                <td style="padding: 8px 0; font-weight: bold;">Nombre del archivo:</td>
+                <td style="padding: 8px 0;">{{ solicitud.nombre_archivo }}</td>
+            </tr>
         </table>
     </div>
     
@@ -237,7 +248,7 @@
                 {% endif %}
             </td>
         </tr>
-        <tr>
+        <tr style="border-bottom: 1px solid #dee2e6;">
             <td style="padding: 12px 0; font-weight: bold;">📄 Nombre del Archivo:</td>
             <td style="padding: 12px 0;">{{ solicitud.nombre_archivo|default:"No generado" }}</td>
         </tr>
@@ -247,11 +258,11 @@
 <!-- Botones de acción -->
 <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
     
-    <!-- ✅ NUEVO: Botón para crear ticket desde solicitud -->
     {% if not solicitud.ticket %}
     <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
+          id="crearTicketFormBottom"
           style="display: inline;" 
-          onsubmit="return confirm('¿Estás seguro de que deseas crear un ticket a partir de esta solicitud?');">
+          onsubmit="showLoading(); return true;">
         {% csrf_token %}
         <button type="submit" class="btn" style="background-color: #4361ee; color: white; font-size: 1.1rem; padding: 12px 30px;">
             🎫 Crear Ticket desde Solicitud
@@ -271,6 +282,11 @@
 </div>
 
 <style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .back-link {
     color: #3498db;
     text-decoration: none;
@@ -294,5 +310,64 @@ h4 {
     font-size: 1rem;
     color: #34495e;
 }
+
+#loadingOverlay {
+    cursor: wait;
+}
 </style>
+
+<script>
+function showLoading() {
+    // Mostrar el overlay de carga
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+    }
+    
+    // También puedes deshabilitar los botones para evitar múltiples envíos
+    const buttons = document.querySelectorAll('button[type="submit"]');
+    buttons.forEach(button => {
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        button.style.cursor = 'not-allowed';
+    });
+    
+    // Opcional: ocultar el overlay después de un tiempo máximo (por si algo falla)
+    setTimeout(function() {
+        if (overlay && overlay.style.display === 'flex') {
+            overlay.style.display = 'none';
+            // Re-habilitar botones
+            buttons.forEach(button => {
+                button.disabled = false;
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+            });
+        }
+    }, 30000); // 30 segundos máximo
+}
+
+// También puedes mostrar loading para enlaces de descarga que tarden
+document.addEventListener('DOMContentLoaded', function() {
+    const downloadLinks = document.querySelectorAll('a[href*="imprimir_solicitud_excel"]');
+    downloadLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            showLoading();
+        });
+    });
+});
+</script>
+
+{% if messages %}
+<div style="margin-top: 30px;">
+    {% for message in messages %}
+    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-top: 10px; padding: 15px; border-radius: 5px; margin-bottom: 10px;
+        {% if message.tags == 'success' %}background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724;
+        {% elif message.tags == 'error' %}background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;
+        {% else %}background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460;{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 {% endblock %}

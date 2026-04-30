@@ -127,7 +127,93 @@ h3. Descripción de Cambios
             logger.error(f"❌ Error creando incidencia en Jira: {e}")
             print(f"❌ Error creando incidencia en Jira: {e}")
             return None
+    
+    # 👇 AGREGAR ESTE NUEVO MÉTODO 👇
+    def close_issue(self, issue_key, resolution='Done'):
+        """
+        Cierra una incidencia en Jira
         
+        Args:
+            issue_key (str): La clave de la incidencia (ej: 'PROY-123')
+            resolution (str): La resolución a aplicar ('Done', 'Cannot Reproduce', 'Won't Do', etc.)
+        
+        Returns:
+            dict: Resultado de la operación con 'success' y mensaje
+        """
+        if not self.jira:
+            logger.error("No hay conexión a Jira")
+            return {
+                'success': False,
+                'warning': 'No hay conexión a Jira'
+            }
+        
+        try:
+            # Obtener la incidencia
+            issue = self.jira.issue(issue_key)
+            logger.info(f"Cerrando incidencia {issue_key} - Estado actual: {issue.fields.status.name}")
+            
+            # Obtener transiciones disponibles
+            transitions = self.jira.transitions(issue)
+            
+            # Buscar transición de cierre (varios nombres posibles)
+            close_transition_id = None
+            possible_transitions = ['Close', 'Closed', 'Done', 'Resolved', 'Cerrar', 'Resuelto', 'Terminado']
+            
+            for transition in transitions:
+                transition_name = transition['name'].lower()
+                for possible in possible_transitions:
+                    if possible.lower() == transition_name:
+                        close_transition_id = transition['id']
+                        logger.info(f"✅ Transición encontrada: {transition['name']} (ID: {close_transition_id})")
+                        break
+                if close_transition_id:
+                    break
+            
+            if not close_transition_id:
+                logger.warning(f"⚠️ No se encontró transición de cierre para {issue_key}")
+                return {
+                    'success': False,
+                    'warning': f'No se encontró transición de cierre para {issue_key}'
+                }
+            
+            # Realizar la transición
+            # Algunas transiciones requieren campos adicionales
+            transition_data = {
+                'transition': {'id': close_transition_id}
+            }
+            
+            # Si la resolución es requerida, agregarla
+            # Verificar si la transición requiere campo de resolución
+            transition_info = self.jira.transition(issue, close_transition_id)
+            if 'resolution' in str(transition_info):
+                transition_data['fields'] = {
+                    'resolution': {'name': resolution}
+                }
+            
+            self.jira.transition_issue(issue_key, **transition_data)
+            
+            logger.info(f"✅ Incidencia {issue_key} cerrada exitosamente con resolución: {resolution}")
+            
+            # Agregar comentario de cierre
+            try:
+                comment = f"Incidencia cerrada automáticamente desde el sistema QA. Estado del ticket: {'COMPLETADO' if resolution == 'Done' else 'NO EXITOSO'}"
+                self.jira.add_comment(issue_key, comment)
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo agregar comentario de cierre: {e}")
+            
+            return {
+                'success': True,
+                'issue_key': issue_key,
+                'message': f'Incidencia {issue_key} cerrada exitosamente'
+            }
+            
+        except Exception as e:
+            error_msg = f"Error al cerrar incidencia {issue_key}: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'warning': error_msg
+            }
 
 def create_jira_issue_from_ticket(ticket_obj, jira_data, request=None):
     """

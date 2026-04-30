@@ -3,55 +3,70 @@ Vistas para acciones de Tickets (cambios de estado, asignación, comentarios)
 """
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.utils import timezone
 import json
-
+from extractor.jira_helper import JiraClient  # Cambiar de jira_integration a jira_helper
 from extractor.models import Ticket, Usuario
 
-
+@csrf_exempt
 @login_required
 def ticket_cambiar_estado(request, id):
-    """API para cambiar el estado de un ticket"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            nuevo_estado = data.get('estado')
-            
-            ticket = get_object_or_404(Ticket, id=id)
-            
-            estados_validos = ['GENERADO', 'EN_PROCESO', 'COMPLETADO', 'CANCELADO', 'NO EXITOSO']
-            if nuevo_estado not in estados_validos:
-                return JsonResponse({'success': False, 'error': 'Estado no válido'})
-            
-            usuario = request.user.get_full_name() or request.user.username
-            ahora_local = timezone.localtime(timezone.now())
-            fecha_hora = ahora_local.strftime('%d/%m/%Y %H:%M')
-            
-            comentario_estado = f"[{fecha_hora}] {usuario} cambió el estado de {ticket.get_estado_display()} a {dict(Ticket.ESTADOS_TICKET).get(nuevo_estado)}"
-            
-            if ticket.comentarios_seguimiento:
-                ticket.comentarios_seguimiento += f"\n{comentario_estado}"
-            else:
-                ticket.comentarios_seguimiento = comentario_estado
-            
-            if nuevo_estado == 'COMPLETADO' and ticket.estado != 'COMPLETADO':
-                ticket.fecha_cierre = timezone.now()
-            elif nuevo_estado != 'COMPLETADO':
-                ticket.fecha_cierre = None
-            
-            ticket.estado = nuevo_estado
-            ticket.save()
-            
-            return JsonResponse({
-                'success': True,
-                'estado_display': dict(Ticket.ESTADOS_TICKET).get(nuevo_estado)
-            })
-            
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    
-    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    try:
+        ticket = Ticket.objects.get(id=id)
+        data = json.loads(request.body)
+        nuevo_estado = data.get('estado')
+        cerrar_en_jira = data.get('cerrar_en_jira', False)
+        
+        if not nuevo_estado:
+            return JsonResponse({'success': False, 'error': 'Estado no proporcionado'})
+        
+        if nuevo_estado not in dict(Ticket.ESTADOS):
+            return JsonResponse({'success': False, 'error': 'Estado inválido'})
+        
+        # Guardar estado anterior
+        estado_anterior = ticket.estado
+        
+        # Cambiar estado del ticket
+        ticket.estado = nuevo_estado
+        
+        # Si se completa o no es exitoso, cerrar en Jira
+        jira_result = None
+        if cerrar_en_jira and nuevo_estado in ['COMPLETADO', 'NO EXITOSO']:
+            try:
+                jira_client = JiraClient()
+                # Verificar si el ticket tiene issue_key
+                if hasattr(ticket, 'jira_issue_key') and ticket.jira_issue_key:
+                    jira_result = jira_client.close_issue(
+                        ticket.jira_issue_key,
+                        resolution='Done' if nuevo_estado == 'COMPLETADO' else 'Cannot Reproduce'
+                    )
+                else:
+                    jira_result = {
+                        'success': False,
+                        'warning': 'No se encontró issue_key asociado al ticket'
+                    }
+            except Exception as e:
+                jira_result = {
+                    'success': False,
+                    'warning': f'Error al cerrar en Jira: {str(e)}'
+                }
+        
+        # Si Jira falla, no impedimos el cambio de estado
+        ticket.save()
+        
+        return JsonResponse({
+            'success': True,
+            'estado_display': ticket.get_estado_display(),
+            'jira_result': jira_result
+        })
+        
+    except Ticket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket no encontrado'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
 
 
 @login_required
