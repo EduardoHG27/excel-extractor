@@ -54,7 +54,7 @@
         
         <!-- ✅ Botón Descargar Solicitud - Visible para TODOS (sin autenticación) -->
         {% if not solicitud.ticket %}
-            <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
+            <a href="{% url 'extractor:imprimir_solicitud_excel_public' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
         {% else %}
             <a href="{% url 'extractor:ticket_detail' solicitud.ticket.id %}" class="btn">👁️ Ver Ticket Asociado</a>
         {% endif %}
@@ -276,7 +276,7 @@
 
     <!-- ✅ Botón Descargar Solicitud - Visible para TODOS -->
     {% if not solicitud.ticket %}
-    <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
+    <a href="{% url 'extractor:imprimir_solicitud_excel_public' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
         🖨️ Descargar Solicitud
     </a>
     {% endif %}
