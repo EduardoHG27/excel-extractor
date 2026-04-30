@@ -147,6 +147,7 @@ def crear_solicitud(request):
     """
     Vista para crear solicitud de pruebas manualmente
     Con protecciones anti-bots (Cooldown + Honeypot + Rate Limiting)
+    Y persistencia de datos en caso de error
     """
     from django.conf import settings
     from django.utils import timezone
@@ -179,16 +180,20 @@ def crear_solicitud(request):
                     request, 
                     f'⏳ Debes esperar {minutos} minutos y {segundos} segundos antes de crear otra solicitud.'
                 )
-                return redirect('extractor:solicitud_list')
+                # Guardar datos en sesión antes de redirigir
+                request.session['form_data'] = request.POST.dict()
+                return redirect('extractor:crear_solicitud')
     
     # Honeypot (solo en POST)
     if request.method == 'POST':
         if request.POST.get('web_contacto', ''):
             messages.error(request, 'Actividad sospechosa detectada.')
+            request.session['form_data'] = request.POST.dict()
             return redirect('extractor:crear_solicitud')
         
         if request.POST.get('confirmar_email', ''):
             messages.error(request, 'Actividad sospechosa detectada.')
+            request.session['form_data'] = request.POST.dict()
             return redirect('extractor:crear_solicitud')
     
     # Rate limiting por IP
@@ -196,7 +201,11 @@ def crear_solicitud(request):
         permitido, mensaje = check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600)
         if not permitido:
             messages.error(request, mensaje)
-            return redirect('extractor:solicitud_list')
+            request.session['form_data'] = request.POST.dict()
+            return redirect('extractor:crear_solicitud')
+    
+    # Recuperar datos previos de sesión (si existen)
+    form_data = request.session.pop('form_data', {})
     
     # Procesar formulario
     if request.method == 'POST':
@@ -206,8 +215,35 @@ def crear_solicitud(request):
             tipo_servicio_code = request.POST.get('tipo_servicio_code')
             tipo_prueba_id = request.POST.get('tipo_prueba')
             
-            if not cliente_id or not proyecto_id or not tipo_servicio_code or not tipo_prueba_id:
-                messages.error(request, 'Los campos obligatorios deben estar llenos')
+            # Validar campos requeridos
+            errores_validacion = []
+            
+            if not cliente_id:
+                errores_validacion.append('El cliente es obligatorio')
+            if not proyecto_id:
+                errores_validacion.append('El proyecto es obligatorio')
+            if not tipo_servicio_code:
+                errores_validacion.append('El tipo de servicio es obligatorio')
+            if not tipo_prueba_id:
+                errores_validacion.append('El tipo de prueba es obligatorio')
+            if not request.POST.get('creado_por', '').strip():
+                errores_validacion.append('El nombre del solicitante es obligatorio')
+            if not request.POST.get('numero_version', '').strip():
+                errores_validacion.append('El número de versión es obligatorio')
+            if not request.POST.get('responsable_solicitud', '').strip():
+                errores_validacion.append('El responsable de solicitud es obligatorio')
+            if not request.POST.get('lider_proyecto', '').strip():
+                errores_validacion.append('El líder de proyecto es obligatorio')
+            if not request.POST.get('funcionalidad_liberacion', '').strip():
+                errores_validacion.append('La funcionalidad de liberación es obligatoria')
+            if not request.POST.get('detalle_cambios', '').strip():
+                errores_validacion.append('El detalle de cambios es obligatorio')
+            
+            if errores_validacion:
+                # Guardar datos y mostrar errores
+                request.session['form_data'] = request.POST.dict()
+                for error in errores_validacion:
+                    messages.error(request, error)
                 return redirect('extractor:crear_solicitud')
             
             cliente = Cliente.objects.get(id=cliente_id, activo=True)
@@ -216,10 +252,10 @@ def crear_solicitud(request):
             
             if proyecto.cliente_id != cliente.id:
                 messages.error(request, 'El proyecto no pertenece al cliente seleccionado')
+                request.session['form_data'] = request.POST.dict()
                 return redirect('extractor:crear_solicitud')
             
             # ========== PROCESAMIENTO CORRECTO DE FECHA Y HORA ==========
-            # Obtener la hora local actual del servidor (México)
             ahora_local = timezone.localtime(timezone.now())
             
             # Procesar fecha
@@ -229,70 +265,46 @@ def crear_solicitud(request):
             else:
                 fecha_solicitud = ahora_local.date()
             
-            # Procesar hora - AHORA CON ZONA HORARIA CORRECTA
+            # Procesar hora
             hora_str = request.POST.get('hora_solicitud')
             hora_actual_local = ahora_local.time().replace(microsecond=0)
             
             if hora_str:
                 try:
-                    # Intentar parsear la hora del formulario
                     hora_parseada = datetime.strptime(hora_str, '%H:%M').time()
                     
-                    # Verificar si la hora es razonable (no difiere más de 5 minutos de la actual)
                     hoy = datetime.today()
                     hora_parseada_dt = datetime.combine(hoy, hora_parseada)
                     hora_actual_dt = datetime.combine(hoy, hora_actual_local)
                     diferencia_segundos = abs((hora_parseada_dt - hora_actual_dt).total_seconds())
                     
-                    if diferencia_segundos > 300:  # Más de 5 minutos de diferencia
-                        # Usar hora actual local en lugar de la del formulario
+                    if diferencia_segundos > 300:
                         hora_solicitud = hora_actual_local
-                        print(f"⚠️ Hora del formulario ({hora_parseada}) reemplazada por hora local ({hora_actual_local})")
                     else:
                         hora_solicitud = hora_parseada
                         
                 except Exception as e:
-                    # Si falla el parseo, usar hora actual local
                     print(f"⚠️ Error parseando hora {hora_str}: {e}")
                     hora_solicitud = hora_actual_local
             else:
-                # Si no hay hora en el POST, usar la hora actual local
                 hora_solicitud = hora_actual_local
-            
-            # Debug para verificar (opcional, puedes comentar en producción)
-            print(f"✅ [DEBUG] Fecha guardada: {fecha_solicitud}")
-            print(f"✅ [DEBUG] Hora guardada: {hora_solicitud}")
-            print(f"✅ [DEBUG] Hora local actual: {hora_actual_local}")
-            print(f"✅ [DEBUG] Hora UTC actual: {timezone.now().time()}")
             
             creado_por_value = request.POST.get('creado_por', '').strip()
             email_contacto_value = request.POST.get('email_contacto', '').strip()
 
-            print("=" * 50)
-            print("POST data recibido:")
-            print(f"creado_por: {request.POST.get('creado_por', 'NO ENVIADO')}")
-            print(f"email_contacto: {request.POST.get('email_contacto', 'NO ENVIADO')}")
-            print("=" * 50)
-            
-
             if not creado_por_value:
-                # Si el usuario está autenticado, usar su nombre como fallback
                 if request.user.is_authenticated:
                     creado_por_value = request.user.get_full_name() or request.user.username
                 else:
                     messages.error(request, 'Por favor, ingresa tu nombre como solicitante')
+                    request.session['form_data'] = request.POST.dict()
                     return redirect('extractor:crear_solicitud')
                 
-            # Validar que el campo creado_por no esté vacío
             if not creado_por_value:
                 messages.error(request, 'Por favor, ingresa tu nombre como solicitante')
+                request.session['form_data'] = request.POST.dict()
                 return redirect('extractor:crear_solicitud')
 
-            # Si el usuario está autenticado pero quiere usar un nombre diferente,
-            # permitir que el campo editable tenga prioridad
-            if request.user.is_authenticated and not creado_por_value:
-                creado_por_value = request.user.get_full_name() or request.user.username
-            
             # Crear la solicitud
             solicitud = SolicitudPruebas(
                 cliente=cliente,
@@ -321,14 +333,17 @@ def crear_solicitud(request):
                 solicitud.nombre_archivo = solicitud.generar_nombre_archivo()
             except Exception as e:
                 print(f"⚠️ Error en generar_nombre_archivo: {e}")
-                # Usar nombre por defecto
                 solicitud.nombre_archivo = f"Solicitud_{ahora_local.strftime('%Y%m%d_%H%M%S')}.xlsx"
             
             solicitud.save()
             
-            # Guardar timestamp de la última solicitud usando hora local
+            # Guardar timestamp de la última solicitud
             request.session['ultima_solicitud_timestamp'] = timezone.now().timestamp()
             request.session['ultima_solicitud_id'] = solicitud.id
+            
+            # Limpiar datos de sesión si existe
+            if 'form_data' in request.session:
+                del request.session['form_data']
             
             context_exito = {
                 'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
@@ -348,27 +363,46 @@ def crear_solicitud(request):
             
         except Cliente.DoesNotExist:
             messages.error(request, 'El cliente seleccionado no existe')
+            request.session['form_data'] = request.POST.dict()
         except Proyecto.DoesNotExist:
             messages.error(request, 'El proyecto seleccionado no existe')
+            request.session['form_data'] = request.POST.dict()
         except TipoServicio.DoesNotExist:
             messages.error(request, 'El tipo de prueba seleccionado no existe')
+            request.session['form_data'] = request.POST.dict()
         except Exception as e:
             # Mostrar el error real para depuración
             print(f"❌ Error al crear solicitud: {str(e)}")
             import traceback
             traceback.print_exc()
             messages.error(request, f'Error al crear solicitud: {str(e)}')
+            request.session['form_data'] = request.POST.dict()
         
         return redirect('extractor:crear_solicitud')
     
     # GET - Mostrar formulario
     ahora_local = timezone.localtime(timezone.now())
+    
+    # Si hay datos en form_data, también necesitamos cargar los proyectos del cliente seleccionado
+    proyectos_cliente = None
+    if form_data and form_data.get('cliente'):
+        try:
+            proyectos_cliente = Proyecto.objects.filter(
+                cliente_id=form_data['cliente'], 
+                activo=True
+            ).order_by('nombre')
+        except:
+            pass
+    
     context = {
         'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
         'tipos_servicio': TipoServicio.objects.filter(activo=True).order_by('nombre'),
         'today': ahora_local.date(),
         'now': ahora_local,
         'tiempo_restante': int(tiempo_restante),
+        'form_data': form_data,  # Datos para mantener en el formulario
+        'proyectos_cliente': proyectos_cliente,  # Proyectos del cliente seleccionado
+        'form_errors': request.session.pop('form_errors', []),  # Errores de validación
     }
     return render(request, 'extractor/crear_solicitud.html', context)
 

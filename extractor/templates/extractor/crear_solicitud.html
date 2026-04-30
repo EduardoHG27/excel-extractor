@@ -3,6 +3,19 @@
 
 {% block content %}
 
+<!-- Mostrar errores si existen -->
+{% if form_errors %}
+<div class="error-panel" style="background-color: #f8d7da; border: 2px solid #f5c6cb; border-radius: 10px; padding: 20px; margin-bottom: 30px;">
+    <div style="font-size: 2rem; margin-bottom: 10px; text-align: center;">❌</div>
+    <h3 style="color: #721c24; margin-bottom: 15px; text-align: center;">Error al guardar la solicitud</h3>
+    <div style="color: #721c24;">
+        {% for error in form_errors %}
+            <p style="margin-bottom: 5px;">• {{ error }}</p>
+        {% endfor %}
+    </div>
+    <p style="margin-top: 15px; color: #721c24; text-align: center;">Por favor corrige los errores e intenta nuevamente.</p>
+</div>
+{% endif %}
 
 {% if mostrar_resumen and solicitud_creada %}
 <div class="success-panel" style="background-color: #d4edda; border: 2px solid #c3e6cb; border-radius: 10px; padding: 30px; margin-bottom: 30px; text-align: center;">
@@ -57,16 +70,16 @@
             <tr style="border-bottom: 1px solid #ddd;">
                 <td style="padding: 8px; font-weight: bold;">Responsable / Líder:</td>
                 <td style="padding: 8px;">{{ solicitud_creada.responsable_solicitud }} / {{ solicitud_creada.lider_proyecto }}</td>
-            </tr>
+             </tr>
             <tr style="border-bottom: 1px solid #ddd;">
                 <td style="padding: 8px; font-weight: bold;">Versión:</td>
                 <td style="padding: 8px;">{{ solicitud_creada.numero_version }}</td>
-            </tr>
+             </tr>
             <tr style="border-bottom: 1px solid #ddd;">
                 <td style="padding: 8px; font-weight: bold;">Funcionalidad:</td>
                 <td style="padding: 8px;">{{ solicitud_creada.funcionalidad_liberacion|truncatechars:100 }}</td>
-            </tr>
-        </table>
+             </tr>
+         </table>
     </div>
 </div>
 {% endif %}
@@ -76,9 +89,6 @@
     <h1>📝 Nueva Solicitud de Pruebas</h1>
     <p>Completa el formulario para generar una nueva solicitud de pruebas</p>
 </div>
-
-
-
 
 {% if tiempo_restante > 0 %}
 <div class="cooldown-timer" style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 10px; padding: 20px; margin-bottom: 30px; text-align: center;">
@@ -94,7 +104,6 @@
 </div>
 {% endif %}
 
-
 <div class="upload-instructions">
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 15px;">📋 Formato de Solicitud de Pruebas QA</h3>
@@ -102,7 +111,6 @@
         <p><strong>Nivel de Seguridad:</strong> Privada | <strong>Dueño:</strong> Buró de Identidad Digital</p>
     </div>
 </div>
-
 
 <form method="post" enctype="multipart/form-data" style="margin-top: 20px;" id="solicitudForm">
 {% csrf_token %} 
@@ -119,7 +127,7 @@
                 Nombre del Solicitante: <span style="color: #e74c3c;">*</span>
             </label>
             <input type="text" name="creado_por" id="creado_por" 
-                   value="{% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% endif %}"
+                   value="{% if form_data.creado_por %}{{ form_data.creado_por }}{% elif user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% endif %}"
                    required
                    placeholder="Ej: Juan Pérez / Empresa ABC"
                    style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
@@ -134,6 +142,7 @@
                 Email de Contacto:
             </label>
             <input type="email" name="email_contacto" id="email_contacto" 
+                   value="{{ form_data.email_contacto|default:'' }}"
                    placeholder="correo@ejemplo.com"
                    style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
             <small style="color: #7f8c8d; font-size: 0.8rem; display: block; margin-top: 5px;">
@@ -161,6 +170,7 @@
     <label for="telefono_contacto">Teléfono de contacto:</label>
     <input type="text" name="telefono_contacto" id="telefono_contacto" value="" tabindex="-1" autocomplete="off">
     </div>
+    
     <!-- Sección: Datos de Solicitud -->
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
         <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📊 Datos de Solicitud</h3>
@@ -175,7 +185,8 @@
                         style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
                     <option value="">--- Seleccionar cliente ---</option>
                     {% for cliente in clientes %}
-                    <option value="{{ cliente.id }}" data-nomenclatura="{{ cliente.nomenclatura }}">
+                    <option value="{{ cliente.id }}" data-nomenclatura="{{ cliente.nomenclatura }}"
+                            {% if form_data.cliente == cliente.id|stringformat:"s" %}selected{% endif %}>
                         {{ cliente.nombre }} ({{ cliente.nomenclatura }})
                     </option>
                     {% endfor %}
@@ -188,8 +199,17 @@
                     Proyecto: <span style="color: #e74c3c;">*</span>
                 </label>
                 <select name="proyecto" id="proyecto" required
-                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;"
+                        {% if not form_data.proyecto %}disabled{% endif %}>
                     <option value="">--- Primero selecciona un cliente ---</option>
+                    {% if proyectos_cliente %}
+                        {% for proyecto in proyectos_cliente %}
+                        <option value="{{ proyecto.id }}" 
+                                {% if form_data.proyecto == proyecto.id|stringformat:"s" %}selected{% endif %}>
+                            {{ proyecto.nombre }} ({{ proyecto.codigo }})
+                        </option>
+                        {% endfor %}
+                    {% endif %}
                 </select>
             </div>
 
@@ -199,7 +219,7 @@
                     Fecha de Solicitud: <span style="color: #e74c3c;">*</span>
                 </label>
                 <input type="date" name="fecha_solicitud" id="fecha_solicitud" 
-                       value="{{ today|date:'Y-m-d' }}" readonly required
+                       value="{% if form_data.fecha_solicitud %}{{ form_data.fecha_solicitud }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}" readonly required
                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; background-color: #f0f0f0;">
             </div>
 
@@ -209,7 +229,7 @@
                     Hora de Solicitud: <span style="color: #e74c3c;">*</span>
                 </label>
                 <input type="time" name="hora_solicitud" id="hora_solicitud" 
-                       value="{{ now|time:'H:i' }}" readonly required
+                       value="{% if form_data.hora_solicitud %}{{ form_data.hora_solicitud }}{% else %}{{ now|time:'H:i' }}{% endif %}" readonly required
                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; background-color: #f0f0f0;">
             </div>
         </div>
@@ -226,9 +246,9 @@
                 <select name="tipo_servicio_code" id="tipo_servicio_code" required
                         style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
                     <option value="">--- Seleccionar ---</option>
-                    <option value="PRU">Pruebas (PRU)</option>
-                    <option value="EST">Estimación (EST)</option>
-                    <option value="G&A">Gestión y administración (G&A)</option>
+                    <option value="PRU" {% if form_data.tipo_servicio_code == 'PRU' %}selected{% endif %}>Pruebas (PRU)</option>
+                    <option value="EST" {% if form_data.tipo_servicio_code == 'EST' %}selected{% endif %}>Estimación (EST)</option>
+                    <option value="G&A" {% if form_data.tipo_servicio_code == 'G&A' %}selected{% endif %}>Gestión y administración (G&A)</option>
                 </select>
             </div>
 
@@ -241,7 +261,8 @@
                         style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
                     <option value="">--- Seleccionar tipo de pruebas ---</option>
                     {% for tipo in tipos_servicio %}
-                    <option value="{{ tipo.id }}" data-nomenclatura="{{ tipo.nomenclatura }}">
+                    <option value="{{ tipo.id }}" data-nomenclatura="{{ tipo.nomenclatura }}"
+                            {% if form_data.tipo_prueba == tipo.id|stringformat:"s" %}selected{% endif %}>
                         {{ tipo.nombre }} ({{ tipo.nomenclatura }})
                     </option>
                     {% endfor %}
@@ -256,10 +277,10 @@
                 <select name="area_solicitante" id="area_solicitante" required
                         style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
                     <option value="">--- Seleccionar área ---</option>
-                    <option value="Proyectos">Proyectos</option>
-                    <option value="Desarrollo">Desarrollo</option>
-                    <option value="Infraestructura">Infraestructura</option>
-                    <option value="Soporte">Soporte</option>
+                    <option value="Proyectos" {% if form_data.area_solicitante == 'Proyectos' %}selected{% endif %}>Proyectos</option>
+                    <option value="Desarrollo" {% if form_data.area_solicitante == 'Desarrollo' %}selected{% endif %}>Desarrollo</option>
+                    <option value="Infraestructura" {% if form_data.area_solicitante == 'Infraestructura' %}selected{% endif %}>Infraestructura</option>
+                    <option value="Soporte" {% if form_data.area_solicitante == 'Soporte' %}selected{% endif %}>Soporte</option>
                 </select>
             </div>
 
@@ -269,6 +290,7 @@
                     Número de Versión: <span style="color: #e74c3c;">*</span>
                 </label>
                 <input type="text" name="numero_version" id="numero_version" required
+                       value="{{ form_data.numero_version|default:'' }}"
                        placeholder="Ej: 1.2.0"
                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
             </div>
@@ -284,6 +306,7 @@
                     Responsable de Solicitud: <span style="color: #e74c3c;">*</span>
                 </label>
                 <input type="text" name="responsable_solicitud" id="responsable_solicitud" required
+                       value="{{ form_data.responsable_solicitud|default:'' }}"
                        placeholder="Nombre completo"
                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
             </div>
@@ -294,6 +317,7 @@
                     Líder de Proyecto: <span style="color: #e74c3c;">*</span>
                 </label>
                 <input type="text" name="lider_proyecto" id="lider_proyecto" required
+                       value="{{ form_data.lider_proyecto|default:'' }}"
                        placeholder="Nombre completo"
                        style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
             </div>
@@ -311,12 +335,12 @@
             <select name="tipo_aplicacion" id="tipo_aplicacion" required
                     style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
                 <option value="">--- Seleccionar tipo de aplicación ---</option>
-                <option value="Portal WEB">Portal WEB</option>
-                <option value="App - Android">App - Android</option>
-                <option value="App - IOS">App - IOS</option>
-                <option value="App - Android & IOS">App - Android & IOS</option>
-                <option value="Servicio">Servicio</option>
-                <option value="Otro">Otro</option>
+                <option value="Portal WEB" {% if form_data.tipo_aplicacion == 'Portal WEB' %}selected{% endif %}>Portal WEB</option>
+                <option value="App - Android" {% if form_data.tipo_aplicacion == 'App - Android' %}selected{% endif %}>App - Android</option>
+                <option value="App - IOS" {% if form_data.tipo_aplicacion == 'App - IOS' %}selected{% endif %}>App - IOS</option>
+                <option value="App - Android & IOS" {% if form_data.tipo_aplicacion == 'App - Android & IOS' %}selected{% endif %}>App - Android & IOS</option>
+                <option value="Servicio" {% if form_data.tipo_aplicacion == 'Servicio' %}selected{% endif %}>Servicio</option>
+                <option value="Otro" {% if form_data.tipo_aplicacion == 'Otro' %}selected{% endif %}>Otro</option>
             </select>
         </div>
     </div>
@@ -330,7 +354,7 @@
                 Funcionalidad de la liberación: <span style="color: #e74c3c;">*</span>
             </label>
             <textarea name="funcionalidad_liberacion" id="funcionalidad_liberacion" rows="4" required
-                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;">{{ form_data.funcionalidad_liberacion|default:'' }}</textarea>
         </div>
 
         <div style="margin-bottom: 20px;">
@@ -338,7 +362,7 @@
                 Detalle de los cambios: <span style="color: #e74c3c;">*</span>
             </label>
             <textarea name="detalle_cambios" id="detalle_cambios" rows="6" required
-                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;">{{ form_data.detalle_cambios|default:'' }}</textarea>
         </div>
 
         <div style="margin-bottom: 20px;">
@@ -346,7 +370,7 @@
                 Justificación del cambio: <span style="color: #e74c3c;">*</span>
             </label>
             <textarea name="justificacion_cambio" id="justificacion_cambio" rows="4" required
-                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+                      style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;">{{ form_data.justificacion_cambio|default:'' }}</textarea>
         </div>
     </div>
 
@@ -358,7 +382,7 @@
                     Puntos a Considerar: <span style="color: #e74c3c;">*</span>
                 </label>
                 <textarea name="puntos_considerar" id="puntos_considerar" rows="4" required
-                          style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+                          style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;">{{ form_data.puntos_considerar|default:'' }}</textarea>
             </div>
 
             <div style="margin-bottom: 15px;">
@@ -366,7 +390,7 @@
                     Pendientes: <span style="color: #e74c3c;">*</span>
                 </label>
                 <textarea name="pendientes" id="pendientes" rows="4" required
-                          style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"></textarea>
+                          style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;">{{ form_data.pendientes|default:'' }}</textarea>
             </div>
         </div>
     </div>
@@ -381,7 +405,7 @@
             </label>
             <textarea name="insumos" id="insumos" rows="3" required
                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; font-family: inherit;"
-                      placeholder="Lista los insumos necesarios para las pruebas..."></textarea>
+                      placeholder="Lista los insumos necesarios para las pruebas...">{{ form_data.insumos|default:'' }}</textarea>
         </div>
         
         <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 5px; font-size: 0.9rem;">
@@ -389,28 +413,16 @@
         </div>
     </div>
 
-    <!-- Sección: Adjuntar Archivos 
-    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px;">
-        <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📎 Archivos Adjuntos</h3>
-        
-        <div id="dropZone" style="border: 3px dashed #3498db; border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 15px; background-color: white; cursor: pointer; transition: all 0.3s ease;">
-            <div id="dropZoneContent">
-                <div style="font-size: 36px; margin-bottom: 10px;">📎</div>
-                <p style="color: #2c3e50; margin-bottom: 5px;">Arrastra archivos adicionales aquí</p>
-                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 10px;">o</p>
-                <button type="button" id="browseButton" class="btn btn-secondary btn-sm">Seleccionar archivos</button>
-                <p style="margin-top: 10px; color: #7f8c8d; font-size: 0.8rem;">Formatos: .xlsx, .xls, .pdf, .doc, .docx (Máx: 10MB)</p>
-            </div>
-            <input type="file" name="archivos_adjuntos" id="archivos_adjuntos" multiple style="display: none;" accept=".xlsx,.xls,.pdf,.doc,.docx">
-            <div id="filesList" style="display: none; margin-top: 10px;"></div>
-        </div>
-    </div> -->
-
     <!-- Botones de acción -->
     <div style="display: flex; gap: 15px; margin-top: 30px;">
         <button type="submit" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
             ✅ Generar Solicitud
         </button>
+        {% if form_data %}
+        <button type="button" class="btn btn-secondary" onclick="location.reload();" style="font-size: 1.1rem; padding: 12px 30px;">
+            🔄 Limpiar formulario
+        </button>
+        {% endif %}
     </div>
 </form>
 
@@ -423,7 +435,6 @@
     {% endfor %}
 </div>
 {% endif %}
-
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -470,224 +481,108 @@ document.addEventListener('DOMContentLoaded', function() {
     actualizarTemporizador();
     {% endif %}
 
-    // ===== 5.2 CARGA DE PROYECTOS =====
+    // ===== CARGA DE PROYECTOS =====
     const clienteSelect = document.getElementById('cliente');
     const proyectoSelect = document.getElementById('proyecto');
+    const clienteIdSeleccionado = "{{ form_data.cliente|default:'' }}";
     
-    if (clienteSelect) {
+    function cargarProyectos(clienteId, proyectoSeleccionado = null) {
+        if (!clienteId) {
+            proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
+            proyectoSelect.disabled = true;
+            return;
+        }
+        
+        proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
+        proyectoSelect.disabled = true;
+
+        const url = `/api/proyectos-por-cliente/${clienteId}/`;
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`Error ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
+            
+            let proyectos = data.proyectos || (Array.isArray(data) ? data : []);
+            
+            if (proyectos.length > 0) {
+                proyectos.forEach(proyecto => {
+                    const option = document.createElement('option');
+                    option.value = proyecto.id;
+                    const codigo = proyecto.codigo || proyecto.nomenclatura || '';
+                    option.textContent = codigo ? `${proyecto.nombre} (${codigo})` : proyecto.nombre;
+                    
+                    if (proyectoSeleccionado && proyecto.id == proyectoSeleccionado) {
+                        option.selected = true;
+                    }
+                    
+                    proyectoSelect.appendChild(option);
+                });
+                proyectoSelect.disabled = false;
+            } else {
+                proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
+        });
+    }
+    
+    if (clienteSelect && proyectoSelect) {
+        // Si hay un cliente seleccionado previamente, cargar sus proyectos
+        if (clienteIdSeleccionado) {
+            clienteSelect.value = clienteIdSeleccionado;
+            const proyectoSeleccionado = "{{ form_data.proyecto|default:'' }}";
+            cargarProyectos(clienteIdSeleccionado, proyectoSeleccionado);
+        }
+        
         clienteSelect.addEventListener('change', function() {
             const clienteId = this.value;
-            
-            proyectoSelect.innerHTML = '<option value="">--- Cargando proyectos... ---</option>';
-            proyectoSelect.disabled = true;
+            cargarProyectos(clienteId);
+        });
+    }
 
-            if (!clienteId) {
-                proyectoSelect.innerHTML = '<option value="">--- Primero selecciona un cliente ---</option>';
-                proyectoSelect.disabled = true;
+    // ===== VALIDACIÓN AL ENVIAR EL FORMULARIO =====
+    const form = document.getElementById('solicitudForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const versionInput = document.getElementById('numero_version');
+            const version = versionInput ? versionInput.value.trim() : '';
+            
+            if (version === '') {
+                e.preventDefault();
+                alert('❌ El número de versión es obligatorio');
+                if (versionInput) versionInput.focus();
                 return;
             }
-             
-
-            const url = `/api/proyectos-por-cliente/${clienteId}/`;
             
-            fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) throw new Error(`Error ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                proyectoSelect.innerHTML = '<option value="">--- Seleccionar proyecto ---</option>';
-                
-                let proyectos = data.proyectos || (Array.isArray(data) ? data : []);
-                
-                if (proyectos.length > 0) {
-                    proyectos.forEach(proyecto => {
-                        const option = document.createElement('option');
-                        option.value = proyecto.id;
-                        const codigo = proyecto.codigo || proyecto.nomenclatura || '';
-                        option.textContent = codigo ? `${proyecto.nombre} (${codigo})` : proyecto.nombre;
-                        proyectoSelect.appendChild(option);
-                    });
-                    proyectoSelect.disabled = false;
-                } else {
-                    proyectoSelect.innerHTML = '<option value="">--- No hay proyectos para este cliente ---</option>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                proyectoSelect.innerHTML = '<option value="">--- Error al cargar proyectos ---</option>';
-            });
-        });
-    }
-
-    // ===== 5.3 DRAG & DROP PARA ARCHIVOS =====
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('archivos_adjuntos');
-    const browseButton = document.getElementById('browseButton');
-    const dropZoneContent = document.getElementById('dropZoneContent');
-    const filesList = document.getElementById('filesList');
-
-    if (dropZone) {
-        // Prevenir comportamientos por defecto
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        // Highlight
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, unhighlight, false);
-        });
-
-        function highlight() {
-            dropZone.style.backgroundColor = '#e8f4fd';
-            dropZone.style.borderColor = '#2980b9';
-        }
-
-        function unhighlight() {
-            dropZone.style.backgroundColor = 'white';
-            dropZone.style.borderColor = '#3498db';
-        }
-
-        // Drop
-        dropZone.addEventListener('drop', handleDrop, false);
-        
-        if (browseButton) {
-            browseButton.addEventListener('click', () => {
-                fileInput.click();
-            });
-        }
-
-        if (fileInput) {
-            fileInput.addEventListener('change', function() {
-                if (this.files.length) {
-                    handleFiles(this.files);
-                }
-            });
-        }
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            handleFiles(dt.files);
-        }
-
-        function handleFiles(files) {
-            const validTypes = ['.xlsx', '.xls', '.pdf', '.doc', '.docx'];
-            const maxSize = 10 * 1024 * 1024;
-            
-            let validFiles = [];
-            let errors = [];
-
-            for (let file of files) {
-                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-                
-                if (!validTypes.includes(fileExtension)) {
-                    errors.push(`${file.name}: Tipo de archivo no válido`);
-                    continue;
-                }
-                
-                if (file.size > maxSize) {
-                    errors.push(`${file.name}: Excede los 10MB`);
-                    continue;
-                }
-                
-                validFiles.push(file);
-            }
-
-            if (errors.length > 0) {
-                alert('Errores:\n' + errors.join('\n'));
-            }
-
-            if (validFiles.length > 0) {
-                displayFiles(validFiles);
-            }
-        }
-
-        function displayFiles(files) {
-            let html = '<div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 10px;">';
-            html += '<p style="color: #155724; font-weight: bold; margin-bottom: 5px;">✅ Archivos seleccionados:</p>';
-            html += '<ul style="margin-left: 20px; color: #155724;">';
-            
-            for (let file of files) {
-                let size = (file.size / 1024).toFixed(2);
-                let sizeUnit = 'KB';
-                if (size > 1024) {
-                    size = (size / 1024).toFixed(2);
-                    sizeUnit = 'MB';
-                }
-                html += `<li>${file.name} (${size} ${sizeUnit})</li>`;
+            // Validar longitud máxima
+            if (version.length > 50) {
+                e.preventDefault();
+                alert('❌ El número de versión es demasiado largo (máx. 50 caracteres)');
+                if (versionInput) versionInput.focus();
+                return;
             }
             
-            html += '</ul>';
-            html += '<button type="button" id="clearFiles" class="btn btn-sm btn-outline-danger" style="margin-top: 5px;">Quitar archivos</button>';
-            html += '</div>';
-            
-            dropZoneContent.style.display = 'none';
-            filesList.innerHTML = html;
-            filesList.style.display = 'block';
-
-            document.getElementById('clearFiles').addEventListener('click', function() {
-                fileInput.value = '';
-                dropZoneContent.style.display = 'block';
-                filesList.style.display = 'none';
-            });
-        }
-    }
-    
-    // ===== NUEVA VALIDACIÓN PARA NÚMERO DE VERSIÓN =====
-    const versionInput = document.getElementById('numero_version');
-    
-    if (versionInput) {
-        // Limitar longitud mientras escribe
-        versionInput.addEventListener('input', function(e) {
-            if (this.value.length > 50) {
-                this.value = this.value.slice(0, 50);
+            // Verificar caracteres no permitidos en nombres de archivo
+            const caracteresInvalidos = /[<>:"/\\|?*]/g;
+            if (caracteresInvalidos.test(version)) {
+                e.preventDefault();
+                alert('❌ El número de versión no puede contener los caracteres: < > : " / \\ | ? *');
+                if (versionInput) versionInput.focus();
+                return;
             }
         });
-    }
-});
-
-// ===== VALIDACIÓN AL ENVIAR EL FORMULARIO =====
-document.getElementById('solicitudForm').addEventListener('submit', function(e) {
-    const versionInput = document.getElementById('numero_version');
-    const version = versionInput ? versionInput.value.trim() : '';
-    
-    if (version === '') {
-        e.preventDefault();
-        alert('❌ El número de versión es obligatorio');
-        if (versionInput) versionInput.focus();
-        return;
-    }
-    
-    // Validar longitud máxima
-    if (version.length > 50) {
-        e.preventDefault();
-        alert('❌ El número de versión es demasiado largo (máx. 50 caracteres)');
-        if (versionInput) versionInput.focus();
-        return;
-    }
-    
-    // Verificar caracteres no permitidos en nombres de archivo
-    const caracteresInvalidos = /[<>:"/\\|?*]/g;
-    if (caracteresInvalidos.test(version)) {
-        e.preventDefault();
-        alert('❌ El número de versión no puede contener los caracteres: < > : " / \\ | ? *');
-        if (versionInput) versionInput.focus();
-        return;
     }
 });
 </script>
@@ -721,6 +616,16 @@ select:required, input:required, textarea:required {
 
 select:required:valid, input:required:valid, textarea:required:valid {
     border-left: 3px solid #27ae60;
+}
+
+.error-panel {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
 }
 </style>
 
