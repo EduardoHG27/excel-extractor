@@ -1272,36 +1272,82 @@ Saludos.
             }, 3000);
         }
 
-    function cambiarEstado(nuevoEstado, ticketId) {
-        // Guardar valor anterior para posible restauración
-        const select = document.getElementById('estadoSelect');
-        const valorAnterior = select.getAttribute('data-valor-anterior') || select.value;
-        select.setAttribute('data-valor-anterior', valorAnterior);
+ function cambiarEstado(nuevoEstado, ticketId) {
+    const select = document.getElementById('estadoSelect');
+    const valorAnterior = select.getAttribute('data-valor-anterior') || select.value;
+    select.setAttribute('data-valor-anterior', valorAnterior);
+    
+    const estadosTerminales = ['COMPLETADO', 'NO EXITOSO'];
+    const esEstadoTerminal = estadosTerminales.includes(nuevoEstado);
+    
+    if (esEstadoTerminal) {
+        const confirmMessage = nuevoEstado === 'COMPLETADO' 
+            ? '¿Deseas marcar este ticket como COMPLETADO y cerrar la incidencia en Jira?'
+            : '¿Deseas marcar este ticket como NO EXITOSO y cerrar la incidencia en Jira?';
         
-        // Verificar si el nuevo estado es terminal (COMPLETADO o NO EXITOSO)
-        const estadosTerminales = ['COMPLETADO', 'NO EXITOSO'];
-        const esEstadoTerminal = estadosTerminales.includes(nuevoEstado);
-        
-        if (esEstadoTerminal) {
-            // Confirmar con el usuario
-            const confirmMessage = nuevoEstado === 'COMPLETADO' 
-                ? '¿Deseas marcar este ticket como COMPLETADO y cerrar la incidencia en Jira?'
-                : '¿Deseas marcar este ticket como NO EXITOSO y cerrar la incidencia en Jira?';
-            
-            if (confirm(confirmMessage)) {
-                cambiarEstadoConJira(nuevoEstado, ticketId);
-            } else {
-                // Restaurar valor anterior
-                const valorAnteriorGuardado = select.getAttribute('data-valor-anterior');
-                if (valorAnteriorGuardado) {
-                    select.value = valorAnteriorGuardado;
-                }
-            }
+        if (confirm(confirmMessage)) {
+            cambiarEstadoConJira(nuevoEstado, ticketId);
         } else {
-            // Para estados no terminales, cambiar directamente
-            cambiarEstadoNormal(nuevoEstado, ticketId);
+            const valorAnteriorGuardado = select.getAttribute('data-valor-anterior');
+            if (valorAnteriorGuardado) {
+                select.value = valorAnteriorGuardado;
+            }
         }
+    } else {
+        // Para estados no terminales, usar el cambio normal con overlay
+        cambiarEstadoNormalConOverlay(nuevoEstado, ticketId);
     }
+}
+
+function cambiarEstadoNormalConOverlay(nuevoEstado, ticketId) {
+    const select = document.getElementById('estadoSelect');
+    const url = select.getAttribute('data-url');
+    
+    // Mostrar overlay de carga
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingMessage = document.getElementById('loadingMessage');
+    
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+        loadingMessage.textContent = 'Actualizando estado del ticket...';
+    }
+    
+    select.style.opacity = '0.6';
+    select.disabled = true;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ estado: nuevoEstado })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+        
+        if (data.success) {
+            mostrarMensaje(`✅ Estado cambiado a ${data.estado_display}`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            mostrarMensaje('❌ Error: ' + data.error, 'danger');
+            select.style.opacity = '1';
+            select.disabled = false;
+        }
+    })
+    .catch(error => {
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+        console.error('Error:', error);
+        mostrarMensaje('❌ Error al cambiar el estado', 'danger');
+        select.style.opacity = '1';
+        select.disabled = false;
+    });
+}
 
     function cambiarEstadoNormal(nuevoEstado, ticketId) {
         const select = document.getElementById('estadoSelect');
@@ -1649,13 +1695,25 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
     }
     const url = select.getAttribute('data-url');
     
-    // Mostrar loading
-    const btnGuardar = document.activeElement;
-    let originalHtml = '';
-    if (btnGuardar && btnGuardar.tagName === 'SELECT') {
-        btnGuardar.style.opacity = '0.6';
-        btnGuardar.disabled = true;
+    // Mostrar overlay de carga
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingMessage = document.getElementById('loadingMessage');
+    
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+        
+        // Actualizar mensaje según el estado
+        if (nuevoEstado === 'COMPLETADO') {
+            loadingMessage.textContent = 'Marcando ticket como COMPLETADO y cerrando incidencia en Jira...';
+        } else if (nuevoEstado === 'NO EXITOSO') {
+            loadingMessage.textContent = 'Marcando ticket como NO EXITOSO y cerrando incidencia en Jira...';
+        }
     }
+    
+    // Deshabilitar el select temporalmente
+    const selectOriginalDisplay = select.style.display;
+    select.style.opacity = '0.6';
+    select.disabled = true;
     
     fetch(url, {
         method: 'POST',
@@ -1665,47 +1723,55 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
         },
         body: JSON.stringify({ 
             estado: nuevoEstado,
-            cerrar_en_jira: true  // Indicador para cerrar en Jira
+            cerrar_en_jira: true
         })
     })
     .then(response => response.json())
     .then(data => {
+        // Ocultar overlay
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+        
         if (data.success) {
             let mensaje = `✅ Estado cambiado a ${data.estado_display}`;
             
-            // Mostrar resultado de Jira
             if (data.jira_result) {
                 if (data.jira_result.success) {
                     mensaje += `\n📋 Incidencia Jira cerrada: ${data.jira_result.issue_key}`;
                 } else if (data.jira_result.warning) {
                     mensaje += `\n⚠️ ${data.jira_result.warning}`;
+                } else if (data.jira_result.error) {
+                    mensaje += `\n⚠️ Error en Jira: ${data.jira_result.error}`;
                 }
             }
             
             mostrarMensaje(mensaje, 'success');
-            
-            // Recargar para mostrar cambios
             setTimeout(() => location.reload(), 2000);
         } else {
             mostrarMensaje('❌ Error: ' + data.error, 'danger');
-            if (btnGuardar && btnGuardar.tagName === 'SELECT') {
-                btnGuardar.style.opacity = '1';
-                btnGuardar.disabled = false;
-                // Restaurar valor anterior
-                const valorAnterior = btnGuardar.getAttribute('data-valor-anterior');
-                if (valorAnterior) btnGuardar.value = valorAnterior;
-            }
+            select.style.opacity = '1';
+            select.disabled = false;
+            
+            // Restaurar valor anterior
+            const valorAnterior = select.getAttribute('data-valor-anterior');
+            if (valorAnterior) select.value = valorAnterior;
         }
     })
     .catch(error => {
+        // Ocultar overlay en caso de error
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+        
         console.error('Error:', error);
         mostrarMensaje('❌ Error de red al cambiar el estado', 'danger');
-        if (btnGuardar && btnGuardar.tagName === 'SELECT') {
-            btnGuardar.style.opacity = '1';
-            btnGuardar.disabled = false;
-            const valorAnterior = btnGuardar.getAttribute('data-valor-anterior');
-            if (valorAnterior) btnGuardar.value = valorAnterior;
-        }
+        
+        select.style.opacity = '1';
+        select.disabled = false;
+        
+        const valorAnterior = select.getAttribute('data-valor-anterior');
+        if (valorAnterior) select.value = valorAnterior;
     });
 }
     </script>
@@ -1800,6 +1866,23 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
 .toggle-text i.rotated {
     transform: rotate(180deg);
 }
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loadingOverlay {
+    cursor: wait;
+}
     </style>
+
+    <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 250px;">
+            <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+            <h3 style="color: #2c3e50; margin: 0;">Procesando estado...</h3>
+            <p id="loadingMessage" style="color: #7f8c8d; margin-top: 10px; font-size: 0.9rem;">Cerrando incidencia en Jira</p>
+        </div>
+    </div>
 </body>
 </html>
