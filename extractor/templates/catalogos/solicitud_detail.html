@@ -37,22 +37,30 @@
     </div>
     
     <div style="display: flex; gap: 10px;">
-        {% if not solicitud.ticket %}
-        <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
-              style="display: inline;" 
-              id="crearTicketForm"
-              onsubmit="showLoading(); return true;">
-            {% csrf_token %}
-            <button type="submit" class="btn" style="background-color: #4361ee; color: white;">
-                🎫 Crear Ticket
-            </button>
-        </form>
-        {% endif %}
-        
-        {% if not solicitud.ticket %}
-            <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
+        <!-- ✅ SOLO SI EL USUARIO ESTÁ LOGUEADO -->
+        {% if user.is_authenticated %}
+            {% if not solicitud.ticket %}
+            <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
+                  style="display: inline;" 
+                  id="crearTicketForm"
+                  onsubmit="showLoading(); return true;">
+                {% csrf_token %}
+                <button type="submit" class="btn" style="background-color: #4361ee; color: white;">
+                    🎫 Crear Ticket
+                </button>
+            </form>
+            {% endif %}
+            
+            {% if not solicitud.ticket %}
+                <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
+            {% else %}
+                <a href="{% url 'extractor:ticket_detail' solicitud.ticket.id %}" class="btn">👁️ Ver Ticket Asociado</a>
+            {% endif %}
         {% else %}
-            <a href="{% url 'extractor:ticket_detail' solicitud.ticket.id %}" class="btn">👁️ Ver Ticket Asociado</a>
+            <!-- Opcional: mostrar mensaje o botón deshabilitado -->
+            <span class="btn" style="background-color: #ccc; color: #666; cursor: not-allowed;" title="Inicia sesión para crear un ticket">
+                🔒 Crear Ticket (Requiere login)
+            </span>
         {% endif %}
     </div>
 </div>
@@ -217,15 +225,24 @@
     </div>
 </div>
 
-<!-- Metadatos -->
+<!-- Metadatos de la Solicitud -->
 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
     <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
         ℹ️ Metadatos de la Solicitud
     </h3>
     
     <table style="width: 100%;">
+        <!-- NUEVO: Fecha y Hora de Solicitud -->
         <tr style="border-bottom: 1px solid #dee2e6;">
-            <td style="padding: 12px 0; font-weight: bold; width: 200px;">📅 Fecha de Creación:</td>
+            <td style="padding: 12px 0; font-weight: bold; width: 200px;">📅 Fecha de Solicitud:</td>
+            <td style="padding: 12px 0;">
+                {{ solicitud.fecha_solicitud|date:"d/m/Y" }} {{ solicitud.hora_solicitud|time:"H:i" }}
+            </td>
+        </tr>
+        
+        <!-- Los campos originales (puedes mantenerlos u ocultarlos) -->
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 12px 0; font-weight: bold;">📅 Fecha de Creación (BD):</td>
             <td style="padding: 12px 0;">{{ solicitud.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
         </tr>
         <tr style="border-bottom: 1px solid #dee2e6;">
@@ -258,22 +275,25 @@
 <!-- Botones de acción -->
 <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
     
-    {% if not solicitud.ticket %}
-    <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
-          id="crearTicketFormBottom"
-          style="display: inline;" 
-          onsubmit="showLoading(); return true;">
-        {% csrf_token %}
-        <button type="submit" class="btn" style="background-color: #4361ee; color: white; font-size: 1.1rem; padding: 12px 30px;">
-            🎫 Crear Ticket desde Solicitud
-        </button>
-    </form>
-    {% endif %}
+    <!-- ✅ SOLO SI EL USUARIO ESTÁ LOGUEADO -->
+    {% if user.is_authenticated %}
+        {% if not solicitud.ticket %}
+        <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
+              id="crearTicketFormBottom"
+              style="display: inline;" 
+              onsubmit="showLoading(); return true;">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="background-color: #4361ee; color: white; font-size: 1.1rem; padding: 12px 30px;">
+                🎫 Crear Ticket desde Solicitud
+            </button>
+        </form>
+        {% endif %}
 
-    {% if not solicitud.ticket %}
-    <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
-        🖨️ Descargar Solicitud
-    </a>
+        {% if not solicitud.ticket %}
+        <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
+            🖨️ Descargar Solicitud
+        </a>
+        {% endif %}
     {% endif %}
     
     <a href="{% url 'extractor:solicitud_list' %}" class="btn" style="font-size: 1.1rem; padding: 12px 30px;">
