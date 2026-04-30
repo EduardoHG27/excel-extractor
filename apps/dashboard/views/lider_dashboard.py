@@ -487,6 +487,7 @@ def dashboard_lider(request):
         'chart_data': chart_data,
         'chart_data_json': json.dumps(chart_data), 
         'datos_por_mes': datos_por_mes,
+        'datos_por_mes_json': json.dumps(datos_por_mes, default=str),
         # Filtros
         'clientes': Cliente.objects.filter(activo=True),
         'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
@@ -630,16 +631,16 @@ def calcular_estados_por_mes(fecha_referencia, tickets_list, solicitudes_sin_tic
     conteo_mes_anterior = contar_estados(tickets_mes_anterior, solicitudes_mes_anterior)
     
     return {
-        'mes_actual': {
-            'nombre': f"{mes_actual_inicio.strftime('%B %Y')}",
-            'fecha_inicio': mes_actual_inicio.date(),
-            'fecha_fin': mes_actual_fin.date(),
-            'datos': [{'estado': k, 'total': v} for k, v in conteo_mes_actual.items()]
-        },
-        'mes_anterior': {
-            'nombre': f"{mes_anterior_inicio.strftime('%B %Y')}",
-            'fecha_inicio': mes_anterior_inicio.date(),
-            'fecha_fin': mes_anterior_fin.date(),
-            'datos': [{'estado': k, 'total': v} for k, v in conteo_mes_anterior.items()]
+            'mes_actual': {
+                'nombre': f"{mes_actual_inicio.strftime('%B %Y')}",
+                'fecha_inicio': mes_actual_inicio.date(),  # Devuelve objeto date, no string
+                'fecha_fin': mes_actual_fin.date(),        # Devuelve objeto date, no string
+                'datos': [{'estado': k, 'total': v} for k, v in conteo_mes_actual.items()]
+            },
+            'mes_anterior': {
+                'nombre': f"{mes_anterior_inicio.strftime('%B %Y')}",
+                'fecha_inicio': mes_anterior_inicio.date(),  # Devuelve objeto date, no string
+                'fecha_fin': mes_anterior_fin.date(),        # Devuelve objeto date, no string
+                'datos': [{'estado': k, 'total': v} for k, v in conteo_mes_anterior.items()]
+            }
         }
-    }

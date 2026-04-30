@@ -60,7 +60,16 @@
         params.append('estado', estado);
         params.append('from_dashboard', 'true');
         
+        // Manejar fechas según el tipo de gráfico
         if (tipoGrafico === 'periodo' && chartData) {
+            if (chartData.periodo_fecha_desde) {
+                params.append('fecha_desde', chartData.periodo_fecha_desde);
+            }
+            if (chartData.periodo_fecha_hasta) {
+                params.append('fecha_hasta', chartData.periodo_fecha_hasta);
+            }
+        } else if ((tipoGrafico === 'mes_actual' || tipoGrafico === 'mes_anterior') && chartData) {
+            // NUEVO: Manejar mes actual y mes anterior
             if (chartData.periodo_fecha_desde) {
                 params.append('fecha_desde', chartData.periodo_fecha_desde);
             }

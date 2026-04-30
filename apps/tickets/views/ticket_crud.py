@@ -17,7 +17,6 @@ from extractor.models import Ticket, Cliente, Proyecto, TipoServicio
 def ticket_list(request):
     """Listado de tickets con filtros y paginación"""
 
-   
     from_dashboard = request.GET.get('from_dashboard') == 'true'
     
     # Si viene del dashboard, guardarlo en sesión para mantenerlo en navegación
@@ -26,8 +25,8 @@ def ticket_list(request):
     else:
         # Limpiar la sesión si no viene del dashboard
         request.session.pop('from_dashboard', None)
-   
 
+    # ✅ SOLO UNA DEFINICIÓN - QUERYSET NORMAL
     tickets = Ticket.objects.all().select_related('cliente', 'proyecto', 'tipo_servicio')
 
     # Filtros
@@ -37,11 +36,11 @@ def ticket_list(request):
     busqueda = request.GET.get('q')
     por_pagina = request.GET.get('por_pagina', 20)
     
-    # 🆕 NUEVOS FILTROS DE FECHA
+    # Filtros de fecha
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
     
-    # 🆕 FILTRO POR NOMBRE DE CLIENTE (desde el dashboard)
+    # Filtro por nombre de cliente
     cliente_nombre = request.GET.get('cliente_nombre')
 
     # Aplicar filtros
@@ -60,12 +59,12 @@ def ticket_list(request):
     if busqueda:
         tickets = tickets.filter(
             Q(codigo__icontains=busqueda) |
-            Q(nombre__icontains=busqueda) |  # 🔥 Agregar búsqueda por nombre del ticket
+            Q(nombre__icontains=busqueda) |
             Q(responsable_solicitud__icontains=busqueda) |
             Q(lider_proyecto__icontains=busqueda)
         )
     
-    # 🆕 Aplicar filtros de fecha
+    # Aplicar filtros de fecha
     if fecha_desde:
         try:
             fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()

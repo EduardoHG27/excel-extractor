@@ -516,7 +516,7 @@
             </div>
         </div>
         <div class="periodo-info" style="margin-top: 1rem; text-align: center; font-size: 0.8rem;">
-            {{ datos_por_mes.mes_actual.fecha_inicio|date:"d/m/Y" }} al {{ datos_por_mes.mes_actual.fecha_fin|date:"d/m/Y" }}
+            {{ datos_por_mes.mes_actual.nombre }}
         </div>
     </div>
     <div class="dashboard-card">
@@ -527,7 +527,7 @@
             </div>
         </div>
         <div class="periodo-info" style="margin-top: 1rem; text-align: center; font-size: 0.8rem;">
-            {{ datos_por_mes.mes_anterior.fecha_inicio|date:"d/m/Y" }} al {{ datos_por_mes.mes_anterior.fecha_fin|date:"d/m/Y" }}
+            {{ datos_por_mes.mes_anterior.nombre }}
         </div>
     </div>
 </div>
@@ -806,9 +806,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
 
+
+<script id="datos-por-mes" type="application/json">
+    {{ datos_por_mes_json|safe }}
+</script>
+
 {% load static %}
 <script src="{% static 'js/dashboard.js' %}"></script>
-{{ datos_por_mes|json_script:"datos-por-mes" }}
 <script>
     // Guardar indicador en sessionStorage cuando se carga el dashboard
     sessionStorage.setItem('from_dashboard', 'true');
