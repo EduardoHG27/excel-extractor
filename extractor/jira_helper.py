@@ -131,7 +131,7 @@ h3. Descripción de Cambios
    
     def close_issue(self, issue_key, resolution='Done'):
         """
-        Cierra una incidencia en Jira - Versión para workflow con estado FINALIZADA
+        Cambia el estado de la incidencia en Jira de 'Tareas por hacer' a 'FINALIZADA'
         """
         if not self.jira:
             logger.error("No hay conexión a Jira")
@@ -144,11 +144,11 @@ h3. Descripción de Cambios
             # Obtener la incidencia
             issue = self.jira.issue(issue_key)
             current_status = issue.fields.status.name
-            logger.info(f"Cerrando incidencia {issue_key} - Estado actual: {current_status}")
+            logger.info(f"🔍 Incidencia {issue_key} - Estado actual: {current_status}")
             
-            # Verificar si ya está finalizada
+            # Si ya está FINALIZADA, no hacer nada
             if current_status == "FINALIZADA":
-                logger.info(f"Incidencia {issue_key} ya está FINALIZADA")
+                logger.info(f"✅ Incidencia {issue_key} ya está FINALIZADA")
                 return {
                     'success': True,
                     'issue_key': issue_key,
@@ -165,71 +165,59 @@ h3. Descripción de Cambios
                     'warning': f'No hay transiciones disponibles para {issue_key}'
                 }
             
-            # 🔍 Buscar específicamente la transición a FINALIZADA
+            # 🔍 BUSCAR TRANSICIÓN QUE LLEVE A "FINALIZADA"
             close_transition_id = None
             transition_name = None
             
-            # Prioridad: buscar transición que lleve a FINALIZADA o nombres similares
-            keywords = ['finalizada', 'finalizado', 'finish', 'complete', 'close', 'cerrar', 'done']
-            
+            # Opción 1: Buscar por estado destino "FINALIZADA"
             for transition in transitions:
-                name_lower = transition['name'].lower()
-                # Verificar si la transición lleva a FINALIZADA
-                if hasattr(transition, 'to') and transition.to and transition.to.name == "FINALIZADA":
-                    close_transition_id = transition['id']
-                    transition_name = transition['name']
-                    logger.info(f"✅ Transición a FINALIZADA encontrada: {transition_name} (ID: {close_transition_id})")
-                    break
-                # Si no, buscar por keywords
-                for keyword in keywords:
-                    if keyword in name_lower:
+                if hasattr(transition, 'to') and transition.to:
+                    if transition.to.name == "FINALIZADA":
                         close_transition_id = transition['id']
                         transition_name = transition['name']
-                        logger.info(f"✅ Transición encontrada por keyword '{keyword}': {transition_name}")
+                        logger.info(f"✅ Transición a FINALIZADA encontrada: '{transition_name}' (ID: {close_transition_id})")
                         break
-                if close_transition_id:
-                    break
             
-            # Si no encontró, mostrar todas las transiciones disponibles para depuración
+            # Opción 2: Si no encontró, buscar por nombre de transición
+            if not close_transition_id:
+                keywords = ['finalizada', 'finalizar', 'final', 'completar', 'terminar', 'close', 'done']
+                for transition in transitions:
+                    name_lower = transition['name'].lower()
+                    for keyword in keywords:
+                        if keyword in name_lower:
+                            close_transition_id = transition['id']
+                            transition_name = transition['name']
+                            logger.info(f"✅ Encontrada por keyword '{keyword}': '{transition_name}'")
+                            break
+                    if close_transition_id:
+                        break
+            
+            # Opción 3: Mostrar todas las transiciones para depuración
             if not close_transition_id:
                 logger.warning(f"⚠️ No se encontró transición a FINALIZADA. Transiciones disponibles:")
                 for t in transitions:
                     to_name = t.get('to', {}).get('name', 'Desconocido') if hasattr(t, 'to') else 'N/A'
-                    logger.warning(f"  - {t['id']}: {t['name']} → {to_name}")
+                    logger.warning(f"   - ID: {t['id']} | '{t['name']}' → {to_name}")
                 
-                # Último recurso: usar la primera transición que contenga palabras clave
-                for transition in transitions:
-                    name_lower = transition['name'].lower()
-                    if any(k in name_lower for k in ['final', 'complet', 'close', 'cerr']):
-                        close_transition_id = transition['id']
-                        transition_name = transition['name']
-                        logger.warning(f"⚠️ Usando transición por keyword: {transition_name}")
-                        break
-                
-                # Si aún nada, usar la primera transición disponible
-                if not close_transition_id and transitions:
-                    close_transition_id = transitions[0]['id']
-                    transition_name = transitions[0]['name']
-                    logger.warning(f"⚠️ Usando primera transición disponible: {transition_name}")
-            
-            if not close_transition_id:
                 return {
                     'success': False,
                     'warning': f'No se encontró transición para finalizar {issue_key}'
                 }
             
-            # Ejecutar la transición
+            # Ejecutar la transición a FINALIZADA
             try:
                 self.jira.transition_issue(issue_key, close_transition_id)
                 
                 # Agregar comentario de cierre
                 try:
-                    comment = f"Incidencia finalizada automáticamente desde el sistema QA.\nEstado del ticket: {'COMPLETADO' if resolution == 'Done' else 'NO EXITOSO'}"
+                    comment = f"Incidencia finalizada automáticamente desde el sistema QA.\n"
+                    comment += f"Ticket QA: COMPLETADO\n"
+                    comment += f"Fecha: {timezone.now().strftime('%d/%m/%Y %H:%M:%S')}"
                     self.jira.add_comment(issue_key, comment)
                 except Exception as e:
                     logger.warning(f"No se pudo agregar comentario: {e}")
                 
-                logger.info(f"✅ Incidencia {issue_key} finalizada exitosamente")
+                logger.info(f"✅ Incidencia {issue_key} cambiada de '{current_status}' a 'FINALIZADA'")
                 
                 return {
                     'success': True,
@@ -242,7 +230,7 @@ h3. Descripción de Cambios
                 error_msg = str(e)
                 logger.error(f"Error al ejecutar transición: {error_msg}")
                 
-                # Intentar con resolución si es necesario
+                # Si el error es por resolución requerida
                 if 'resolution' in error_msg.lower():
                     try:
                         self.jira.transition_issue(
@@ -250,7 +238,7 @@ h3. Descripción de Cambios
                             close_transition_id,
                             fields={'resolution': {'name': resolution}}
                         )
-                        logger.info(f"✅ Incidencia {issue_key} finalizada con resolución")
+                        logger.info(f"✅ Incidencia {issue_key} finalizada con resolución {resolution}")
                         return {
                             'success': True,
                             'issue_key': issue_key,
@@ -259,7 +247,7 @@ h3. Descripción de Cambios
                     except Exception as e2:
                         return {
                             'success': False,
-                            'warning': f'Error al finalizar: {str(e2)}'
+                            'warning': f'Error al finalizar con resolución: {str(e2)}'
                         }
                 else:
                     return {
@@ -268,7 +256,7 @@ h3. Descripción de Cambios
                     }
                 
         except Exception as e:
-            error_msg = f"Error al finalizar incidencia {issue_key}: {str(e)}"
+            error_msg = f"Error al procesar incidencia {issue_key}: {str(e)}"
             logger.error(f"❌ {error_msg}")
             return {
                 'success': False,
