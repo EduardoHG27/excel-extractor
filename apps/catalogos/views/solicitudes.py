@@ -24,6 +24,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 import logging
 from extractor.jira_helper import create_jira_issue_from_ticket
+from apps.excel_processor.services.ticket_generator import generate_and_save_ticket
 from extractor.models import Cliente, Proyecto, TipoServicio, SolicitudPruebas, Ticket
 
 logger = logging.getLogger('security')
