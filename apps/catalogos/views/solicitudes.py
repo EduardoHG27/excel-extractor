@@ -22,9 +22,11 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
-
+import logging
+from extractor.jira_helper import create_jira_issue_from_ticket
 from extractor.models import Cliente, Proyecto, TipoServicio, SolicitudPruebas, Ticket
 
+logger = logging.getLogger('security')
 
 def check_rate_limit_by_ip(request, limite=5, tiempo_ventana=3600):
     """Limita las solicitudes por IP"""
@@ -593,31 +595,99 @@ def _generar_excel_solicitud(request, solicitud):
 @require_http_methods(["POST"])
 def solicitud_crear_ticket(request, solicitud_id):
     """
-    Crea un ticket a partir de una solicitud existente
+    Crea un ticket a partir de una solicitud existente y genera el issue en Jira
     """
     solicitud = get_object_or_404(SolicitudPruebas, id=solicitud_id)
     
-    # Verificar si ya tiene ticket
+    # Verificar que la solicitud no tenga ya un ticket
     if solicitud.ticket:
-        messages.warning(
-            request, 
-            f'⚠️ Esta solicitud ya tiene un ticket asociado: {solicitud.ticket.codigo}'
-        )
-        return redirect('extractor:ticket_detail', id=solicitud.ticket.id)
+        messages.warning(request, 'Esta solicitud ya tiene un ticket asociado.')
+        return redirect('extractor:solicitud_detail', id=solicitud_id)
     
     try:
-        # Generar el ticket usando el método del modelo
-        ticket = solicitud.generar_ticket(request=request)
+        # Preparar los datos a partir de la solicitud existente
+        extracted_data = {
+            'cliente': solicitud.cliente.nombre if solicitud.cliente else '',
+            'proyecto': solicitud.proyecto.nombre if solicitud.proyecto else '',
+            'tipo_pruebas': solicitud.tipo_prueba.nombre if solicitud.tipo_prueba else '',
+            'responsable_solicitud': solicitud.responsable_solicitud or '',
+            'lider_proyecto': solicitud.lider_proyecto or '',
+            'numero_version': solicitud.numero_version or '',
+            'funcionalidad_liberacion': solicitud.funcionalidad_liberacion or '',
+            'detalle_cambios': solicitud.detalle_cambios or '',
+            'justificacion_cambio': solicitud.justificacion_cambio or '',
+            'area_solicitante': solicitud.area_solicitante or '',
+            'tipo_aplicacion': solicitud.tipo_aplicacion or '',
+            'puntos_considerar': solicitud.puntos_considerar or '',
+            'pendientes': solicitud.pendientes or '',
+            'insumos': solicitud.insumos or '',
+            'email_contacto': solicitud.email_contacto or '',
+        }
         
-        messages.success(request, f'✅ Ticket creado exitosamente: {ticket.codigo}')
-        return redirect('extractor:ticket_detail', id=ticket.id)
+        # Preparar nomenclaturas
+        nomenclaturas = {
+            'cliente_nomenclatura': solicitud.cliente.nomenclatura if solicitud.cliente else '',
+            'proyecto_nomenclatura': solicitud.proyecto.codigo if solicitud.proyecto else '',
+            'tipo_pruebas_nomenclatura': solicitud.tipo_prueba.nomenclatura if solicitud.tipo_prueba else '',
+            'tipo_servicio_nomenclatura': solicitud.tipo_servicio_code
+        }
+        
+        # Preparar objetos encontrados
+        objetos_encontrados = {
+            'cliente_obj': solicitud.cliente,
+            'proyecto_obj': solicitud.proyecto,
+            'tipo_servicio_obj': solicitud.tipo_prueba
+        }
+        
+        # Generar y guardar ticket
+        ticket_code, ticket_obj = generate_and_save_ticket(
+            extracted_data,
+            solicitud.tipo_servicio_code,
+            nomenclaturas,
+            objetos_encontrados,
+            request
+        )
+        
+        # 🔥 CREAR ISSUE EN JIRA usando el helper
+        if ticket_obj:
+            # Preparar datos para Jira
+            jira_data = {
+                'cliente_obj': solicitud.cliente,
+                'proyecto_obj': solicitud.proyecto,
+                'tipo_servicio': solicitud.tipo_servicio_code,
+                'responsable_solicitud': solicitud.responsable_solicitud or '',
+                'lider_proyecto': solicitud.lider_proyecto or '',
+                'numero_version': solicitud.numero_version or '',
+                'funcionalidad_liberacion': solicitud.funcionalidad_liberacion or '',
+                'detalle_cambios': solicitud.detalle_cambios or '',
+                'justificacion_cambio': solicitud.justificacion_cambio or '',
+            }
+            
+            success, message, jira_issue = create_jira_issue_from_ticket(
+                ticket_obj, jira_data, request
+            )
+            
+            if success:
+                messages.success(request, f'📋 {message}')
+            else:
+                messages.warning(request, f'Ticket creado pero {message}')
+        
+        # Actualizar la solicitud con el ticket
+        solicitud.ticket = ticket_obj
+        solicitud.tiene_ticket = True
+        solicitud.fecha_asociacion_ticket = timezone.now()
+        solicitud.save()
+        
+        messages.success(request, f'✅ Ticket generado exitosamente: {ticket_code}')
+        return redirect('extractor:ticket_detail', id=ticket_obj.id)
         
     except Exception as e:
-        messages.error(request, f'❌ Error al crear el ticket: {str(e)}')
-        return redirect('extractor:solicitud_detail', id=solicitud.id)
+        logger.error(f"Error al crear ticket desde solicitud {solicitud_id}: {str(e)}")
+        messages.error(request, f'Error al crear ticket: {str(e)}')
+        return redirect('extractor:solicitud_detail', id=solicitud_id)
     
-    @never_cache
-    def solicitud_detail_public(request, id):
+@never_cache
+def solicitud_detail_public(request, id):
         """
         Ver detalle de una solicitud de pruebas (PÚBLICO - sin autenticación)
         Útil para compartir enlaces con clientes o para descargas rápidas

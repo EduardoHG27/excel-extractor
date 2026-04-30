@@ -259,12 +259,6 @@
     </form>
     {% endif %}
 
-    {% if solicitud.ticket %}
-    <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn" style="background-color: #9b59b6; color: white; font-size: 1.1rem; padding: 12px 30px;">
-        📝 Generar Solicitud BID-PMC
-    </a>
-    {% endif %}
-
     {% if not solicitud.ticket %}
     <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
         🖨️ Descargar Solicitud

@@ -22,6 +22,7 @@ from django_ratelimit.decorators import ratelimit
 from extractor.models import Cliente, Proyecto, TipoServicio, ExcelData, Ticket, SolicitudPruebas
 from ..services.extractor_service import extract_excel_data, find_object_by_name_or_id
 from ..services.ticket_generator import generate_and_save_ticket
+from extractor.jira_helper import JiraClient, create_jira_issue_from_ticket 
 
 import logging
 logger = logging.getLogger('security')
@@ -149,11 +150,21 @@ def upload_excel(request):
             
             # Validar solicitud existente
             solicitud = SolicitudPruebas.objects.filter(
-                nombre_archivo=excel_file.name,
-                tiene_ticket=False
+                nombre_archivo=excel_file.name
             ).first()
-            solicitud_encontrada = solicitud is not None
             
+
+            if not solicitud:
+                print(f"📝 Creando nueva solicitud para archivo: {excel_file.name}")
+                
+                # Esperar a tener los objetos extraídos (cliente_obj, proyecto_obj, etc.)
+                # Nota: Estos objetos aún no están disponibles aquí porque se crean después
+                # Por eso necesitamos mover esta lógica DESPUÉS de obtener los objetos
+                solicitud_encontrada = False
+            else:
+                solicitud_encontrada = True
+                print(f"✅ Solicitud existente encontrada ID: {solicitud.id}")
+                
             # Guardar archivo temporal con nombre seguro
             filename = fs.save(safe_filename, excel_file)
             file_path = os.path.join(settings.MEDIA_ROOT, filename)
@@ -216,9 +227,30 @@ def upload_excel(request):
             
             # Crear Jira issue
             if ticket_obj:
-                _create_jira_issue(ticket_obj, extracted_data, cliente_obj, proyecto_obj, tipo_servicio_form, request)
+                # Preparar datos para el helper
+                jira_data = {
+                    'cliente_obj': cliente_obj,
+                    'proyecto_obj': proyecto_obj,
+                    'tipo_servicio': tipo_servicio_form,
+                    'responsable_solicitud': extracted_data.get('responsable_solicitud', ''),
+                    'lider_proyecto': extracted_data.get('lider_proyecto', ''),
+                    'numero_version': extracted_data.get('numero_version', ''),
+                    'funcionalidad_liberacion': extracted_data.get('funcionalidad_liberacion', ''),
+                    'detalle_cambios': extracted_data.get('detalle_cambios', ''),
+                    'justificacion_cambio': extracted_data.get('justificacion_cambio', ''),
+                }
+                
+                # Crear Jira issue usando el helper
+                success, message, jira_issue = create_jira_issue_from_ticket(
+                    ticket_obj, jira_data, request
+                )
+                
+                if success:
+                    messages.info(request, f'📋 {message}')
+                else:
+                    messages.warning(request, f'Ticket creado pero {message}')
             
-            # Actualizar solicitud
+            # Actualizar solicitud (código existente)
             if solicitud_encontrada and solicitud:
                 solicitud.ticket = ticket_obj
                 solicitud.tiene_ticket = True
@@ -282,37 +314,3 @@ def sanitize_extracted_data(data: dict) -> dict:
     
     return sanitized
 
-
-def _create_jira_issue(ticket_obj, extracted_data, cliente_obj, proyecto_obj, tipo_servicio_form, request):
-    """Helper para crear issue en Jira"""
-    try:
-        from extractor.jira_helper import JiraClient
-        
-        # Sanitizar datos para Jira
-        jira_data = {
-            'codigo': ticket_obj.codigo,
-            'cliente': cliente_obj.nombre[:100],
-            'proyecto': proyecto_obj.nombre[:100],
-            'tipo_servicio': tipo_servicio_form[:50],
-            'responsable_solicitud': extracted_data.get('responsable_solicitud', '')[:100],
-            'lider_proyecto': extracted_data.get('lider_proyecto', '')[:100],
-            'numero_version': extracted_data.get('numero_version', '')[:50],
-            'funcionalidad_liberacion': extracted_data.get('funcionalidad_liberacion', '')[:500],
-            'detalle_cambios': extracted_data.get('detalle_cambios', '')[:1000],
-            'justificacion_cambio': extracted_data.get('justificacion_cambio', '')[:500],
-            'fecha': timezone.now().strftime('%d/%m/%Y %H:%M'),
-            'usuario': request.user.username[:50] if request.user.is_authenticated else 'Sistema',
-        }
-        
-        jira_client = JiraClient()
-        jira_issue = jira_client.create_issue(jira_data)
-        
-        if jira_issue:
-            ticket_obj.jira_issue_key = jira_issue.key
-            ticket_obj.jira_issue_url = jira_issue.permalink()
-            ticket_obj.fecha_sincronizacion_jira = timezone.now()
-            ticket_obj.save()
-            messages.info(request, f'📋 Incidencia creada en Jira: {jira_issue.key}')
-            
-    except Exception as e:
-        logger.error(f"Error en integración Jira para ticket {ticket_obj.codigo}: {e}")

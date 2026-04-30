@@ -2,6 +2,7 @@
 from jira import JIRA
 from django.conf import settings
 import logging
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -126,3 +127,76 @@ h3. Descripción de Cambios
             logger.error(f"❌ Error creando incidencia en Jira: {e}")
             print(f"❌ Error creando incidencia en Jira: {e}")
             return None
+        
+
+def create_jira_issue_from_ticket(ticket_obj, jira_data, request=None):
+    """
+    Helper function to create Jira issue from ticket data
+    
+    Args:
+        ticket_obj: Objeto Ticket recién creado
+        jira_data: Diccionario con datos necesarios para Jira:
+            - cliente_obj o cliente_nombre
+            - proyecto_obj o proyecto_nombre
+            - tipo_servicio
+            - responsable_solicitud
+            - lider_proyecto
+            - numero_version
+            - funcionalidad_liberacion
+            - detalle_cambios
+            - justificacion_cambio
+        request: Objeto request de Django (opcional)
+    
+    Returns:
+        tuple: (success, message, jira_issue)
+    """
+    try:
+        # Extraer nombres de cliente y proyecto
+        if 'cliente_obj' in jira_data and jira_data['cliente_obj']:
+            cliente_nombre = jira_data['cliente_obj'].nombre
+        else:
+            cliente_nombre = jira_data.get('cliente_nombre', '')
+        
+        if 'proyecto_obj' in jira_data and jira_data['proyecto_obj']:
+            proyecto_nombre = jira_data['proyecto_obj'].nombre
+        else:
+            proyecto_nombre = jira_data.get('proyecto_nombre', '')
+        
+        tipo_servicio = jira_data.get('tipo_servicio', 'PRU')
+        
+        # Preparar datos para Jira (siguiendo el mismo formato que _create_jira_issue)
+        jira_issue_data = {
+            'codigo': ticket_obj.codigo[:50],
+            'cliente': cliente_nombre[:100],
+            'proyecto': proyecto_nombre[:100],
+            'tipo_servicio': tipo_servicio[:50],
+            'responsable_solicitud': jira_data.get('responsable_solicitud', '')[:100],
+            'lider_proyecto': jira_data.get('lider_proyecto', '')[:100],
+            'numero_version': jira_data.get('numero_version', '')[:50],
+            'funcionalidad_liberacion': jira_data.get('funcionalidad_liberacion', '')[:500],
+            'detalle_cambios': jira_data.get('detalle_cambios', '')[:1000],
+            'justificacion_cambio': jira_data.get('justificacion_cambio', '')[:500],
+            'fecha': timezone.now().strftime('%d/%m/%Y %H:%M'),
+            'usuario': request.user.username[:50] if request and request.user.is_authenticated else 'Sistema',
+        }
+        
+        # Crear cliente de Jira y el issue
+        jira_client = JiraClient()
+        jira_issue = jira_client.create_issue(jira_issue_data)
+        
+        if jira_issue:
+            # Actualizar el ticket con la información de Jira
+            ticket_obj.jira_issue_key = jira_issue.key
+            ticket_obj.jira_issue_url = jira_issue.permalink()
+            ticket_obj.fecha_sincronizacion_jira = timezone.now()
+            ticket_obj.save()
+            
+            logger.info(f"✅ Jira issue creado para ticket {ticket_obj.codigo}: {jira_issue.key}")
+            return True, f'Incidencia creada en Jira: {jira_issue.key}', jira_issue
+        else:
+            logger.warning(f"⚠️ No se pudo crear Jira issue para ticket {ticket_obj.codigo}")
+            return False, 'No se pudo crear la incidencia en Jira', None
+            
+    except Exception as e:
+        logger.error(f"❌ Error creando Jira issue para ticket {ticket_obj.codigo}: {str(e)}")
+        return False, f'Error al crear incidencia en Jira: {str(e)}', None
