@@ -37,7 +37,7 @@
     </div>
     
     <div style="display: flex; gap: 10px;">
-        <!-- ✅ SOLO SI EL USUARIO ESTÁ LOGUEADO -->
+        <!-- ✅ Botón Crear Ticket - SOLO para usuarios logueados -->
         {% if user.is_authenticated %}
             {% if not solicitud.ticket %}
             <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
@@ -50,17 +50,13 @@
                 </button>
             </form>
             {% endif %}
-            
-            {% if not solicitud.ticket %}
-                <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
-            {% else %}
-                <a href="{% url 'extractor:ticket_detail' solicitud.ticket.id %}" class="btn">👁️ Ver Ticket Asociado</a>
-            {% endif %}
+        {% endif %}
+        
+        <!-- ✅ Botón Descargar Solicitud - Visible para TODOS (sin autenticación) -->
+        {% if not solicitud.ticket %}
+            <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success">🖨️ Descargar Solicitud</a>
         {% else %}
-            <!-- Opcional: mostrar mensaje o botón deshabilitado -->
-            <span class="btn" style="background-color: #ccc; color: #666; cursor: not-allowed;" title="Inicia sesión para crear un ticket">
-                🔒 Crear Ticket (Requiere login)
-            </span>
+            <a href="{% url 'extractor:ticket_detail' solicitud.ticket.id %}" class="btn">👁️ Ver Ticket Asociado</a>
         {% endif %}
     </div>
 </div>
@@ -263,7 +259,7 @@
 <!-- Botones de acción -->
 <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: flex-end;">
     
-    <!-- ✅ SOLO SI EL USUARIO ESTÁ LOGUEADO -->
+    <!-- ✅ Botón Crear Ticket - SOLO para usuarios logueados -->
     {% if user.is_authenticated %}
         {% if not solicitud.ticket %}
         <form method="POST" action="{% url 'extractor:solicitud_crear_ticket' solicitud.id %}" 
@@ -276,12 +272,13 @@
             </button>
         </form>
         {% endif %}
+    {% endif %}
 
-        {% if not solicitud.ticket %}
-        <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
-            🖨️ Descargar Solicitud
-        </a>
-        {% endif %}
+    <!-- ✅ Botón Descargar Solicitud - Visible para TODOS -->
+    {% if not solicitud.ticket %}
+    <a href="{% url 'extractor:imprimir_solicitud_excel' solicitud.id %}" class="btn btn-success" style="font-size: 1.1rem; padding: 12px 30px;">
+        🖨️ Descargar Solicitud
+    </a>
     {% endif %}
     
     <a href="{% url 'extractor:solicitud_list' %}" class="btn" style="font-size: 1.1rem; padding: 12px 30px;">
