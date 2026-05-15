@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.utils import timezone
 import json
-from extractor.jira_helper import JiraClient  # Cambiar de jira_integration a jira_helper
+from extractor.jira_helper import JiraClient
 from extractor.models import Ticket, Usuario
 
 @csrf_exempt
@@ -22,9 +22,17 @@ def ticket_cambiar_estado(request, id):
         if not nuevo_estado:
             return JsonResponse({'success': False, 'error': 'Estado no proporcionado'})
         
-        
         if nuevo_estado not in dict(Ticket.ESTADOS_TICKET):
             return JsonResponse({'success': False, 'error': 'Estado inválido'})
+        
+        # 🔥 VALIDACIÓN NUEVA: Para estados terminales, debe tener usuario asignado
+        estados_terminales = ['COMPLETADO', 'NO EXITOSO']
+        if nuevo_estado in estados_terminales:
+            if not ticket.asignado_a:
+                return JsonResponse({
+                    'success': False, 
+                    'error': '⚠️ No se puede cambiar el estado. El ticket debe estar asignado a un responsable antes de marcarlo como COMPLETADO o NO EXITOSO.'
+                })
         
         # Guardar estado anterior
         estado_anterior = ticket.estado
@@ -32,9 +40,13 @@ def ticket_cambiar_estado(request, id):
         # Cambiar estado del ticket
         ticket.estado = nuevo_estado
         
+        # Si se completa o no es exitoso, registrar fecha de cierre
+        if nuevo_estado in estados_terminales and not ticket.fecha_cierre:
+            ticket.fecha_cierre = timezone.now()
+        
         # Si se completa o no es exitoso, cerrar en Jira
         jira_result = None
-        if cerrar_en_jira and nuevo_estado in ['COMPLETADO', 'NO EXITOSO']:
+        if cerrar_en_jira and nuevo_estado in estados_terminales:
             try:
                 jira_client = JiraClient()
                 # Verificar si el ticket tiene issue_key
@@ -59,7 +71,9 @@ def ticket_cambiar_estado(request, id):
         
         return JsonResponse({
             'success': True,
+            'estado': ticket.estado,
             'estado_display': ticket.get_estado_display(),
+            'fecha_cierre': ticket.fecha_cierre.strftime("%d/%m/%Y %H:%M") if ticket.fecha_cierre else None,
             'jira_result': jira_result
         })
         
@@ -68,6 +82,32 @@ def ticket_cambiar_estado(request, id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
+
+@login_required
+def verificar_asignado_ticket(request, ticket_id):
+    """API para verificar si un ticket tiene un usuario asignado"""
+    try:
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        
+        tiene_asignado = ticket.asignado_a is not None
+        
+        return JsonResponse({
+            'success': True,
+            'tiene_asignado': tiene_asignado,
+            'asignado_nombre': ticket.asignado_a.get_full_name() if ticket.asignado_a else None,
+            'asignado_username': ticket.asignado_a.username if ticket.asignado_a else None
+        })
+        
+    except Ticket.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Ticket no encontrado'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @login_required

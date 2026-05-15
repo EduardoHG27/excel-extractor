@@ -284,6 +284,30 @@ def upload_excel(request):
     return render(request, 'extractor/upload.html')
 
 
+def remove_line_breaks(text: str, replace_with: str = ' ') -> str:
+    """
+    Elimina saltos de línea y opcionalmente los reemplaza
+    
+    Args:
+        text: Texto a procesar
+        replace_with: Carácter para reemplazar los saltos (default: espacio)
+    """
+    if not text:
+        return text
+    
+    # Reemplazar diferentes tipos de saltos de línea
+    text = text.replace('\r\n', replace_with)  # Windows
+    text = text.replace('\n', replace_with)    # Unix/Linux
+    text = text.replace('\r', replace_with)    # Mac
+    
+    # Opcional: Eliminar múltiples espacios consecutivos
+    import re
+    text = re.sub(r'\s+', replace_with, text)
+    
+    return text.strip()
+
+
+# MODIFICA esta función que ya existe
 def sanitize_extracted_data(data: dict) -> dict:
     """
     Sanitizar y validar datos extraídos del Excel
@@ -298,8 +322,18 @@ def sanitize_extracted_data(data: dict) -> dict:
     sanitized = {}
     for key, value in data.items():
         if value and isinstance(value, str):
-            # Limitar longitud
-            value = value[:500]  # Máximo 500 caracteres
+            # ⭐⭐⭐ NO truncar campos largos ⭐⭐⭐
+            campos_largos = ['funcionalidad_liberacion', 'detalle_cambios', 'justificacion_cambio']
+            
+            if key in campos_largos:
+                max_length = 100000  # Límite alto para estos campos
+            else:
+                max_length = 500  # Truncar campos cortos
+            
+            value = value[:max_length]
+            
+            # ⭐⭐⭐ LLAMAR A LA FUNCIÓN PARA ELIMINAR SALTOS DE LÍNEA ⭐⭐⭐
+            value = remove_line_breaks(value, replace_with=' ')
             
             # Remover patrones peligrosos
             for pattern in dangerous_patterns:
