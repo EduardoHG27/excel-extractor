@@ -247,10 +247,6 @@ def subir_evidencia(request, id):
     """Subir archivo PDF de evidencia a Cloudinary"""
     ticket = get_object_or_404(Ticket, id=id)
     
-    if ticket.estado not in ['COMPLETADO', 'NO EXITOSO']:
-        messages.error(request, 'Solo se pueden subir archivos cuando el ticket está COMPLETADO o NO EXITOSO')
-        return redirect('extractor:ticket_detail', id=ticket.id)
-    
     if request.method == 'POST' and request.FILES.get('evidencia_pdf'):
         archivo = request.FILES['evidencia_pdf']
         
