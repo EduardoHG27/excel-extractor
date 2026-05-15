@@ -664,7 +664,7 @@ Saludos.
         </div>      
     </div>      
     
-{% if ticket.estado == 'COMPLETADO' or ticket.estado == 'NO EXITOSO' %}
+{% if ticket.estado == 'EN_PROCESO' or ticket.estado == 'COMPLETADO' or ticket.estado == 'NO EXITOSO' %}
 <div class="row g-4 mb-4">
     <div class="col-12">
         <div class="modern-card">
@@ -1435,107 +1435,112 @@ function cambiarEstadoNormalConOverlay(nuevoEstado, ticketId) {
             const selectorDiv = document.getElementById('selectorAsignado');
             const btnEditar = document.getElementById('btnEditarAsignado');
             
-            asignadoOriginalHtml = displayDiv.innerHTML;
+            // Guardar el HTML actual (lo que se muestra)
+            window._asignadoOriginalHtml = displayDiv.innerHTML;
+            
             displayDiv.style.display = 'none';
             selectorDiv.style.display = 'block';
             btnEditar.style.display = 'none';
         }
 
-        function cancelarEdicionAsignado() {
+    function cancelarEdicionAsignado() {
+        const displayDiv = document.getElementById('asignadoDisplay');
+        const selectorDiv = document.getElementById('selectorAsignado');
+        const btnEditar = document.getElementById('btnEditarAsignado');
+        
+        // Restaurar el HTML original guardado
+        if (window._asignadoOriginalHtml !== undefined) {
+            displayDiv.innerHTML = window._asignadoOriginalHtml;
+        }
+        
+        displayDiv.style.display = 'block';
+        selectorDiv.style.display = 'none';
+        btnEditar.style.display = 'inline-block';
+    }
+
+function guardarAsignado(ticketId) {
+    const select = document.getElementById('asignadoSelect');
+    const usuarioId = select.value;
+    const selectedOption = select.options[select.selectedIndex];
+    const textoCompleto = selectedOption.text;
+    
+    // Extraer nombre y username del texto (ej: "Juan Pérez (jperez) - QA")
+    let nombreMostrar = '';
+    let usernameMostrar = '';
+    
+    if (usuarioId) {
+        const matchParentesis = textoCompleto.match(/^(.+?)\s*\(([^)]+)\)/);
+        if (matchParentesis) {
+            nombreMostrar = matchParentesis[1].trim();
+            usernameMostrar = matchParentesis[2].trim();
+        } else {
+            nombreMostrar = textoCompleto.split(' -')[0].trim();
+        }
+    }
+    
+    // Mostrar loading en el botón
+    const guardarBtn = event.currentTarget;
+    const originalText = guardarBtn.innerHTML;
+    guardarBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    guardarBtn.disabled = true;
+    
+    const url = `/api/ticket/${ticketId}/cambiar-asignado/`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ asignado_a_id: usuarioId || null })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
             const displayDiv = document.getElementById('asignadoDisplay');
+            
+            // Construir el nuevo HTML
+            let nuevoHtml = '';
+            if (usuarioId && nombreMostrar) {
+                nuevoHtml = `
+                    <strong>${escapeHtml(nombreMostrar)}</strong>
+                    ${usernameMostrar ? `<span class="badge bg-secondary ms-2">${escapeHtml(usernameMostrar)}</span>` : ''}
+                `;
+            } else {
+                nuevoHtml = '<span class="text-muted">No asignado</span>';
+            }
+            
+            // Actualizar el HTML del display
+            displayDiv.innerHTML = nuevoHtml;
+            
+            // IMPORTANTE: Actualizar la variable global con el nuevo HTML
+            asignadoOriginalHtml = nuevoHtml;
+            
+            // Ahora sí, cerrar el selector
             const selectorDiv = document.getElementById('selectorAsignado');
             const btnEditar = document.getElementById('btnEditarAsignado');
             
-            displayDiv.innerHTML = asignadoOriginalHtml;
             displayDiv.style.display = 'block';
             selectorDiv.style.display = 'none';
             btnEditar.style.display = 'inline-block';
-        }
-
-        function guardarAsignado(ticketId) {
-            const select = document.getElementById('asignadoSelect');
-            const usuarioId = select.value;
             
-            const url = `/api/ticket/${ticketId}/cambiar-asignado/`;
-            
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify({ asignado_a_id: usuarioId || null })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Actualizar el display
-                    const displayDiv = document.getElementById('asignadoDisplay');
-                    if (data.asignado_nombre) {
-                        displayDiv.innerHTML = `
-                            <strong>${data.asignado_nombre}</strong>
-                            <span class="badge bg-secondary ms-2">${data.asignado_username}</span>
-                        `;
-                    } else {
-                        displayDiv.innerHTML = '<span class="text-muted">No asignado</span>';
-                    }
-                    
-                    // Cerrar el selector
-                    cancelarEdicionAsignado();
-                    
-                    // Mensaje de éxito
-                    alert(`✅ Asignado actualizado: ${data.asignado_nombre || 'Sin asignar'}`);
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cambiar el asignado');
-            });
+            mostrarMensaje(`✅ Asignado actualizado: ${nombreMostrar || 'Sin asignar'}`, 'success');
+        } else {
+            mostrarMensaje('❌ Error: ' + data.error, 'danger');
+            // Restaurar el selector sin cambios
+            cancelarEdicionAsignado();
         }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const emailCollapse = document.getElementById('emailTemplates');
-    if (emailCollapse) {
-        emailCollapse.addEventListener('show.bs.collapse', function () {
-            seleccionarPlantilla('generico');
-            
-            document.querySelectorAll('.template-pill').forEach(card => {
-                card.classList.remove('selected');
-            });
-            const genericPill = document.querySelector('.template-pill[onclick*="generico"]');
-            if (genericPill) {
-                genericPill.classList.add('selected');
-            }
-        });
-    }
-    
-    if (emailCollapse && emailCollapse.classList.contains('show')) {
-        seleccionarPlantilla('generico');
-        const genericPill = document.querySelector('.template-pill[onclick*="generico"]');
-        if (genericPill) {
-            genericPill.classList.add('selected');
-        }
-    }
-    
-    // Guardar el nombre inicial en la variable global
-    const nombreInicial = "{{ ticket.nombre|default:''|escapejs }}";
-    window._nombreTicketActualizado = nombreInicial;
-    
-    // Modificar los onclick de los template-pill para pasar el evento
-    document.querySelectorAll('.template-pill').forEach(pill => {
-        const originalOnclick = pill.getAttribute('onclick');
-        if (originalOnclick && originalOnclick.includes('seleccionarPlantilla')) {
-            // Extraer el tipo de plantilla
-            const match = originalOnclick.match(/seleccionarPlantilla\('([^']+)'\)/);
-            if (match) {
-                const tipo = match[1];
-                pill.setAttribute('onclick', `seleccionarPlantilla('${tipo}', event)`);
-            }
-        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarMensaje('❌ Error al cambiar el asignado', 'danger');
+        cancelarEdicionAsignado();
+    })
+    .finally(() => {
+        guardarBtn.innerHTML = originalText;
+        guardarBtn.disabled = false;
     });
-});
+}
 
 function editarNombre() {
     const displayDiv = document.getElementById('nombreDisplay');
@@ -1689,10 +1694,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function cambiarEstadoConJira(nuevoEstado, ticketId) {
     const select = document.getElementById('estadoSelect');
-    if (!select) {
-        console.error('No se encontró el select de estado');
-        return;
+    
+    // Estados que requieren validación completa
+    const estadosQueRequierenValidacion = ['COMPLETADO', 'NO EXITOSO'];
+    
+    if (estadosQueRequierenValidacion.includes(nuevoEstado)) {
+        
+        // 1️⃣ PRIMERO: Validar que el ticket tenga un usuario asignado
+        // Verificar en el DOM si hay un usuario asignado (no usar la variable de Django)
+        const asignadoDisplay = document.getElementById('asignadoDisplay');
+        const tieneAsignado = asignadoDisplay && !asignadoDisplay.innerHTML.includes('No asignado');
+        
+        if (!tieneAsignado) {
+            const mensajeEstado = nuevoEstado === 'COMPLETADO' ? 'COMPLETADO' : 'NO EXITOSO';
+            mostrarMensaje(`⚠️ Primero debes ASIGNAR este ticket a un usuario antes de marcarlo como ${mensajeEstado}`, 'warning');
+            select.value = select.getAttribute('data-valor-anterior') || 'EN_PROCESO';
+            // Scroll al botón de asignar usuario
+            document.getElementById('btnEditarAsignado')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        
+        // 2️⃣ SEGUNDO: Validar documentos (dictamen y evidencia)
+        // También verificar en el DOM si los archivos están subidos
+        const dictamenSubido = document.querySelector('.col-md-6:first-child .badge.bg-success') !== null;
+        const evidenciaSubida = document.querySelector('.col-md-6:last-child .badge.bg-success') !== null;
+        
+        const accion = nuevoEstado === 'COMPLETADO' ? 'completar' : 'marcar como NO EXITOSO';
+        
+        if (!dictamenSubido && !evidenciaSubida) {
+            mostrarMensaje(`⚠️ Debes subir el DICTAMEN y la EVIDENCIA de pruebas antes de ${accion}`, 'warning');
+            select.value = select.getAttribute('data-valor-anterior') || 'EN_PROCESO';
+            document.querySelector('.modern-card:has(.card-header-modern h5 .bi-file-pdf)')?.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        
+        if (!dictamenSubido) {
+            mostrarMensaje(`⚠️ Debes subir el DICTAMEN de pruebas antes de ${accion}`, 'warning');
+            select.value = select.getAttribute('data-valor-anterior') || 'EN_PROCESO';
+            document.querySelector('.modern-card:has(.card-header-modern h5 .bi-file-pdf)')?.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        
+        if (!evidenciaSubida) {
+            mostrarMensaje(`⚠️ Debes subir la EVIDENCIA de pruebas antes de ${accion}`, 'warning');
+            select.value = select.getAttribute('data-valor-anterior') || 'EN_PROCESO';
+            document.querySelector('.modern-card:has(.card-header-modern h5 .bi-file-pdf)')?.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
     }
+    
     const url = select.getAttribute('data-url');
     
     // Mostrar overlay de carga
@@ -1702,7 +1752,6 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
     if (loadingOverlay) {
         loadingOverlay.style.display = 'flex';
         
-        // Actualizar mensaje según el estado
         if (nuevoEstado === 'COMPLETADO') {
             loadingMessage.textContent = 'Marcando ticket como COMPLETADO y cerrando incidencia en Jira...';
         } else if (nuevoEstado === 'NO EXITOSO') {
@@ -1710,8 +1759,6 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
         }
     }
     
-    // Deshabilitar el select temporalmente
-    const selectOriginalDisplay = select.style.display;
     select.style.opacity = '0.6';
     select.disabled = true;
     
@@ -1728,7 +1775,6 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
     })
     .then(response => response.json())
     .then(data => {
-        // Ocultar overlay
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
@@ -1753,13 +1799,11 @@ function cambiarEstadoConJira(nuevoEstado, ticketId) {
             select.style.opacity = '1';
             select.disabled = false;
             
-            // Restaurar valor anterior
             const valorAnterior = select.getAttribute('data-valor-anterior');
             if (valorAnterior) select.value = valorAnterior;
         }
     })
     .catch(error => {
-        // Ocultar overlay en caso de error
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
