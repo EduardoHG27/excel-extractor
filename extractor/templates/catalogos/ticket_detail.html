@@ -435,33 +435,13 @@
                <!-- Quick Actions - Barra de acciones rápidas -->
         <div class="quick-actions">
             <a href="{% url 'extractor:generar_excel_dictamen' ticket.id %}" class="quick-action-item">
-                <i class="fa fa-file-pdf text-danger"></i>
-                <span>Descargar Dictamen</span>
+                <i class="fa fa-file-excel text-danger"></i>
+                <span>Descargar formato dictamen</span>
             </a>
             <a href="{% url 'extractor:generar_excel_resultados' ticket.id %}" class="quick-action-item">
                 <i class="fa fa-file-excel text-success"></i>
-                <span>Resultados Pruebas</span>
+                <span>Descargar formato resultados pruebas</span>
             </a>            
-                {% if ticket.casos_prueba.all %}
-                    <a href="{% url 'ia_agent:ver_casos_ticket' ticket.id %}" class="quick-action-item" style="background: #e8f0fe; border-color: var(--primary-color);">
-                        <i class="bi bi-check2-square text-primary"></i>
-                        <span>Ver CP Generados ({{ ticket.casos_prueba.all|length }})</span>
-                    </a>
-                {% else %}
-                    <a href="{% url 'ia_agent:generar_ticket' ticket.id %}" class="quick-action-item">
-                        <i class="bi bi-robot text-success"></i>
-                        <span>Crear CP con IA</span>
-                    </a>
-                {% endif %}
-            <a href="{% url 'extractor:upload_excel' %}" class="quick-action-item">
-                <i class="bi bi-upload text-success"></i>
-                <span>Crear Ticket</span>
-            </a>
-            <a href="{% url 'extractor:ticket_create' %}" class="quick-action-item">
-                <i class="bi bi-plus-circle text-primary"></i>
-                <span>Crear Ticket manual</span>
-            </a>
-          
         </div>
 
                 <!-- Sección de Respuestas Predeterminadas por Correo - Rediseñada -->
@@ -469,10 +449,10 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="mb-0 fw-bold">
                     <i class="bi bi-envelope-paper text-primary me-2"></i>
-                    Respuestas por Correo
+                    Respuestas por correo
                 </h5>
                 <button class="btn btn-modern btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#emailTemplates">
-                    <i class="bi bi-envelope-plus"></i> Nueva Respuesta
+                    <i class="bi bi-envelope-plus"></i> Nueva respuesta
                 </button>
             </div>
 
@@ -483,7 +463,7 @@
                         <div class="template-pill" onclick="seleccionarPlantilla('generico', event)">
                             <i class="bi bi-envelope fs-2 text-primary"></i>
                             <div>
-                                <div class="fw-bold">Respuesta Genérica</div>
+                                <div class="fw-bold">Respuesta genérica</div>
                                 <small class="text-muted">Seguimiento de solicitud</small>
                             </div>
                         </div>
@@ -501,7 +481,7 @@
                         <div class="template-pill" onclick="seleccionarPlantilla('completado', event)">
                             <i class="bi bi-check-circle fs-2 text-success"></i>
                             <div>
-                                <div class="fw-bold">Ticket Completado</div>
+                                <div class="fw-bold">Ticket completado</div>
                                 <small class="text-muted">Notificación de finalización</small>
                             </div>
                         </div>
@@ -509,7 +489,7 @@
                 </div>
                 <!-- Vista previa -->
                 <div class="mb-4">
-                    <label class="fw-bold mb-2">Vista Previa:</label>
+                    <label class="fw-bold mb-2">Vista previa:</label>
                     <div class="preview-box" id="emailPreview">
 Buena tarde estimados:
 
@@ -536,7 +516,7 @@ Saludos.
                 <!-- Acciones -->
                 <div class="d-flex gap-2">
                     <button class="btn btn-modern btn-success" onclick="enviarCorreo()">
-                        <i class="bi bi-send"></i> Enviar Correo
+                        <i class="bi bi-send"></i> Enviar correo
                     </button>
                     <button class="btn btn-modern btn-outline" onclick="copiarAlPortapapeles('emailPreview')">
                         <i class="bi bi-clipboard"></i> Copiar
@@ -552,7 +532,7 @@ Saludos.
     <div class="col-md-6">
         <div class="modern-card h-100">
             <div class="card-header-modern">
-                <h5><i class="bi bi-person-badge"></i> Usuarios del Ticket</h5>
+                <h5><i class="bi bi-person-badge"></i> Usuarios del ticket</h5>
             </div>
             <div class="card-body p-4">
                 <table class="info-table">
@@ -638,7 +618,7 @@ Saludos.
     <div class="col-md-6">
         <div class="modern-card h-100">
             <div class="card-header-modern">
-                <h5><i class="bi bi-chat-dots"></i> Comentarios de Seguimiento</h5>
+                <h5><i class="bi bi-chat-dots"></i> Comentarios de seguimiento</h5>
             </div>
             <div class="card-body p-4">
                 <div class="mb-3">
@@ -669,7 +649,7 @@ Saludos.
     <div class="col-12">
         <div class="modern-card">
             <div class="card-header-modern">
-                <h5><i class="bi bi-file-pdf text-danger"></i> Documentación Final</h5>
+                <h5><i class="bi bi-file-pdf text-danger"></i> Documentación final</h5>
             </div>
             <div class="card-body p-4">
                 <div class="row">
@@ -679,7 +659,7 @@ Saludos.
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0">
                                     <i class="bi bi-file-pdf text-danger me-2"></i>
-                                    Dictamen de Pruebas
+                                    Dictamen de pruebas
                                 </h6>
                                 {% if ticket.dictamen_pdf %}
                                     <span class="badge bg-success">
@@ -726,7 +706,7 @@ Saludos.
                                         </small>
                                     </div>
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-cloud-upload"></i> Subir Dictamen
+                                        <i class="bi bi-cloud-upload"></i> Subir dictamen
                                     </button>
                                 </form>
                             {% endif %}
@@ -739,7 +719,7 @@ Saludos.
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0">
                                     <i class="bi bi-file-pdf text-danger me-2"></i>
-                                    Evidencia de Pruebas
+                                    Evidencia de pruebas
                                 </h6>
                                 {% if ticket.evidencia_pdf %}
                                     <span class="badge bg-success">
@@ -786,7 +766,7 @@ Saludos.
                                         </small>
                                     </div>
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-cloud-upload"></i> Subir Evidencia
+                                        <i class="bi bi-cloud-upload"></i> Subir evidencia
                                     </button>
                                 </form>
                             {% endif %}
@@ -808,7 +788,7 @@ Saludos.
             <div class="col-md-6">
                 <div class="modern-card h-100">
                     <div class="card-header-modern">
-                        <h5><i class="bi bi-building"></i> Cliente y Proyecto</h5>
+                        <h5><i class="bi bi-building"></i> Cliente y proyecto</h5>
                     </div>
                     <div class="card-body p-4">
                         <table class="info-table">
@@ -900,7 +880,7 @@ Saludos.
      {% if ticket.excel_data %}
 <div class="modern-card mb-4">
     <div class="card-header-modern">
-        <h5><i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos del Excel Asociado</h5>
+        <h5><i class="bi bi-file-earmark-spreadsheet text-success"></i> Datos del excel asociado</h5>
     </div>
     <div class="card-body p-4">
         <div class="row">
@@ -915,7 +895,7 @@ Saludos.
                         <td>{{ ticket.excel_data.tipo_pruebas|default:"-" }}</td>
                     </tr>
                     <tr>
-                        <td>Tipo Aplicación:</td>
+                        <td>Tipo aplicación:</td>
                         <td>{{ ticket.excel_data.tipo_aplicacion|default:"-" }}</td>
                     </tr>
                     <tr>
@@ -945,7 +925,7 @@ Saludos.
                     </td>
                 </tr>
                 <tr>
-                    <td>Detalle Cambios:</td>
+                    <td>Detalle cambios:</td>
                     <td>
                         <div class="expandable-text" id="detalle-container">
                             <div class="text-content">
@@ -992,7 +972,7 @@ Saludos.
         <!-- Información del Sistema - Compacta -->
         <div class="modern-card">
             <div class="card-header-modern">
-                <h5><i class="bi bi-info-circle"></i> Información del Sistema</h5>
+                <h5><i class="bi bi-info-circle"></i> Información del sistema</h5>
             </div>
             <div class="card-body p-4">
                 <div class="row">

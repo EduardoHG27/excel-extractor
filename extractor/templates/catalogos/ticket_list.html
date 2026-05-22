@@ -23,7 +23,8 @@
         .estado-GENERADO { border-left-color: #17a2b8; }
         .estado-EN_PROCESO { border-left-color: #ffc107; }
         .estado-COMPLETADO { border-left-color: #28a745; }
-        .estado-CANCELADO { border-left-color: #dc3545; }
+        .estado-CANCELADO { border-left-color: #000000; }
+        .estado-NO_EXITOSO { border-left-color: #ff0000; }
         
         .badge-estado {
             font-size: 0.8rem;
@@ -72,6 +73,15 @@
         .page-item.disabled .page-link {
             color: #6c757d;
         }
+
+        /* Indicador de mes actual */
+        .mes-actual-badge {
+            font-size: 0.75rem;
+            background-color: #e9ecef;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -106,15 +116,20 @@
             {% endfor %}
         {% endif %}
 
-        <!-- Tarjetas de estadísticas simples -->
+        <!-- Tarjetas de estadísticas - SOLO DEL MES ACTUAL -->
         <div class="row mb-4">
             <div class="col-md-3 mb-3">
                 <div class="card stats-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-1">Total Tickets</h6>
-                                <h2 class="mb-0">{{ total_tickets|default:"0" }}</h2>
+                                <h6 class="text-muted mb-1">
+                                    Total Tickets 
+                                    <span class="mes-actual-badge">
+                                        <i class="bi bi-calendar-month"></i> {{ mes_actual_nombre }}
+                                    </span>
+                                </h6>
+                                <h2 class="mb-0">{{ total_tickets_mes|default:"0" }}</h2>
                             </div>
                             <div class="bg-primary bg-opacity-10 p-3 rounded">
                                 <i class="bi bi-ticket-detailed fs-2 text-primary"></i>
@@ -128,8 +143,13 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-1">Generados</h6>
-                                <h2 class="mb-0 text-info">{{ tickets_generados|default:"0" }}</h2>
+                                <h6 class="text-muted mb-1">
+                                    Generados 
+                                    <span class="mes-actual-badge">
+                                        <i class="bi bi-calendar-month"></i> {{ mes_actual_nombre }}
+                                    </span>
+                                </h6>
+                                <h2 class="mb-0 text-info">{{ tickets_generados_mes|default:"0" }}</h2>
                             </div>
                             <div class="bg-info bg-opacity-10 p-3 rounded">
                                 <i class="bi bi-file-earmark-plus fs-2 text-info"></i>
@@ -143,8 +163,13 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-1">En Proceso</h6>
-                                <h2 class="mb-0 text-warning">{{ tickets_proceso|default:"0" }}</h2>
+                                <h6 class="text-muted mb-1">
+                                    En Proceso 
+                                    <span class="mes-actual-badge">
+                                        <i class="bi bi-calendar-month"></i> {{ mes_actual_nombre }}
+                                    </span>
+                                </h6>
+                                <h2 class="mb-0 text-warning">{{ tickets_proceso_mes|default:"0" }}</h2>
                             </div>
                             <div class="bg-warning bg-opacity-10 p-3 rounded">
                                 <i class="bi bi-gear fs-2 text-warning"></i>
@@ -158,8 +183,13 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-1">Completados</h6>
-                                <h2 class="mb-0 text-success">{{ tickets_completados|default:"0" }}</h2>
+                                <h6 class="text-muted mb-1">
+                                    Completados 
+                                    <span class="mes-actual-badge">
+                                        <i class="bi bi-calendar-month"></i> {{ mes_actual_nombre }}
+                                    </span>
+                                </h6>
+                                <h2 class="mb-0 text-success">{{ tickets_completados_mes|default:"0" }}</h2>
                             </div>
                             <div class="bg-success bg-opacity-10 p-3 rounded">
                                 <i class="bi bi-check-circle fs-2 text-success"></i>
@@ -266,180 +296,7 @@
             </div>
         {% endif %}
 
-        <!-- SECCIÓN DE DESCARGAS - EN COLLAPSE (CERRADO POR DEFECTO) -->
-        <div class="card mt-4 mb-4 shadow-sm">
-            <div class="card-header bg-primary text-white" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseDownloads" aria-expanded="false" aria-controls="collapseDownloads">
-                <h5 class="mb-0 d-flex justify-content-between align-items-center">
-                    <span>
-                        <i class="bi bi-download"></i> Descargas y Backup del Sistema
-                    </span>
-                    <i class="bi bi-chevron-down" id="collapse-icon"></i>
-                </h5>
-            </div>
-            <div id="collapseDownloads" class="collapse">
-                <div class="card-body">
-                    <div class="row">
-                        <!-- Exportar tickets filtrados -->
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100 border-primary">
-                                <div class="card-header bg-primary bg-opacity-10">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-file-earmark-excel"></i> Exportar Tickets
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
-                                            <i class="bi bi-file-earmark-excel fs-1 text-primary"></i>
-                                        </div>
-                                        <div>
-                                            <h5 class="card-title mb-1">Exportar Tickets</h5>
-                                            <p class="card-text text-muted small">
-                                                Descarga los tickets filtrados actualmente en formato Excel
-                                            </p>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Resumen de filtros actuales -->
-                                    <div class="alert alert-info py-2 mb-3 small">
-                                        <i class="bi bi-info-circle"></i>
-                                        Se exportarán <strong>{{ tickets.paginator.count }}</strong> tickets con los filtros aplicados
-                                    </div>
-                                    
-                                    <a href="{% url 'extractor:export_tickets_excel' %}?{{ request.GET.urlencode }}" 
-                                       class="btn btn-primary w-100">
-                                        <i class="bi bi-file-earmark-excel"></i> 
-                                        Exportar Tickets a Excel
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Backup completo del sistema -->
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100 border-success">
-                                <div class="card-header bg-success bg-opacity-10">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-database"></i> Backup Completo
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
-                                            <i class="fas fa-database fs-1 text-primary"></i>
-                                        </div>
-                                        <div>
-                                            <h5 class="card-title mb-1">Backup Completo</h5>
-                                            <p class="card-text text-muted small">
-                                                Descarga todas las tablas del sistema en formato CSV (archivo ZIP)
-                                            </p>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Lista de tablas a respaldar -->
-                                    <div class="mb-3">
-                                        <small class="text-muted d-block mb-2">
-                                            <i class="bi bi-table"></i> Tablas incluidas:
-                                        </small>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <span class="badge bg-light text-dark p-2">
-                                                <i class="bi bi-building"></i> Clientes
-                                            </span>
-                                            <span class="badge bg-light text-dark p-2">
-                                                <i class="bi bi-diagram-3"></i> Proyectos
-                                            </span>
-                                            <span class="badge bg-light text-dark p-2">
-                                                <i class="bi bi-tag"></i> Tipos Servicio
-                                            </span>
-                                            <span class="badge bg-light text-dark p-2">
-                                                <i class="bi bi-ticket"></i> Tickets
-                                            </span>
-                                            <span class="badge bg-light text-dark p-2">
-                                                <i class="bi bi-file-text"></i> Datos Excel
-                                            </span>
-                                            <span class="badge bg-light text-dark p-2">
-                                                <i class="bi bi-file-earmark-text"></i> Solicitudes Pruebas
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <a href="{% url 'extractor:export_all_tables_backup' %}" 
-                                       class="btn btn-success w-100">
-                                        <i class="fas fa-file-archive"></i> 
-                                        Descargar Backup Completo (ZIP)
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Descargas individuales por tabla -->
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="card border-secondary">
-                                <div class="card-header bg-secondary bg-opacity-10">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-table"></i> Descargas Individuales por Tabla
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row g-2">
-                                        <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'cliente' %}" 
-                                               class="btn btn-outline-secondary w-100 mb-2">
-                                                <i class="bi bi-building"></i> Clientes
-                                            </a>
-                                        </div>
-                                        <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'proyecto' %}" 
-                                               class="btn btn-outline-secondary w-100 mb-2">
-                                                <i class="bi bi-diagram-3"></i> Proyectos
-                                            </a>
-                                        </div>
-                                        <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'tiposervicio' %}" 
-                                               class="btn btn-outline-secondary w-100 mb-2">
-                                                <i class="bi bi-tag"></i> Tipos Servicio
-                                            </a>
-                                        </div>
-                                        <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'ticket' %}" 
-                                               class="btn btn-outline-secondary w-100 mb-2">
-                                                <i class="bi bi-ticket"></i> Tickets
-                                            </a>
-                                        </div>
-                                        <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'exceldata' %}" 
-                                               class="btn btn-outline-secondary w-100 mb-2">
-                                                <i class="bi bi-file-text"></i> Datos Excel
-                                            </a>
-                                        </div>
-                                        <div class="col-md-2 col-6">
-                                            <a href="{% url 'extractor:export_table_csv' 'solicitudpruebas' %}" 
-                                               class="btn btn-outline-secondary w-100 mb-2">
-                                                <i class="bi bi-file-earmark-text"></i> Solicitudes
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Nota informativa -->
-                    <div class="alert alert-warning mt-3 mb-0 small">
-                        <div class="d-flex">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <div>
-                                <strong>Nota:</strong> Los archivos se generan con la fecha y hora actual.
-                                El backup completo incluye todas las tablas del sistema en formato CSV.
-                                Los tickets exportados respetan los filtros aplicados en la página.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      
 
 <div class="row">
     {% for ticket in tickets %}
@@ -483,7 +340,9 @@
                         <span class="badge badge-estado bg-{% if ticket.estado == 'GENERADO' %}info
                                     {% elif ticket.estado == 'EN_PROCESO' %}warning
                                     {% elif ticket.estado == 'COMPLETADO' %}success
-                                    {% else %}danger{% endif %}">
+                                    {% elif ticket.estado == 'CANCELADO' %}danger
+                                    {% elif ticket.estado == 'NO_EXITOSO' %}danger
+                                    {% else %}secondary{% endif %}">
                             {{ ticket.get_estado_display }}
                         </span>
                     </div>
@@ -582,12 +441,8 @@
                     <!-- Botones de acción -->
                     <div class="mt-3 d-flex justify-content-between align-items-center">
                         <div class="btn-group" role="group" onclick="event.stopPropagation()">
-                            <a href="{% url 'extractor:generar_excel_dictamen' ticket.id %}" class="btn btn-sm btn-outline-success" title="Descargar Dictamen">
-                                <i class="bi bi-file-excel"></i> Dictamen
-                            </a>
-                            <a href="{% url 'extractor:generar_excel_resultados' ticket.id %}" class="btn btn-sm btn-outline-warning" title="Descargar Resultados">
-                                <i class="bi bi-file-excel"></i> Resultados
-                            </a>
+                            
+                          
                         </div>
                         
                         {% if ticket.estado != 'COMPLETADO' and ticket.estado != 'CANCELADO' and ticket.estado != 'NO EXITOSO' %}
@@ -698,10 +553,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Función para copiar ticket
+    // Función para copiar ticket
         function copiarTicket(codigo) {
             navigator.clipboard.writeText(codigo);
-            // Feedback visual opcional
             alert('Código copiado: ' + codigo);
         }
 
@@ -715,48 +569,29 @@
             const fromDashboardParam = urlParams.get('from_dashboard') === 'true';
             
             // Verificar sessionStorage SOLO si se estableció explícitamente en esta sesión
-            // y no hay un parámetro en URL que diga lo contrario
             let fromDashboardStorage = false;
             if (!fromDashboardParam) {
-                // Solo usar sessionStorage si no hay parámetro en URL
                 fromDashboardStorage = sessionStorage.getItem('from_dashboard_verified') === 'true';
             }
-            
-            // NO usar referrer porque puede dar falsos positivos
-            // NO usar localStorage porque persiste entre sesiones
-            // NO usar cookies porque pueden estar sucias
             
             // Determinar el origen final
             let fromDashboard = fromDashboardParam || fromDashboardStorage;
             
-            // Log para depuración
-            console.log('=== VALIDACIÓN DE ORIGEN (VERSIÓN CORREGIDA) ===');
-            console.log('URL param from_dashboard:', fromDashboardParam);
-            console.log('sessionStorage from_dashboard_verified:', fromDashboardStorage);
-            console.log('RESULTADO FINAL - fromDashboard:', fromDashboard);
-            console.log('URL actual:', window.location.href);
-            console.log('===============================================');
+            console.log('=== VALIDACIÓN DE ORIGEN ===');
+            console.log('fromDashboard:', fromDashboard);
             
             // Configurar el botón según el origen
             if (fromDashboard) {
-                // Venimos del dashboard - configurar para volver al dashboard
                 const dashboardUrl = "{% url 'extractor:dashboard_lider' %}";
                 backButton.href = dashboardUrl;
                 backButtonText.textContent = 'Volver al Dashboard';
-                
-                // Guardar en sessionStorage para mantener consistencia
                 sessionStorage.setItem('from_dashboard_verified', 'true');
-                
                 console.log('✅ Configurado: Volver al Dashboard');
             } else {
-                // NO venimos del dashboard - configurar para volver al inicio normal
                 const uploadUrl = "{% url 'extractor:upload_excel' %}";
                 backButton.href = uploadUrl;
                 backButtonText.textContent = 'Volver';
-                
-                // Limpiar cualquier indicador previo
                 sessionStorage.removeItem('from_dashboard_verified');
-                
                 console.log('✅ Configurado: Volver a Inicio');
             }
         }
@@ -764,22 +599,7 @@
         // Ejecutar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             determinarOrigenYConfigurarBoton();
-            
-            // Configurar el collapse
-            const collapseElement = document.getElementById('collapseDownloads');
-            const iconElement = document.getElementById('collapse-icon');
-            
-            if (collapseElement && iconElement) {
-                collapseElement.addEventListener('show.bs.collapse', function() {
-                    iconElement.classList.remove('bi-chevron-down');
-                    iconElement.classList.add('bi-chevron-up');
-                });
-                
-                collapseElement.addEventListener('hide.bs.collapse', function() {
-                    iconElement.classList.remove('bi-chevron-up');
-                    iconElement.classList.add('bi-chevron-down');
-                });
-            }
+            // No hay más configuración de collapse porque esa sección fue eliminada
         });
         
         // Script de depuración para ver los tickets
