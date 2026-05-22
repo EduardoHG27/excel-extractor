@@ -8,9 +8,9 @@
         'generado': '#17a2b8',      // Azul turquesa
         'en proceso': '#ffc107',    // Amarillo
         'completado': '#28a745',    // Verde
-        'cancelado': '#dc3545',     // Rojo
-        'no exitoso': '#6c757d',    // Gris
-        'sin ticket': '#e83e8c'     // Rosado
+        'cancelado': '#000000',     // Rojo
+        'no exitoso': '#ff0000',    // Gris
+        'sin ticket': '#a19b9e'     // Rosado
     };
 
     // Orden fijo de visualización en los gráficos
