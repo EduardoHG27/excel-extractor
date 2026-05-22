@@ -20,6 +20,7 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
+
         .estado-GENERADO { border-left-color: #17a2b8; }
         .estado-EN_PROCESO { border-left-color: #ffc107; }
         .estado-COMPLETADO { border-left-color: #28a745; }
@@ -221,6 +222,7 @@
                             <option value="EN_PROCESO" {% if estado_selected == 'EN_PROCESO' %}selected{% endif %}>En Proceso</option>
                             <option value="COMPLETADO" {% if estado_selected == 'COMPLETADO' %}selected{% endif %}>Completado</option>
                             <option value="CANCELADO" {% if estado_selected == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                            <option value="NO_EXITOSO" {% if estado_selected == 'NO_EXITOSO' %}selected{% endif %}>No Exitoso</option>  <!-- ← NUEVA LÍNEA -->
                         </select>
                     </div>
                     
@@ -338,11 +340,11 @@
                             {% endif %}
                         </div>
                         <span class="badge badge-estado bg-{% if ticket.estado == 'GENERADO' %}info
-                                    {% elif ticket.estado == 'EN_PROCESO' %}warning
-                                    {% elif ticket.estado == 'COMPLETADO' %}success
-                                    {% elif ticket.estado == 'CANCELADO' %}danger
-                                    {% elif ticket.estado == 'NO_EXITOSO' %}danger
-                                    {% else %}secondary{% endif %}">
+                            {% elif ticket.estado == 'EN_PROCESO' %}warning
+                            {% elif ticket.estado == 'COMPLETADO' %}success
+                            {% elif ticket.estado == 'CANCELADO' %}danger
+                            {% elif ticket.estado == 'NO_EXITOSO' or ticket.estado == 'NO EXITOSO' %}danger
+                            {% else %}secondary{% endif %}">
                             {{ ticket.get_estado_display }}
                         </span>
                     </div>
@@ -608,6 +610,18 @@
             console.log(`${idx + 1}. ${el.textContent.trim()}`);
         });
         console.log("Total tickets mostrados: " + document.querySelectorAll('.codigo-ticket').length);
+        
+          document.addEventListener('DOMContentLoaded', function() {
+        // Buscar todas las tarjetas de ticket
+        document.querySelectorAll('.ticket-card').forEach(function(card) {
+            // Verificar si el ticket tiene estado "NO EXITOSO" (buscando en el badge)
+            const badge = card.querySelector('.badge-estado');
+            if (badge && badge.textContent.trim() === 'No Exitoso') {
+                // Aplicar borde rojo directamente
+                card.style.borderLeftColor = '#ff0000';
+            }
+        });
+    });
     </script>
 </body>
 </html>

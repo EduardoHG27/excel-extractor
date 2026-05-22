@@ -469,6 +469,8 @@ def dashboard_lider(request):
         'periodo_fecha_fin': fechas_periodo['fecha_fin'].strftime('%d/%m/%Y'),
         'total_tickets_periodo': len(tickets_periodo),
         
+        'tickets_filtrados_count': total_tickets,  # total_tickets ya es el conteo con filtros aplicados
+    
         # Tablas
         'ultimos_tickets': ultimos_tickets,
         'tickets_por_servicio': tickets_por_servicio,

@@ -16,6 +16,45 @@ from extractor.models import Ticket, Cliente, Proyecto, TipoServicio
 @login_required
 def ticket_list(request):
     """Listado de tickets con filtros y paginación"""
+    # ===== ESTADÍSTICAS DEL MES ACTUAL (NUEVO) =====
+    now = timezone.now()
+    
+    # Primer día del mes actual (00:00:00)
+    primer_dia_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Último día del mes actual (23:59:59)
+    if now.month == 12:
+        ultimo_dia_mes = now.replace(year=now.year + 1, month=1, day=1) - timezone.timedelta(days=1)
+    else:
+        ultimo_dia_mes = now.replace(month=now.month + 1, day=1) - timezone.timedelta(days=1)
+    
+    ultimo_dia_mes = ultimo_dia_mes.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
+    # Filtrar tickets creados en el mes actual
+    tickets_mes = Ticket.objects.filter(
+        fecha_creacion__gte=primer_dia_mes,
+        fecha_creacion__lte=ultimo_dia_mes
+    )
+    
+    # Calcular estadísticas solo del mes actual
+    total_tickets_mes = tickets_mes.count()
+    tickets_generados_mes = tickets_mes.filter(estado='GENERADO').count()
+    tickets_abiertos_mes = tickets_mes.filter(estado='ABIERTO').count()
+    tickets_proceso_mes = tickets_mes.filter(estado='EN_PROCESO').count()
+    tickets_completados_mes = tickets_mes.filter(estado='COMPLETADO').count()
+    
+    # Combinar GENERADO + ABIERTO para mostrar como "Generados"
+    tickets_generados_total_mes = tickets_generados_mes + tickets_abiertos_mes
+    
+    # Nombre del mes actual en español
+    meses_espanol = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+    mes_actual_nombre = meses_espanol.get(now.month, 'Mes Actual')
+    
+    # ===== FIN ESTADÍSTICAS MES ACTUAL =====
 
     from_dashboard = request.GET.get('from_dashboard') == 'true'
     
@@ -107,12 +146,23 @@ def ticket_list(request):
     context = {
         'tickets': page_obj,
         'page_obj': page_obj,
+        
+        # ===== NUEVAS VARIABLES PARA ESTADÍSTICAS DEL MES ACTUAL =====
+        'total_tickets_mes': total_tickets_mes,
+        'tickets_generados_mes': tickets_generados_total_mes,
+        'tickets_proceso_mes': tickets_proceso_mes,
+        'tickets_completados_mes': tickets_completados_mes,
+        'mes_actual_nombre': mes_actual_nombre,
+        # ===== FIN NUEVAS VARIABLES =====
+        
+        # Variables originales (se mantienen por compatibilidad)
         'total_tickets': Ticket.objects.count(),
-        'tickets_filtrados': tickets_filtrados_count,  # 🆕 Total con filtros aplicados
+        'tickets_filtrados': tickets_filtrados_count,
         'tickets_generados': tickets_generados + tickets_abiertos,
         'tickets_proceso': tickets_proceso,
         'tickets_completados': tickets_completados,
         'tickets_cancelados': tickets_cancelados,
+        
         'clientes': Cliente.objects.filter(activo=True),
         'tipos_servicio': TipoServicio.objects.filter(activo=True),
         'proyectos': Proyecto.objects.filter(activo=True).select_related('cliente'),
@@ -153,23 +203,6 @@ def ticket_detail(request, id):
     }
     return render(request, 'catalogos/ticket_detail.html', context)
 
-
-@login_required
-def ticket_delete(request, id):
-    """Eliminar un ticket"""
-    ticket = get_object_or_404(Ticket, id=id)
-    
-    if request.method == 'POST':
-        try:
-            codigo = ticket.codigo
-            ticket.delete()
-            messages.success(request, f'✅ Ticket "{codigo}" eliminado exitosamente')
-            return redirect('extractor:ticket_list')
-        except Exception as e:
-            messages.error(request, f'Error al eliminar ticket: {str(e)}')
-            return redirect('extractor:ticket_list')
-    
-    return render(request, 'catalogos/ticket_confirm_delete.html', {'ticket': ticket})
 
 @login_required
 def ticket_delete(request, id):
