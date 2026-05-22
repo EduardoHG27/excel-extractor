@@ -465,6 +465,8 @@
     </form>
 </div>
 
+
+
 <!-- Información del período seleccionado -->
 <div class="periodo-info">
     <div>
@@ -506,6 +508,20 @@
     </div>
 </div>
 
+
+<div class="card mt-4 mb-4 shadow-sm border-primary">
+    <div class="card-header bg-primary text-white" 
+         style="cursor: pointer; border-radius: 10px 10px 0 0;" 
+         data-bs-toggle="collapse" 
+         data-bs-target="#collapseDownloads" 
+         aria-expanded="true" 
+         aria-controls="collapseDownloads">
+      
+    </div>
+    
+   
+</div>
+
 <!-- NUEVA SECCIÓN: Comparación de Mes Actual vs Mes Anterior -->
 <div class="charts-grid">
     <div class="dashboard-card">
@@ -534,16 +550,43 @@
 
 <!-- SECCIÓN DE DATOS NUMÉRICOS Y RESUMEN DE USUARIOS -->
 <div class="data-section">
-    <h2 style="margin-bottom: 1.5rem;">📋 Datos Detallados</h2>
+    <h2 style="margin-bottom: 1.5rem;">📋 Datos detallados</h2>
     
     <div class="data-tables-grid">
         <!-- Tabla de datos de gráficos de pastel -->
         <div class="data-card">
             <div class="data-card-header" onclick="toggleCard(this)">
-                <h3>🥧 Datos de Gráficas de Pastel</h3>
+                <h3>🥧 Datos de gráficas de pastel</h3>
                 <span class="toggle-icon">▼</span>
             </div>
             <div class="data-card-body ">
+                               
+                <h4 style="margin-top: 1.5rem;">📈 Distribución del mes en curso</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th>Cantidad</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estado in datos_graficas_periodo %}
+                        <tr>
+                            <td>
+                                <span class="badge-estado badge-{{ estado.codigo }}">
+                                    {{ estado.nombre }}
+                                </span>
+                            </td>
+                            <td class="number-cell">{{ estado.cantidad }}</td>
+                            <td class="percentage-cell">{{ estado.porcentaje|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3">No hay datos disponibles</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
                 <h4 style="margin-top: 0;">📊 Distribución General de Tickets</h4>
                 <table class="data-table">
                     <thead>
@@ -569,39 +612,13 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                
-                <h4 style="margin-top: 1.5rem;">📈 Distribución por Período Seleccionado</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Estado</th>
-                            <th>Cantidad</th>
-                            <th>Porcentaje</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for estado in datos_graficas_periodo %}
-                        <tr>
-                            <td>
-                                <span class="badge-estado badge-{{ estado.codigo }}">
-                                    {{ estado.nombre }}
-                                </span>
-                            </td>
-                            <td class="number-cell">{{ estado.cantidad }}</td>
-                            <td class="percentage-cell">{{ estado.porcentaje|floatformat:1 }}%</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="3">No hay datos disponibles</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
         
         <!-- Resumen de Usuarios y Tickets por Mes -->
         <div class="data-card">
             <div class="data-card-header" onclick="toggleCard(this)">
-                <h3>👥 Usuarios y Tickets por Mes</h3>
+                <h3>👥 Usuarios y tickets por mes</h3>
                 <span class="toggle-icon">▼</span>
             </div>
             <div class="data-card-body collapsed">
@@ -643,7 +660,7 @@
     <!-- Tabla adicional: Top usuarios por mes -->
     <div class="data-card" style="margin-top: 1.5rem;">
         <div class="data-card-header" onclick="toggleCard(this)">
-            <h3>🏆 Top Usuarios por Mes</h3>
+            <h3>🏆 Top usuarios por mes</h3>
             <span class="toggle-icon">▼</span>
         </div>
         <div class="data-card-body collapsed">
@@ -680,7 +697,7 @@
 
 <div class="data-card" style="margin-top: 1.5rem;">
     <div class="data-card-header" onclick="toggleCard(this)">
-        <h3>📊 Resumen de Tickets por Usuario (Abiertos/En Proceso/Completados)</h3>
+        <h3>📊 Resumen de tickets por usuario (Abiertos/En proceso/Completados)</h3>
         <span class="toggle-icon">▼</span>
     </div>
     <div class="data-card-body collapsed">
@@ -755,7 +772,7 @@
 <!-- Tablas informativas -->
 <div class="charts-grid">
     <div class="dashboard-card">
-        <h3>🕐 Últimos 10 Tickets</h3>
+        <h3>🕐 Últimos 10 tickets</h3>
         <div style="overflow-x: auto;">
             <table class="table-tickets">
                 <thead>
@@ -787,7 +804,7 @@
     </div>
     
     <div class="dashboard-card">
-        <h3>🔧 Tickets por Tipo de Servicio</h3>
+        <h3>🔧 Tickets por tipo de servicio</h3>
         {% if tickets_por_servicio %}
         <ul class="servicio-list">
             {% for item in tickets_por_servicio %}
