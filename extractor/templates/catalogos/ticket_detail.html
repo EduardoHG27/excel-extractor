@@ -627,7 +627,7 @@ Saludos.
                     {% if ticket.fecha_cierre %}
                     <tr>
                         <td>Fecha cierre:</td>
-                        <td>{{ ticket.fecha_cierre|date:"d/m/Y H:i" }}</td>
+                        <td>{{ ticket.fecha_cierre|timezone:"America/Mexico_City"|date:"d/m/Y H:i" }}</td>
                     </tr>
                     {% endif %}
                 </table>
