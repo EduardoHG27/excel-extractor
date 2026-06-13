@@ -27,6 +27,9 @@ if not SECRET_KEY:
     else:
         raise ValueError("❌ SECRET_KEY no configurada en variables de entorno")
 
+# Detectar si estamos en Railway
+IS_RAILWAY = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+
 # ============ HOSTS Y CSRF CONFIG ============
 ALLOWED_HOSTS = [
     'localhost',
@@ -72,11 +75,12 @@ SECURE_HSTS_PRELOAD = True
 SECURE_REFERRER_POLICY = 'same-origin'
 
 # ============ FORZAR HTTPS ============
-if not DEBUG:
+if not DEBUG or IS_RAILWAY:
     SECURE_SSL_REDIRECT = True
 
 # ============ COOKIES SEGURAS ============
-if not DEBUG:
+# En producción o Railway, forzar cookies seguras
+if not DEBUG or IS_RAILWAY:
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_HTTPONLY = True
@@ -106,12 +110,14 @@ INSTALLED_APPS = [
     'ia_agent',
     'cloudinary',
     'cloudinary_storage',
-    'django_permissions_policy',  # ✅ Para Permissions-Policy
+    'django_permissions_policy',
+    'csp',  # ✅ Para Content Security Policy
 ]
 
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',  # ✅ Content Security Policy
     'django_permissions_policy.PermissionsPolicyMiddleware',  # ✅ Permissions-Policy
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -120,7 +126,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'excel_extractor.middleware.HideServerHeaderMiddleware',  
+    'excel_extractor.middleware.HideServerHeaderMiddleware',  # ✅ Ocultar Server header
 ]
 
 ROOT_URLCONF = 'excel_extractor.urls'
@@ -289,16 +295,20 @@ STATICFILES_FINDERS = [
 ]
 
 # ============ CONTENT SECURITY POLICY (CSP) ============
-CSP_DEFAULT_SRC = ("'none'",)
-CSP_SCRIPT_SRC = ("'self'",)
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
-CSP_IMG_SRC = ("'self'", "data:", "https://res.cloudinary.com")
-CSP_FONT_SRC = ("'self'",)
-CSP_CONNECT_SRC = ("'self'",)
-CSP_BASE_URI = ("'none'",)
-CSP_FORM_ACTION = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)
-CSP_OBJECT_SRC = ("'none'",)
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': ("'none'",),
+        'script-src': ("'self'",),
+        'style-src': ("'self'", "'unsafe-inline'"),
+        'img-src': ("'self'", "data:", "https://res.cloudinary.com"),
+        'font-src': ("'self'",),
+        'connect-src': ("'self'",),
+        'base-uri': ("'none'",),
+        'form-action': ("'self'",),
+        'frame-ancestors': ("'none'",),
+        'object-src': ("'none'",),
+    }
+}
 
 # ============ PERMISSIONS POLICY ============
 PERMISSIONS_POLICY = {
