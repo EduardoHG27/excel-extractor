@@ -18,10 +18,8 @@ load_dotenv()
 AUTH_USER_MODEL = 'extractor.Usuario'
 
 # ============ VARIABLES DE ENTORNO ============
-# Definir DEBUG primero
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-# SECRET_KEY
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     if DEBUG:
@@ -60,18 +58,35 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
+# ============ HEADERS DE SEGURIDAD ============
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# ============ HSTS (Strict-Transport-Security) ============
+SECURE_HSTS_SECONDS = 31536000  # 1 año
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# ============ REFERRER POLICY ============
+SECURE_REFERRER_POLICY = 'same-origin'
+
+# ============ FORZAR HTTPS ============
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+
 # ============ COOKIES SEGURAS ============
 if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
-
-# ============ HEADERS DE SEGURIDAD BÁSICOS ============
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+else:
+    # En desarrollo también es buena práctica
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
 # ============ CONFIGURACIÓN DE AUTENTICACIÓN ============
 LOGIN_URL = 'extractor:login'
@@ -91,10 +106,13 @@ INSTALLED_APPS = [
     'ia_agent',
     'cloudinary',
     'cloudinary_storage',
+    'django_permissions_policy',  # ✅ Para Permissions-Policy
 ]
 
+# ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django_permissions_policy.PermissionsPolicyMiddleware',  # ✅ Permissions-Policy
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -102,6 +120,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'excel_extractor.middleware.HideServerHeaderMiddleware',  
 ]
 
 ROOT_URLCONF = 'excel_extractor.urls'
@@ -158,17 +177,16 @@ TIME_ZONE = 'America/Mexico_City'
 USE_I18N = True
 USE_TZ = True
 
-# ============ ARCHIVOS ESTÁTICOS - MODIFICADO ============
+# ============ ARCHIVOS ESTÁTICOS ============
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# 🔴 IMPORTANTE: Agregar todas las carpetas donde están tus archivos estáticos
 if DEBUG:
     STATICFILES_DIRS = [
-        os.path.join(BASE_DIR, 'static'),              # Carpeta static raíz
-        os.path.join(BASE_DIR, 'extractor', 'static'), # JS de extractor
-        os.path.join(BASE_DIR, 'ia_agent', 'static'),  # JS de ia_agent
+        os.path.join(BASE_DIR, 'static'),
+        os.path.join(BASE_DIR, 'extractor', 'static'),
+        os.path.join(BASE_DIR, 'ia_agent', 'static'),
     ]
 
 # ============ MEDIA FILES ============
@@ -177,6 +195,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ============ JIRA CONFIG ============
 JIRA_CONFIG = {
     'URL': 'https://buroidentidaddigital.atlassian.net',
     'PROJECT_KEY': 'QA01',
@@ -195,6 +214,7 @@ SOLICITUD_COOLDOWN_SEGUNDOS = SOLICITUD_COOLDOWN_MINUTOS * 60
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 
+# ============ CLOUDINARY ============
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
@@ -219,6 +239,7 @@ MAX_UPLOAD_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 DATA_UPLOAD_MAX_NUMBER_FILES = 10
 
+# ============ LOGGING ============
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -249,14 +270,14 @@ LOGGING = {
     },
 }
 
-
-COMPRESS_ENABLED = not DEBUG  # Solo en producción
-COMPRESS_OFFLINE = not DEBUG   # Compilar offline en producción
+# ============ COMPRESS ============
+COMPRESS_ENABLED = not DEBUG
+COMPRESS_OFFLINE = not DEBUG
 COMPRESS_JS_FILTERS = [
-    'compressor.filters.jsmin.JSMinFilter',  # Minifica JS
+    'compressor.filters.jsmin.JSMinFilter',
 ]
 COMPRESS_CSS_FILTERS = [
-    'compressor.filters.cssmin.CSSMinFilter',  # Minifica CSS
+    'compressor.filters.cssmin.CSSMinFilter',
 ]
 COMPRESS_ROOT = STATIC_ROOT
 COMPRESS_OUTPUT_DIR = 'CACHE'
@@ -264,8 +285,38 @@ COMPRESS_OUTPUT_DIR = 'CACHE'
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'compressor.finders.CompressorFinder',  # 🔴 Agregar esto
+    'compressor.finders.CompressorFinder',
 ]
+
+# ============ CONTENT SECURITY POLICY (CSP) ============
+CSP_DEFAULT_SRC = ("'none'",)
+CSP_SCRIPT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:", "https://res.cloudinary.com")
+CSP_FONT_SRC = ("'self'",)
+CSP_CONNECT_SRC = ("'self'",)
+CSP_BASE_URI = ("'none'",)
+CSP_FORM_ACTION = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
+CSP_OBJECT_SRC = ("'none'",)
+
+# ============ PERMISSIONS POLICY ============
+PERMISSIONS_POLICY = {
+    "accelerometer": [],
+    "ambient-light-sensor": [],
+    "autoplay": [],
+    "camera": [],
+    "display-capture": [],
+    "encrypted-media": [],
+    "fullscreen": [],
+    "geolocation": [],
+    "gyroscope": [],
+    "magnetometer": [],
+    "microphone": [],
+    "midi": [],
+    "payment": [],
+    "usb": [],
+}
 
 # Crear directorio de logs
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
