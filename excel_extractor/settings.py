@@ -111,14 +111,14 @@ INSTALLED_APPS = [
     'cloudinary',
     'cloudinary_storage',
     'django_permissions_policy',
-    'csp',  # ✅ Para Content Security Policy
+    'csp',  
 ]
 
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'csp.middleware.CSPMiddleware',  # ✅ Content Security Policy
-    'django_permissions_policy.PermissionsPolicyMiddleware',  # ✅ Permissions-Policy
+    'csp.middleware.CSPMiddleware',  
+    'django_permissions_policy.PermissionsPolicyMiddleware',  
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -297,16 +297,71 @@ STATICFILES_FINDERS = [
 # ============ CONTENT SECURITY POLICY (CSP) ============
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
-        'default-src': ("'none'",),
-        'script-src': ("'self'",),
-        'style-src': ("'self'", "'unsafe-inline'"),
-        'img-src': ("'self'", "data:", "https://res.cloudinary.com"),
-        'font-src': ("'self'",),
-        'connect-src': ("'self'",),
-        'base-uri': ("'none'",),
+        'default-src': ("'self'",),
+        # Scripts: Permite CDNs y unsafe-inline para desarrollo
+        'script-src': (
+            "'self'",
+            "'unsafe-inline'",  # Permite scripts inline (necesario para Bootstrap y tu código)
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+            'https://code.jquery.com',  # Si usas jQuery
+            'https://unpkg.com',  # Para algunos paquetes
+            'https://stackpath.bootstrapcdn.com',
+        ),
+        # Estilos: Permite CDNs, unsafe-inline y Google Fonts
+        'style-src': (
+            "'self'",
+            "'unsafe-inline'",  # Bootstrap usa estilos inline
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.googleapis.com',
+            'https://fonts.gstatic.com',
+        ),
+        # Imágenes: Permite Cloudinary y data URIs
+        'img-src': (
+            "'self'",
+            'data:',  # Para imágenes en base64
+            'https://res.cloudinary.com',
+            'https://*.cloudinary.com',
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+            'https:',
+        ),
+        # Fuentes: Permite CDNs
+        'font-src': (
+            "'self'",
+            'data:',  # Para fuentes en base64
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.gstatic.com',
+            'https://fonts.googleapis.com',
+        ),
+        # Conexiones: Para APIs y Cloudinary
+        'connect-src': (
+            "'self'",
+            'https://res.cloudinary.com',
+            'https://api.cloudinary.com',
+            'https://buroidentidaddigital.atlassian.net',  # Jira API
+        ),
+        'base-uri': ("'self'",),
         'form-action': ("'self'",),
         'frame-ancestors': ("'none'",),
         'object-src': ("'none'",),
+        'style-src-elem': (
+            "'self'",
+            "'unsafe-inline'",
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.googleapis.com',
+        ),
+        'script-src-elem': (
+            "'self'",
+            "'unsafe-inline'",
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+        ),
+        'worker-src': ("'self'", 'blob:'),
+        'manifest-src': ("'self'",),
     }
 }
 
