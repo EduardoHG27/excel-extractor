@@ -109,7 +109,7 @@ def verificar_asignado_ticket(request, ticket_id):
             'error': str(e)
         }, status=500)
 
-
+@csrf_exempt 
 @login_required
 def ticket_cambiar_asignado(request, id):
     """API para cambiar el usuario asignado a un ticket"""
@@ -160,7 +160,7 @@ def ticket_cambiar_asignado(request, id):
     
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
-
+@csrf_exempt
 @login_required
 def ticket_agregar_comentario(request, id):
     """API para agregar comentario de seguimiento"""
@@ -197,7 +197,7 @@ def ticket_agregar_comentario(request, id):
     
     return JsonResponse({'success': False, 'error': 'Método no permitido'})
 
-
+@csrf_exempt
 @login_required
 def ticket_cambiar_nombre(request, ticket_id):
     """API para cambiar el nombre de un ticket"""
